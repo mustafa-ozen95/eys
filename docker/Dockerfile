@@ -87,6 +87,9 @@ RUN curl -fsSL "https://archive.apache.org/dist/guacamole/${GUACAMOLE_VERSION}/s
 FROM debian:bookworm-slim AS php-taban
 
 ARG PHP_VERSION
+# Güvenlik sürümü çıkınca artır: değeri değişen katman önbellekten gelmez, Debian ve PHP
+# paketleri yeniden çekilir; depodaki PHP bundan eskiyse derleme durur.
+ARG PHP_EN_AZ=8.5.12
 ENV DEBIAN_FRONTEND=noninteractive
 
 # PHP 8.5 Debian'da yok; Sury deposu eklenir.
@@ -96,6 +99,7 @@ RUN apt-get update \
  && echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ bookworm main" \
       > /etc/apt/sources.list.d/sury-php.list \
  && apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends \
       php${PHP_VERSION}-cli \
       php${PHP_VERSION}-fpm \
@@ -109,7 +113,9 @@ RUN apt-get update \
       php${PHP_VERSION}-redis \
       php${PHP_VERSION}-xml \
       php${PHP_VERSION}-zip \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && php${PHP_VERSION} -r 'exit(version_compare(PHP_VERSION, getenv("PHP_EN_AZ"), ">=") ? 0 : 1);' \
+    || { echo "PHP en az $PHP_EN_AZ olmalı" >&2; exit 1; }
 # NOT: php8.5-opcache diye ayrı bir paket YOK; 8.5'te opcache php-common
 # içinde geliyor. 8.3 ve öncesinde ayrıydı, alışkanlıkla eklenirse derleme
 # "Unable to locate package" ile düşer.

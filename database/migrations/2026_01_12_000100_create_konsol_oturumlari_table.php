@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * "kapandı" satırı olmayan bir iz kalıyordu.
  *
  * Burada duran satır, kapanışı kimsenin haber vermediği durumda da
- * zamanlayıcının fark etmesini sağlar (bkz. KonsolTemizleCommand).
+ * zamanlayıcının fark etmesini sağlar (bkz. ConsoleCleanCommand).
  */
 return new class extends Migration
 {

@@ -28,7 +28,7 @@ use Tests\TestCase;
 /**
  * Döndürme turunun sırası.
  *
- * Canlı bir makineye BAĞLANILMAZ (bkz. .ai/rules/calisma.md). Buradaki soru
+ * Canlı bir makineye BAĞLANILMAZ (bkz. .ai/rules/work.md). Buradaki soru
  * "SSH çalışıyor mu" değil: bir şey ters gittiğinde makineye girecek bir
  * yolumuz kalıyor mu, ve açıkta fazladan bir yetki bırakıyor muyuz.
  */
@@ -364,7 +364,7 @@ class PasswordRotationTest extends TestCase
             ->assertForbidden();
     }
 
-    /** Gerekçe YALNIZCA "kritik" işaretli kayıtta zorunlu (bkz. GerekceKurali). */
+    /** Gerekçe YALNIZCA "kritik" işaretli kayıtta zorunlu (bkz. ReasonRule). */
     #[Test]
     public function dondurme_kritik_kayitta_gerekce_ister(): void
     {

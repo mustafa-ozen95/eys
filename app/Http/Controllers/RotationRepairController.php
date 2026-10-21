@@ -9,7 +9,7 @@ use App\Jobs\RepairRotationJob;
 use App\Models\Credential;
 use App\Models\PasswordRotation;
 use App\Services\Rotation\RotationLauncher;
-use App\Support\IstekSiniri;
+use App\Support\RequestLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -29,7 +29,7 @@ class RotationRepairController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:rotate,credential'),
-            ...IstekSiniri::icin('rotate_repair'),
+            ...RequestLimit::icin('rotate_repair'),
         ];
     }
 

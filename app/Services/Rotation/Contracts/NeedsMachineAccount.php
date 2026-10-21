@@ -19,7 +19,7 @@ use App\Enums\AccessType;
  * kaydı, Windows'ta RDP/uzak yönetim kaydı. Ekran listeyi buradan doldurur;
  * ikinci bir liste tutulsaydı yeni bir sürücü eklendiğinde sessizce eskirdi.
  *
- * Kimlik şu sırayla aranır (bkz. App\Services\Rotation\MakineHesabi):
+ * Kimlik şu sırayla aranır (bkz. App\Services\Rotation\MachineAccount):
  *
  *   1. Kayda BAĞLANMIŞ kimlik (`rotation_credential_id`) — ekrandaki liste
  *      bunu seçtirir. Kopya değil bağ olduğu için hep güncel.

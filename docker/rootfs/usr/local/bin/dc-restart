@@ -1,0 +1,24 @@
+#!/bin/bash
+# =============================================================================
+#  Panelin istediği yeniden başlatma
+# =============================================================================
+#  Veritabanı taşıması başlatıcıda yapılır: panel o sırada çalışmıyor olmalı
+#  ki kopyalanırken veri değişmesin. Panel (uygulama kullanıcısı) süreç
+#  yöneticisine erişemez; storage/app/database/restart dosyasını
+#  bırakır. Bu döngü root olarak koşar, dosyayı görünce siler ve süreç
+#  yöneticisini kapatır. Konteyner çıkar, yeniden başlatma politikası
+#  (unless-stopped) onu geri getirir ve başlatıcı baştan koşar.
+#
+#  Yalnızca bu tek işi yapar: dosyanın içeriği okunmaz.
+# =============================================================================
+set -u
+
+ISTEK="${UYGULAMA:-/uygulama}/storage/app/database/restart"
+
+while sleep 2; do
+    if [[ -e "${ISTEK}" || -L "${ISTEK}" ]]; then
+        rm -f "${ISTEK}"
+        echo "[dc-restart] Panel yeniden başlatma istedi; süreç yöneticisi kapatılıyor."
+        exec supervisorctl -c /etc/supervisor/supervisord.conf shutdown
+    fi
+done

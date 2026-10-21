@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Credential\ParolaDisaAktarimRequest;
-use App\Services\Disa\ParolaCiktisi;
-use App\Support\IstekSiniri;
+use App\Http\Requests\Credential\PasswordExportRequest;
+use App\Services\Export\PasswordOutput;
+use App\Support\RequestLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -15,7 +15,7 @@ use Illuminate\Routing\Controllers\Middleware;
 /**
  * Seçilen kayıtların parolalarını Excel dosyası olarak verir.
  *
- * Kuralların tamamı ve gerekçesi ParolaCiktisi'nde. Burada duran tek karar
+ * Kuralların tamamı ve gerekçesi PasswordOutput'nde. Burada duran tek karar
  * şudur: dosya TARAYICIYA İNER, sunucuda bir yere yazılmaz. Geçici bir
  * dizinde bırakılan çıktı, kimsenin bakmadığı bir yerde duran açık parola
  * listesi olurdu.
@@ -30,11 +30,11 @@ class CredentialExportController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:exportAny,App\Models\Credential'),
-            ...IstekSiniri::icin('export'),
+            ...RequestLimit::icin('export'),
         ];
     }
 
-    public function __invoke(ParolaDisaAktarimRequest $request, ParolaCiktisi $ciktisi): Response|RedirectResponse
+    public function __invoke(PasswordExportRequest $request, PasswordOutput $ciktisi): Response|RedirectResponse
     {
         $sonuc = $ciktisi->uret(
             $request->credentials(),

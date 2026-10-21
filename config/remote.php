@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-use App\Services\CihazArayuzu\ArayuzOturumu;
+use App\Services\DeviceInterface\InterfaceSession;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,11 +37,11 @@ return [
     |
     | Önek nginx yapılandırmasıyla BİREBİR aynı olmak zorundadır — ayrışırsa
     | adres 404 döner ve sebebi görünmez. Arayüzlerin kökten istediği sabit
-    | yollar ArayuzTuru::kokYollari() içinde yazılı; nginx'teki konumlar da
+    | yollar InterfaceType::kokYollari() içinde yazılı; nginx'teki konumlar da
     | onlarla eşleşir.
     */
     'arayuz' => [
-        'prefix' => ArayuzOturumu::ONEK,
+        'prefix' => InterfaceSession::ONEK,
 
         /*
         | Vekilin ALAN ADI.
@@ -77,7 +77,7 @@ return [
          *
          * Havuz boşsa arayüz ortak portta açılır — yer kalmadı diye hiç
          * açmamak, çakışma riskinden kötüdür. Aralık ters vekilde de açık
-         * olmalı (docker/arayuz-vekili.Caddyfile ve docker-compose.yml; sunucuda
+         * olmalı (docker/interface-proxy.Caddyfile ve docker-compose.yml; sunucuda
          * başka bir vekil karşılıyorsa onun kuralı).
          */
         'port_ilk' => (int) env('ARAYUZ_PORT_ILK', 9450),
@@ -157,7 +157,7 @@ return [
              * YANİ PANELDEN ÇÖZÜLEMEZ. guacd'ye özel bir OpenSSL ayarı işe
              * yaramaz: FreeRDP seviyeyi kendisi yeniden kurar, config'i ezer.
              * Çözüm cihazda — sertifikayı SHA-256 ile yenilemek (certreq;
-             * bkz. DESTEK.md → "RDP açılmıyorsa").
+             * bkz. SUPPORT.md → "RDP açılmıyorsa").
              */
             'ignore_cert' => 'true',
             'resize_method' => 'display-update',

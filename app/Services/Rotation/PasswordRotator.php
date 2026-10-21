@@ -589,10 +589,10 @@ class PasswordRotator
          * yöneticisi, rspamd) kimliği kasadan da bulabilir: kaydın kendi
          * alanı boşsa aynı adresli SSH kaydına düşülür. Aynı parolayı kasada
          * iki yerde tutmak, biri döndüğünde ötekini sessizce eskitiyordu
-         * (bkz. MakineHesabi).
+         * (bkz. MachineAccount).
          */
         if ($driver instanceof NeedsMachineAccount) {
-            $ssh = app(MakineHesabi::class)->bul($credential);
+            $ssh = app(MachineAccount::class)->bul($credential);
 
             if ($ssh !== null) {
                 return $ssh;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Group;
 
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DestroyGroupRequest extends FormRequest
@@ -19,8 +19,8 @@ class DestroyGroupRequest extends FormRequest
     {
         return [
             /* TOPLU İŞLEM: gerekçe kayıttan bağımsız, HER ZAMAN istenir
-               (bkz. GerekceKurali::toplu). */
-            'reason' => GerekceKurali::toplu(),
+               (bkz. ReasonRule::toplu). */
+            'reason' => ReasonRule::toplu(),
         ];
     }
 

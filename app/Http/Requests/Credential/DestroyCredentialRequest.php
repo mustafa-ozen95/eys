@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Credential;
 
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -14,7 +14,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * kuran gerekçesiz silebilirdi. Denetimde sorulan soru "kim sildi" kadar
  * "neden sildi"dir de.
  *
- * ARTIK YALNIZCA KRİTİK KAYITLARDA zorunlu (bkz. GerekceKurali): her kayıtta
+ * ARTIK YALNIZCA KRİTİK KAYITLARDA zorunlu (bkz. ReasonRule): her kayıtta
  * sorulan gerekçe "test" yazılarak geçiliyordu. "Kim sildi" her zaman kayda
  * geçer; değişen yalnızca "neden" sorusunun sorulup sorulmadığı.
  */
@@ -29,7 +29,7 @@ class DestroyCredentialRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reason' => GerekceKurali::kayit($this->route('credential')),
+            'reason' => ReasonRule::kayit($this->route('credential')),
         ];
     }
 

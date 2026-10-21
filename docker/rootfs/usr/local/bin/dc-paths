@@ -1,0 +1,32 @@
+#!/bin/sh
+# =============================================================================
+#  Çalışma yolu adlarını İngilizce karşılığına taşır (geriye uyum)
+# =============================================================================
+#  Kullanım: dc-paths <kök dizin> eski=yeni [eski=yeni ...]
+#
+#  Eski adlı dosya ya da dizin varsa ve yeni ad YOKSA eski, yeni adına taşınır
+#  (mv: sahiplik ve izinler korunur). İkisi de varsa kimseye dokunulmaz,
+#  uyarı yazılır: hangisinin geçerli olduğuna betik karar vermez.
+#  Çiftler soldan sağa işlenir; dizin çiftini onun içindeki dosya çiftleri
+#  izleyebilir (yeni dizin adıyla).
+# =============================================================================
+set -u
+
+kok=${1:?kök dizin gerekli}
+shift
+
+for cift in "$@"; do
+    eski=${cift%%=*}
+    yeni=${cift#*=}
+    [ -e "${kok}/${eski}" ] || [ -L "${kok}/${eski}" ] || continue
+    if [ -e "${kok}/${yeni}" ] || [ -L "${kok}/${yeni}" ]; then
+        echo "[dc-paths] UYARI: ${eski} ve ${yeni} birlikte var; dokunulmadı." >&2
+        continue
+    fi
+    if mv "${kok}/${eski}" "${kok}/${yeni}"; then
+        echo "[dc-paths] ${eski} -> ${yeni}"
+    else
+        echo "[dc-paths] UYARI: ${eski} taşınamadı." >&2
+    fi
+done
+exit 0

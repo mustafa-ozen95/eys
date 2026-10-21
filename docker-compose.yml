@@ -125,7 +125,7 @@ services:
       MARIADB_RANDOM_ROOT_PASSWORD: "1"
       MARIADB_AUTO_UPGRADE: "1"
     volumes:
-      - veritabani:/var/lib/mysql
+      - database:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -151,13 +151,13 @@ services:
   #  Vekillenen cihaz arayüzleri (ESXi, VAMI...) panelle AYNI adın AYRI
   #  portlarında açılır; platform vekilleri yalnız 80/443 dinlediği için bu
   #  portları burası karşılar. Açmak: ARAYUZ_VEKILI_KOPYA=1, ARAYUZ_ALANI
-  #  (ad:9443) ve `arayuz-sertifika` hacmine panelin sertifikası
+  #  (ad:9443) ve `interface-certificate` hacmine panelin sertifikası
   #  (tls.crt, tls.key). Sunucuda bu portları başka bir vekil (ör. Caddy)
   #  karşılıyorsa kapalı kalır.
   arayuz-vekili:
     build:
       context: .
-      dockerfile: docker/arayuz-vekili.Dockerfile
+      dockerfile: docker/interface-proxy.Dockerfile
     image: ${ONEK:-eys}-arayuz-vekili:yerel
     container_name: ${ONEK:-eys}-arayuz-vekili
     restart: unless-stopped
@@ -167,7 +167,7 @@ services:
       - "9443:9443"
       - "9450-9479:9450-9479"
     volumes:
-      - arayuz-sertifika:/sertifika:ro
+      - interface-certificate:/sertifika:ro
     depends_on:
       - panel
 
@@ -183,7 +183,7 @@ volumes:
     name: ${ONEK:-eys}_storage
   logs:
     name: ${ONEK:-eys}_logs
-  veritabani:
-    name: ${ONEK:-eys}_veritabani
-  arayuz-sertifika:
-    name: ${ONEK:-eys}_arayuz-sertifika
+  database:
+    name: ${ONEK:-eys}_database
+  interface-certificate:
+    name: ${ONEK:-eys}_interface-certificate

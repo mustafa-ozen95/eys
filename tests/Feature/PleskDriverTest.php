@@ -55,7 +55,7 @@ class PleskDriverTest extends TestCase
 
         /*
          * Kimlik SEÇİLİR: aynı adresli SSH kaydı kendiliğinden kullanılmıyor,
-         * yalnızca öneriliyor (bkz. MakineHesabi).
+         * yalnızca öneriliyor (bkz. MachineAccount).
          */
         $this->assertStringContainsString(
             'Güncelleme hesabı seçilmemiş',

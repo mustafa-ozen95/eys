@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
  * sorulan gerekçe, her kayıtta sorulan gerekçeden daha çok bilgi taşır.
  *
  * Bundan sonra gerekçe YALNIZCA bu işareti taşıyan kayıtlarda istenir. Karar
- * tek yerde durur (bkz. App\Support\GerekceKurali) ve iki uçta birden
+ * tek yerde durur (bkz. App\Support\ReasonRule) ve iki uçta birden
  * uygulanır: onay penceresi alanı gizler, sunucu da aynı koşula bakar —
  * ekranda gizlemek doğrulama değildir.
  *

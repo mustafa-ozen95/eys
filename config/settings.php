@@ -118,7 +118,7 @@ return [
          *
          * Açıldığında giriş ekranı merkezi ÖNE alır ve parola formunu
          * katlar — kapatmaz. Ayar tek başına yetmez: istemci bilgileri yoksa
-         * akış zaten çalışmaz (bkz. MerkezIstemcisi::acikMi). İkisi ayrı
+         * akış zaten çalışmaz (bkz. CenterClient::acikMi). İkisi ayrı
          * durur ki bir ayar, olmayan bir yeteneği varmış gibi gösteremesin.
          */
         'kimlik' => [
@@ -127,7 +127,7 @@ return [
                 .'Panelin kendi parola girişi kapanmaz; merkez erişilemez olduğunda kasaya girmenin tek yolu odur.',
             'settings' => [
 
-                'kimlik.acik' => [
+                'identity.acik' => [
                     'label' => 'Kimlik Yönetim Merkezi ile giriş',
                     'hint' => 'Açıkken giriş ekranı merkezi öne alır; parolayla giriş katlanmış hâlde durur '
                         .'ve merkez erişilemediğinde kullanılabilir.',
@@ -135,7 +135,7 @@ return [
                     'rules' => ['boolean'],
                 ],
 
-                'kimlik.yonetici_devri' => [
+                'identity.yonetici_devri' => [
                     'label' => 'Merkezdeki yönetici burada da yönetici olsun',
                     'hint' => 'KAPALI TUTULMASI ÖNERİLİR. Merkezin yöneticisi kimlikleri yönetir; buranın '
                         .'yöneticisi bütün sistemlerin parolalarını görür. Açıkken merkezde rol dağıtabilen '

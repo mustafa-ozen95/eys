@@ -2,21 +2,21 @@ import * as bulk from './components/bulk.js';
 import * as columns from './components/columns.js';
 import * as confirmDialog from './components/confirm.js';
 import * as copy from './components/copy.js';
-import * as dondurmeIlerleme from './components/dondurme-ilerleme.js';
+import * as dondurmeIlerleme from './components/rotation-progress.js';
 import * as dialog from './components/dialog.js';
 import * as keyboard from './components/keyboard.js';
-import * as kosulluAlan from './components/kosullu-alan.js';
-import * as kullaniciMenu from './components/kullanici-menu.js';
+import * as kosulluAlan from './components/conditional-field.js';
+import * as kullaniciMenu from './components/user-menu.js';
 import * as navigation from './components/navigation.js';
-import * as oturumKilidi from './components/oturum-kilidi.js';
+import * as oturumKilidi from './components/session-lock.js';
 import * as portal from './components/portal.js';
 import * as remoteSession from './components/remote-session.js';
-import * as rotationHesabi from './components/rotation-hesabi.js';
+import * as rotationHesabi from './components/rotation-account.js';
 import * as secretReveal from './components/secret-reveal.js';
-import * as siralama from './components/siralama.js';
+import * as siralama from './components/sorting.js';
 import * as theme from './components/theme.js';
 import * as toast from './components/toast.js';
-import * as topluIlerleme from './components/toplu-ilerleme.js';
+import * as topluIlerleme from './components/bulk-progress.js';
 
 /**
  * Uygulama girişi.
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     keyboard.init();
     kullaniciMenu.init();
     navigation.init();
-    /* Ekran kilidi: hareketsiz sekme oturumu kapatır (bkz. oturum-kilidi.js). Bir kez. */
+    /* Ekran kilidi: hareketsiz sekme oturumu kapatır (bkz. session-lock.js). Bir kez. */
     oturumKilidi.init();
 
     herCizimde();

@@ -26,10 +26,22 @@ hata()  { printf '\033[1;31m[eys]\033[0m %s\n' "$*" >&2; exit 1; }
 mkdir -p /run/php "${CONFD}"
 chown eys:eys /run/php
 
+# Çalışma yolları İngilizce adlara geçti: eski hacimdeki adlar açılışta taşınır
+# (dizinler OLUŞTURULMADAN önce; yeni ad varsa dokunulmaz, uyarı yazılır;
+# bkz. dc-paths).
+/usr/local/bin/dc-paths "${UYGULAMA}/storage/app" \
+    veritabani=database \
+    database/baglanti.json=database/connection.json \
+    database/durum.json=database/state.json \
+    guncelleme=update \
+    update/durum.json=update/state.json \
+    ilk-parola.txt=initial-password.txt
+
 mkdir -p "${UYGULAMA}"/storage/{app,logs} \
          "${UYGULAMA}"/storage/framework/{cache/data,sessions,views} \
          "${UYGULAMA}"/bootstrap/cache
 chown -R eys:eys "${UYGULAMA}"/storage "${UYGULAMA}"/bootstrap/cache
+
 
 # Sertifika sekmesinin istek dizini: panel istek.json bırakır, konteyner
 # dışındaki sertifika ajanı okur. Dizin root'a ait gelirse (yeni hacim,
@@ -143,23 +155,23 @@ fi
 # -----------------------------------------------------------------------------
 #  4. Paneldeki veritabanı ayarı (Ayarlar → Veritabanı)
 # -----------------------------------------------------------------------------
-#  Panelde uzak bir veritabanı tanımlandıysa bağlantı storage/app/veritabani'de
-#  şifreli durur ve yukarıdaki DB_* değerlerini EZER (bkz. BaglantiDosyasi).
+#  Panelde uzak bir veritabanı tanımlandıysa bağlantı storage/app/database'de
+#  şifreli durur ve yukarıdaki DB_* değerlerini EZER (bkz. ConnectionFile).
 #
 #  TAŞIMA BURADA YAPILIR, panel çalışmıyorken: kopya alınırken kimse yazmasın
-#  diye. Panel isteği bırakıp konteyneri yeniden başlatır (dc-yeniden-baslat);
+#  diye. Panel isteği bırakıp konteyneri yeniden başlatır (dc-restart);
 #  bu açılış ORTAMIN VERDİĞİ veritabanını (DB_*, çoğunlukla compose'taki db
 #  servisi) uzak hedefe kopyalar, tablo ve satır sayılarını iki tarafta
 #  karşılaştırır ve uzak veritabanıyla devam eder. Bir adım tutmazsa taşıma
 #  "basarisiz" yazılır ve panel ortamın veritabanıyla açılır. Kaynağa
 #  yazılmaz: taşıma anındaki hâliyle durur.
-VT_DIZIN="${UYGULAMA}/storage/app/veritabani"
+VT_DIZIN="${UYGULAMA}/storage/app/database"
 VT_ASAMA=""
 VT_NEDEN=""
 VT_OZET=""
 declare -A VT_BAG=()
 
-vt() { gosu eys env UYGULAMA="${UYGULAMA}" "${PHP}" /usr/local/bin/dc-veritabani "$@"; }
+vt() { gosu eys env UYGULAMA="${UYGULAMA}" "${PHP}" /usr/local/bin/dc-database "$@"; }
 
 # Veritabanı bağlantıyı kabul edene kadar bekler (en çok ~3 dk). Seçenek
 # dosyası ilk argüman: parola komut satırına girmez.
@@ -276,10 +288,10 @@ vt_tasi() {
 
 # Bu açılış zaten istenen yeniden başlatmadır; kalmış bir istek (konteyner
 # döngü görmeden durdurulduysa) bir kez daha boşuna başlatırdı.
-rm -f "${VT_DIZIN}/yeniden-baslat"
+rm -f "${VT_DIZIN}/restart"
 
-if [[ -f "${VT_DIZIN}/durum.json" ]]; then
-    VT_ASAMA="$(vt asama)" || hata "Veritabanı ayarı okunamadı (${VT_DIZIN}/durum.json)."
+if [[ -f "${VT_DIZIN}/state.json" ]]; then
+    VT_ASAMA="$(vt asama)" || hata "Veritabanı ayarı okunamadı (${VT_DIZIN}/state.json)."
 fi
 
 case "${VT_ASAMA}" in
@@ -478,7 +490,7 @@ if [[ "$(gosu eys "${PHP}" artisan tinker --execute='echo App\Models\User::query
     gosu eys "${PHP}" artisan db:seed --force --class=Database\\Seeders\\AdminUserSeeder
 
     if [[ "${URETILDI}" == "1" ]]; then
-        ILK_PAROLA="${UYGULAMA}/storage/app/ilk-parola.txt"
+        ILK_PAROLA="${UYGULAMA}/storage/app/initial-password.txt"
         printf '%s\n%s\n' "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}" > "${ILK_PAROLA}"
         chmod 0600 "${ILK_PAROLA}"
         chown eys:eys "${ILK_PAROLA}"
@@ -489,8 +501,8 @@ if [[ "$(gosu eys "${PHP}" artisan tinker --execute='echo App\Models\User::query
         uyari " İlk yönetici parolası ÜRETİLDİ:"
         uyari ""
         uyari "   e-posta: ${ADMIN_EMAIL}"
-        uyari "   parola : storage/app/ilk-parola.txt dosyasında (2. satır). Okumak için:"
-        uyari "     docker exec <kapsayıcı> cat /uygulama/storage/app/ilk-parola.txt"
+        uyari "   parola : storage/app/initial-password.txt dosyasında (2. satır). Okumak için:"
+        uyari "     docker exec <kapsayıcı> cat /uygulama/storage/app/initial-password.txt"
         uyari ""
         uyari " Giriş yapıp parolayı değiştirdikten sonra o dosyayı SİLİN."
         uyari "════════════════════════════════════════════════════════════════"
@@ -504,10 +516,10 @@ gosu eys "${PHP}" artisan optimize
 #
 # nginx, hedefi değişkenden okuyan bir proxy_pass'e havuz tutmuyor ve her
 # isteğe yeni TLS el sıkışması yapıyor; zayıf işlemcili bir BMC'de bu tek
-# başına yarım saniye (gerekçe: ArayuzHavuzlariCommand). Dosya nginx
+# başına yarım saniye (gerekçe: InterfacePoolsCommand). Dosya nginx
 # AÇILMADAN ÖNCE yazılmalı: içindeki eşlemeyi vekil kullanıyor.
 bilgi "Cihaz bağlantı havuzları üretiliyor..."
-/usr/local/bin/arayuz-havuzlari yaz \
+/usr/local/bin/interface-pools yaz \
     || uyari "Havuzlar üretilemedi; arayüzler havuzsuz (yavaş ama çalışır) bağlanacak."
 
 bilgi "Panel hazır."

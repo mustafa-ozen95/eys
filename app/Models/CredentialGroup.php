@@ -54,13 +54,13 @@ class CredentialGroup extends Model
     /**
      * Grubun bölmeleri — kenar çubuğunda grubun altında, listede başlık.
      *
-     * Yetki taşımazlar; grup neyse o (bkz. AltGrup).
+     * Yetki taşımazlar; grup neyse o (bkz. SubGroup).
      *
-     * @return HasMany<AltGrup, $this>
+     * @return HasMany<SubGroup, $this>
      */
     public function altGruplar(): HasMany
     {
-        return $this->hasMany(AltGrup::class)->ordered();
+        return $this->hasMany(SubGroup::class)->ordered();
     }
 
     /**

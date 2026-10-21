@@ -6,7 +6,7 @@ namespace App\Services\Rotation\Drivers\Concerns;
 
 use App\Models\Credential;
 use App\Services\Rotation\Contracts\NeedsMachineAccount;
-use App\Services\Rotation\MakineHesabi;
+use App\Services\Rotation\MachineAccount;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 use phpseclib3\Net\SSH2;
@@ -229,7 +229,7 @@ trait ConnectsOverSsh
     protected function connectPort(Credential $credential): int
     {
         $secilen = $this instanceof NeedsMachineAccount
-            ? app(MakineHesabi::class)->port($credential)
+            ? app(MachineAccount::class)->port($credential)
             : null;
 
         return $secilen ?? $credential->port ?? $this->defaultPort();

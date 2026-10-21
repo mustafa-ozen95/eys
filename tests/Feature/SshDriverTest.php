@@ -19,7 +19,7 @@ use Tests\TestCase;
  * Gerçek SSH sürücüsünün sınanabilen kısmı.
  *
  * Canlı bir makineye BAĞLANILMAZ; bağlantı hatası senaryosu servis olmayan
- * bir adresle sınanır (bkz. .ai/rules/calisma.md). Buradaki soru "parola
+ * bir adresle sınanır (bkz. .ai/rules/work.md). Buradaki soru "parola
  * değişiyor mu" değil — o ancak gerçek bir makinede ölçülür. Buradaki soru:
  * sürücü, eksik veriyi ve ulaşılamayan adresi doğru mu bildiriyor.
  */

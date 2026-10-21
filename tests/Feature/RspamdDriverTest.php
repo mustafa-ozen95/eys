@@ -53,7 +53,7 @@ class RspamdDriverTest extends TestCase
         /*
          * Mesaj kimliğin SEÇİLMESİ gerektiğini söylüyor: aynı adresli SSH
          * kaydı artık kendiliğinden kullanılmıyor, yalnızca öneriliyor
-         * (bkz. MakineHesabi).
+         * (bkz. MachineAccount).
          */
         $this->assertStringContainsString('Güncelleme hesabı seçilmemiş',
             (string) $driver->unsupportedReason($this->kayit(['rotation_username' => null])));

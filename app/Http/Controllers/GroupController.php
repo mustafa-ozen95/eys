@@ -9,8 +9,8 @@ use App\Enums\GroupKind;
 use App\Http\Requests\Group\DestroyGroupRequest;
 use App\Http\Requests\Group\StoreGroupRequest;
 use App\Http\Requests\Group\UpdateGroupRequest;
-use App\Models\AltGrup;
 use App\Models\CredentialGroup;
+use App\Models\SubGroup;
 use App\Models\User;
 use App\Policies\CredentialPolicy;
 use App\Services\ActivityRecorder;
@@ -93,7 +93,7 @@ class GroupController extends Controller implements HasMiddleware
         }
 
         if ($pencere === 'duzenle') {
-            $altGrup = AltGrup::query()->with('group')->where('uuid', $request->string('alt')->value())->first();
+            $altGrup = SubGroup::query()->with('group')->where('uuid', $request->string('alt')->value())->first();
 
             return $altGrup === null ? null : [
                 'baslik' => "{$altGrup->group->name} · {$altGrup->name}",
@@ -185,7 +185,7 @@ class GroupController extends Controller implements HasMiddleware
     }
 
     /**
-     * Grupları sürükleyerek sıralar (bkz. siralama.js).
+     * Grupları sürükleyerek sıralar (bkz. sorting.js).
      *
      * Gelen dizideki uuid'ler 1'den başlayarak numaralanır; listede olmayan
      * grup (kişisel taşıyıcı, başka sayfadaki) olduğu gibi kalır.

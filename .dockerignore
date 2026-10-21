@@ -4,7 +4,7 @@
 # belirler: bağlamdaki bir dosya değişince katman önbelleği düşer.
 
 .git
-# Çalışan sürüm için yalnız HEAD ve ref'ler (docker/surum-oku.sh); nesneler girmez.
+# Çalışan sürüm için yalnız HEAD ve ref'ler (docker/version-read.sh); nesneler girmez.
 !.git/HEAD
 !.git/packed-refs
 !.git/refs/heads/

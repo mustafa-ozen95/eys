@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Credential\RotateCredentialRequest;
 use App\Models\Credential;
 use App\Services\Rotation\RotationLauncher;
-use App\Support\IstekSiniri;
+use App\Support\RequestLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -26,7 +26,7 @@ class CredentialRotationController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:rotate,credential'),
-            ...IstekSiniri::icin('rotate'),
+            ...RequestLimit::icin('rotate'),
         ];
     }
 

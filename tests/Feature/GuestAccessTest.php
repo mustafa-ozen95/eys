@@ -54,7 +54,7 @@ class GuestAccessTest extends TestCase
      * tutulur: otomatik geçen bir kural, sessizce açılan bir kapı demekti.
      *
      * Merkez uçları kayıt akışı DEĞİLDİR: eşleşmeyen kimlik için hesap
-     * açılmaz (bkz. MerkezGirisTest::test_eslesmeyen_kimlik_icin_hesap_acilmaz).
+     * açılmaz (bkz. CenterLoginTest::test_eslesmeyen_kimlik_icin_hesap_acilmaz).
      */
     #[Test]
     public function oturumsuz_uclar_sayilidir(): void

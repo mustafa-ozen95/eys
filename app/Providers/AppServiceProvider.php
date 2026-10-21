@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Listeners\OturumAcilisiniYaz;
-use App\Listeners\SonGirisiIsaretle;
+use App\Listeners\MarkLastLogin;
+use App\Listeners\WriteLogin;
+use App\Models\ConsoleSession;
+use App\Models\PasswordOutputRow;
 use App\Models\Role;
+use App\Models\SubGroup;
 use App\Models\User;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
@@ -24,6 +27,7 @@ use App\Services\Settings\SettingsRepository;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -71,6 +75,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Eski sınıf adları etkinlik kaydında (subject_type/konu_type) yazılı; zincir özeti de bu
+        // dizgiye bağlı. Takma ad eski adı korur, yeni adlı model eski satırları çözer.
+        Relation::morphMap([
+            'App\Models\AltGrup' => SubGroup::class,
+            'App\Models\KonsolOturumu' => ConsoleSession::class,
+            'App\Models\ParolaCiktisiSatiri' => PasswordOutputRow::class,
+        ]);
+
         /*
          * Veritabanındaki ayarlar config üzerine bindirilir. Kod her yerde
          * config() okumaya devam eder; ayarın veritabanından mı yoksa
@@ -152,12 +164,12 @@ class AppServiceProvider extends ServiceProvider
         /*
          * SON GİRİŞ HANGİ KAPIDAN GİRİLİRSE GİRİLSİN yazılır: hem panelin
          * kendi parola girişi hem merkezle (KYM) giriş bu olayı üretiyor
-         * (bkz. SonGirisiIsaretle).
+         * (bkz. MarkLastLogin).
          */
-        Event::listen(Login::class, SonGirisiIsaretle::class);
+        Event::listen(Login::class, MarkLastLogin::class);
 
-        /* Ortak çıkış için oturumun açılış anı (bkz. OturumAcilisiniYaz). */
-        Event::listen(Login::class, OturumAcilisiniYaz::class);
+        /* Ortak çıkış için oturumun açılış anı (bkz. WriteLogin). */
+        Event::listen(Login::class, WriteLogin::class);
 
         /*
          * SAYFALAMA PANELİN KENDİ ŞERİDİYLE ÇİZİLİR.

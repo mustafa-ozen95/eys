@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 /*
  * ORTAK ÇIKIŞ: kişinin merkezdeki son çıkış anı (ms). Bu andan önce
- * açılmış panel oturumu kapanır (bkz. App\Services\Kimlik\OrtakCikis).
+ * açılmış panel oturumu kapanır (bkz. App\Services\Identity\SharedLogout).
  */
 return new class extends Migration
 {

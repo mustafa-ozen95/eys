@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\CredentialApiController;
 use App\Http\Controllers\Api\CredentialSecretApiController;
-use App\Http\Controllers\Api\KimlikCikisController;
-use App\Http\Controllers\Api\KimlikTazeleController;
+use App\Http\Controllers\Api\IdentityLogoutController;
+use App\Http\Controllers\Api\IdentityRefreshController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -67,15 +67,15 @@ Route::middleware(['auth:api', 'throttle:api'])
  *
  * Jeton gerektirmez: kimlik doğrulaması istek gövdesinin HMAC imzasıdır
  * (istemci sırrıyla). Gelen veriye güvenilmez; panel doğruyu merkezden kendi
- * sorar (bkz. KimlikTazeleController).
+ * sorar (bkz. IdentityRefreshController).
  *
  * Hız sınırı var: imza tutmasa bile bu uç merkeze bir istek attırabilir.
  */
-Route::post('kimlik/tazele', KimlikTazeleController::class)
+Route::post('kimlik/tazele', IdentityRefreshController::class)
     ->middleware('throttle:60,1')
     ->name('api.kimlik.tazele');
 
-/* MERKEZDEN "bu kişi çıkış yaptı" — ortak çıkış (bkz. KimlikCikisController). */
-Route::post('kimlik/cikis', KimlikCikisController::class)
+/* MERKEZDEN "bu kişi çıkış yaptı" — ortak çıkış (bkz. IdentityLogoutController). */
+Route::post('kimlik/cikis', IdentityLogoutController::class)
     ->middleware('throttle:60,1')
     ->name('api.kimlik.cikis');

@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * Windows sürücüsünün sınanabilen kısmı.
  *
- * Canlı bir makineye BAĞLANILMAZ (bkz. .ai/rules/calisma.md). Buradaki soru
+ * Canlı bir makineye BAĞLANILMAZ (bkz. .ai/rules/work.md). Buradaki soru
  * "parola değişiyor mu" değil — o ancak gerçek bir makinede ölçülür. Buradaki
  * soru: sürücü eksik veriyi doğru bildiriyor mu, ve makineye gönderdiği metin
  * güvenli mi.

@@ -15,5 +15,5 @@
         <x-form.input name="description" :value="$group?->description" maxlength="190" />
     </x-form.field>
 
-    {{-- Sıra burada sorulmaz: listede sürükleyerek verilir (bkz. siralama.js). --}}
+    {{-- Sıra burada sorulmaz: listede sürükleyerek verilir (bkz. sorting.js). --}}
 </x-ui.panel>

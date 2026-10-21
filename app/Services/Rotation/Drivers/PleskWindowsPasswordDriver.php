@@ -8,9 +8,9 @@ use App\Enums\AccessType;
 use App\Models\Credential;
 use App\Services\Rotation\Contracts\NeedsMachineAccount;
 use App\Services\Rotation\Contracts\PasswordDriver;
-use App\Services\Rotation\Drivers\Concerns\DogrularPleskGirisi;
 use App\Services\Rotation\Drivers\Concerns\RunsOverWinRm;
-use App\Services\Rotation\MakineHesabi;
+use App\Services\Rotation\Drivers\Concerns\VerifiesPleskLogin;
+use App\Services\Rotation\MachineAccount;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 
@@ -43,7 +43,7 @@ use App\Services\Rotation\RotationSession;
  *
  * Parola PowerShell'e WinRM KABUĞUNUN ORTAM DEĞİŞKENİNDEN geliyor, oradan
  * PSA_PASSWORD'e konuyor: ne betiğin içinde ne komut satırında görünüyor
- * (bkz. PowerShellGizli — kurulu pywinrm standart girdiyi desteklemiyor).
+ * (bkz. PowerShellSecret — kurulu pywinrm standart girdiyi desteklemiyor).
  *
  * ARAÇ YOLU ARANMAZ, PATH'TEN BULUNUR: `plesk.exe` kurulumla birlikte PATH'e
  * giriyor (ör. C:\Program Files (x86)\Plesk\ctl\plesk.exe). Sabit bir yol
@@ -56,8 +56,8 @@ class PleskWindowsPasswordDriver implements NeedsMachineAccount, PasswordDriver
      * sorar; burada doğru soru "PANELE girilebiliyor mu" ve cevabı Plesk'in
      * kendi giriş ucu veriyor.
      */
-    use DogrularPleskGirisi, RunsOverWinRm {
-        DogrularPleskGirisi::verify insteadof RunsOverWinRm;
+    use RunsOverWinRm, VerifiesPleskLogin {
+        VerifiesPleskLogin::verify insteadof RunsOverWinRm;
     }
 
     public const KEY = 'plesk_windows';
@@ -116,7 +116,7 @@ class PleskWindowsPasswordDriver implements NeedsMachineAccount, PasswordDriver
             blank($credential->host) => 'Adres tanımlı değil.',
             $credential->username !== 'admin' => 'Bu sürücü yalnızca Plesk yönetici hesabını (admin) günceller.',
             blank($credential->password) => 'Kayıtlı parola yok; güncelleme mevcut parolayla başlar.',
-            default => app(MakineHesabi::class)->eksikSebep($credential),
+            default => app(MachineAccount::class)->eksikSebep($credential),
         };
     }
 
@@ -167,7 +167,7 @@ class PleskWindowsPasswordDriver implements NeedsMachineAccount, PasswordDriver
      *
      * Parola betiğe GİRMEZ: betikte yalnızca bir yer tutucu durur ve yerini
      * taşıma doldurur — burada WinRM kabuğunun ortam değişkeni
-     * (bkz. PowerShellGizli). Kalıp ManagesWindowsAccounts ile aynı.
+     * (bkz. PowerShellSecret). Kalıp ManagesWindowsAccounts ile aynı.
      */
     private function run(RotationSession $session, string $script, string $failure, ?string $gizli = null): void
     {

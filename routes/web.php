@@ -2,36 +2,36 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\Ajax\ArayuzIzlemeController;
-use App\Http\Controllers\Ajax\ArayuzVekilBekcisi;
 use App\Http\Controllers\Ajax\CredentialPasswordController;
+use App\Http\Controllers\Ajax\InterfaceMonitorController;
+use App\Http\Controllers\Ajax\InterfaceProxyWatcher;
 use App\Http\Controllers\Ajax\RemoteProxyGuardController;
 use App\Http\Controllers\Ajax\RemoteSessionController;
-use App\Http\Controllers\AltGrupController;
 use App\Http\Controllers\ApiTokenController;
-use App\Http\Controllers\ArayuzOturumController;
+use App\Http\Controllers\Auth\CenterLoginController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\MerkezGirisController;
 use App\Http\Controllers\BulkCredentialRotationController;
+use App\Http\Controllers\BulkRoundController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CredentialController;
 use App\Http\Controllers\CredentialExportController;
 use App\Http\Controllers\CredentialRotationController;
 use App\Http\Controllers\CredentialRotationProgressController;
+use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\ErrorLogController;
 use App\Http\Controllers\GroupController;
-use App\Http\Controllers\GuncellemeController;
-use App\Http\Controllers\Hesap\ProfilController;
+use App\Http\Controllers\InterfaceSessionController;
 use App\Http\Controllers\PortalSessionController;
 use App\Http\Controllers\RemoteSessionPageController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RotationRepairController;
-use App\Http\Controllers\SertifikaController;
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\TopluTurController;
+use App\Http\Controllers\SubGroupController;
+use App\Http\Controllers\UpdateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserPermissionController;
-use App\Http\Controllers\VeritabaniController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -69,10 +69,10 @@ Route::middleware('guest')->group(function (): void {
      *
      * Dönüş ucu GET ve gövdesiz olmak zorunda: kullanıcı merkezden buraya
      * tarayıcı yönlendirmesiyle gelir, POST edemez. CSRF'in yerini oturumda
-     * saklanan `state` tutar (bkz. MerkezGirisController).
+     * saklanan `state` tutar (bkz. CenterLoginController).
      */
-    Route::get('giris/merkez', [MerkezGirisController::class, 'baslat'])->name('kimlik.giris');
-    Route::get('giris/merkez/geri', [MerkezGirisController::class, 'geri'])->name('kimlik.donus');
+    Route::get('giris/merkez', [CenterLoginController::class, 'baslat'])->name('kimlik.giris');
+    Route::get('giris/merkez/geri', [CenterLoginController::class, 'geri'])->name('kimlik.donus');
 });
 
 /*
@@ -93,7 +93,7 @@ Route::middleware('web')
  * kaydımızdan gelmesi şart (bkz. EsxiProxyGuardController).
  */
 Route::middleware('cihaz-arayuzu')
-    ->get('ajax/cihaz-oturum/dogrula', ArayuzVekilBekcisi::class)
+    ->get('ajax/cihaz-oturum/dogrula', InterfaceProxyWatcher::class)
     ->name('ajax.arayuz.guard');
 
 /*
@@ -102,7 +102,7 @@ Route::middleware('cihaz-arayuzu')
  * çağrılamaz; asıl isteği de beklemez.
  */
 Route::middleware('cihaz-arayuzu')
-    ->post('ajax/cihaz-oturum/izle', ArayuzIzlemeController::class)
+    ->post('ajax/cihaz-oturum/izle', InterfaceMonitorController::class)
     ->name('ajax.arayuz.trace');
 
 /*
@@ -126,7 +126,7 @@ Route::middleware('cihaz-arayuzu')
 Route::middleware('cihaz-arayuzu')->group(function (): void {
     $onek = ltrim((string) config('remote.arayuz.prefix'), '/');
 
-    Route::get($onek.'/devir/{devir}', [ArayuzOturumController::class, 'devral'])
+    Route::get($onek.'/devir/{devir}', [InterfaceSessionController::class, 'devral'])
         ->whereUuid('devir')
         ->name('credentials.arayuz.handoff');
 
@@ -134,24 +134,24 @@ Route::middleware('cihaz-arayuzu')->group(function (): void {
      * Ayrı kökende arayüz KÖKTE duruyor; nginx kökü buraya yönlendiriyor ve
      * kimliği çerez taşıyor. Panelin kendi kökeninde ise adres önekli.
      */
-    Route::get($onek.'/sayfa', [ArayuzOturumController::class, 'sayfa'])
+    Route::get($onek.'/sayfa', [InterfaceSessionController::class, 'sayfa'])
         ->name('credentials.arayuz.root');
 
-    Route::get($onek.'/kimlik', [ArayuzOturumController::class, 'kimlik'])
+    Route::get($onek.'/kimlik', [InterfaceSessionController::class, 'kimlik'])
         ->name('credentials.arayuz.identity.root');
 
-    Route::get($onek.'/acilis.js', [ArayuzOturumController::class, 'acilis'])
+    Route::get($onek.'/acilis.js', [InterfaceSessionController::class, 'acilis'])
         ->name('credentials.arayuz.boot.root');
 
-    Route::get($onek.'/{token}/', [ArayuzOturumController::class, 'sayfa'])
+    Route::get($onek.'/{token}/', [InterfaceSessionController::class, 'sayfa'])
         ->whereUuid('token')
         ->name('credentials.arayuz.page');
 
-    Route::get($onek.'/{token}/kimlik', [ArayuzOturumController::class, 'kimlik'])
+    Route::get($onek.'/{token}/kimlik', [InterfaceSessionController::class, 'kimlik'])
         ->whereUuid('token')
         ->name('credentials.arayuz.identity');
 
-    Route::get($onek.'/{token}/acilis.js', [ArayuzOturumController::class, 'acilis'])
+    Route::get($onek.'/{token}/acilis.js', [InterfaceSessionController::class, 'acilis'])
         ->whereUuid('token')
         ->name('credentials.arayuz.boot');
 
@@ -165,7 +165,7 @@ Route::middleware('cihaz-arayuzu')->group(function (): void {
      * aynı olayı tetikliyor ve tek bir F5 oturumu kapatmamalı. Gerçekten
      * gidildiyse geri ses gelmez ve dakikalık temizlik kapatır.
      */
-    Route::post($onek.'/ayril', [ArayuzOturumController::class, 'ayril'])
+    Route::post($onek.'/ayril', [InterfaceSessionController::class, 'ayril'])
         ->name('credentials.arayuz.leave');
 });
 
@@ -233,16 +233,16 @@ Route::middleware('auth')->group(function (): void {
      * Parti kimliği yolda; 'erisim/{credential}/…' kalıplarıyla çakışmasın
      * diye sabit 'toplu-dondur' öneki altında.
      */
-    Route::get('erisim/toplu-dondur/{parti}/durum', [TopluTurController::class, 'durum'])
+    Route::get('erisim/toplu-dondur/{parti}/durum', [BulkRoundController::class, 'durum'])
         ->whereUuid('parti')->name('credentials.rotate.bulk.progress');
-    Route::delete('erisim/toplu-dondur/{parti}', [TopluTurController::class, 'kapat'])
+    Route::delete('erisim/toplu-dondur/{parti}', [BulkRoundController::class, 'kapat'])
         ->whereUuid('parti')->name('credentials.rotate.bulk.dismiss');
 
     /*
      * Toplu parola çıktısı (Excel). Aynı sebeple POST ve sabit yol.
      *
      * Parolayı panelin DIŞINA çıkaran tek uç budur; kuralları ve gerekçesi
-     * ParolaCiktisi'nde yazılı.
+     * PasswordOutput'nde yazılı.
      */
     Route::post('erisim/toplu-cikti', CredentialExportController::class)
         ->name('credentials.export');
@@ -257,9 +257,9 @@ Route::middleware('auth')->group(function (): void {
     /*
      * Cihaz arayüzleri (ESXi, VAMI): forma gönderilebilen bir girişleri YOK,
      * o yüzden arayüzün kendisi panelin kökeninden vekilleniyor ve oturum
-     * orada açılıyor (bkz. ArayuzTuru).
+     * orada açılıyor (bkz. InterfaceType).
      */
-    Route::post('erisim/{credential}/cihaz-oturum', [ArayuzOturumController::class, 'ac'])
+    Route::post('erisim/{credential}/cihaz-oturum', [InterfaceSessionController::class, 'ac'])
         ->name('credentials.arayuz');
 
     /* Yarıda kalmış turu kapatır: kurtarma hesabını siler, kasayı hizalar. */
@@ -279,34 +279,34 @@ Route::middleware('auth')->group(function (): void {
          * ALT GRUPLAR grubun düzenleme sayfasından yönetilir; kendi listesi
          * yok. Bölme grubun İÇİNDEDİR, adres de öyle söyler.
          */
-        Route::post('gruplar/{group}/alt-gruplar', [AltGrupController::class, 'store'])->name('groups.alt.store');
-        Route::put('gruplar/{group}/alt-gruplar/sira', [AltGrupController::class, 'sirala'])->name('groups.alt.sirala');
-        Route::put('gruplar/{group}/alt-gruplar/{altGrup}', [AltGrupController::class, 'update'])->name('groups.alt.update');
-        Route::delete('gruplar/{group}/alt-gruplar/{altGrup}', [AltGrupController::class, 'destroy'])->name('groups.alt.destroy');
+        Route::post('gruplar/{group}/alt-gruplar', [SubGroupController::class, 'store'])->name('groups.alt.store');
+        Route::put('gruplar/{group}/alt-gruplar/sira', [SubGroupController::class, 'sirala'])->name('groups.alt.sirala');
+        Route::put('gruplar/{group}/alt-gruplar/{altGrup}', [SubGroupController::class, 'update'])->name('groups.alt.update');
+        Route::delete('gruplar/{group}/alt-gruplar/{altGrup}', [SubGroupController::class, 'destroy'])->name('groups.alt.destroy');
 
         /*
          * SERTİFİKA. Tur konteyner dışındaki sertifika ajanında koşar; panel
-         * isteği bırakır ve sonucu okur (bkz. SertifikaController).
+         * isteği bırakır ve sonucu okur (bkz. CertificateController).
          */
-        Route::get('ayarlar/sertifika', [SertifikaController::class, 'index'])->name('sertifika.index');
-        Route::post('ayarlar/sertifika/tur', [SertifikaController::class, 'baslat'])->name('sertifika.baslat');
-        Route::post('ayarlar/sertifika/onayla', [SertifikaController::class, 'tamamla'])->name('sertifika.tamamla');
+        Route::get('ayarlar/sertifika', [CertificateController::class, 'index'])->name('sertifika.index');
+        Route::post('ayarlar/sertifika/tur', [CertificateController::class, 'baslat'])->name('sertifika.baslat');
+        Route::post('ayarlar/sertifika/onayla', [CertificateController::class, 'tamamla'])->name('sertifika.tamamla');
 
         /*
          * VERİTABANI. Panel bağlantıyı sınar ve taşıma isteğini bırakır;
          * kopya yeniden başlatmada, panel kapalıyken yapılır
-         * (bkz. VeritabaniController ve BaglantiDosyasi).
+         * (bkz. DatabaseController ve ConnectionFile).
          */
-        Route::get('ayarlar/veritabani', [VeritabaniController::class, 'index'])->name('veritabani.index');
-        Route::post('ayarlar/veritabani/sina', [VeritabaniController::class, 'sina'])->name('veritabani.sina');
-        Route::post('ayarlar/veritabani/tasi', [VeritabaniController::class, 'tasi'])->name('veritabani.tasi');
+        Route::get('ayarlar/veritabani', [DatabaseController::class, 'index'])->name('veritabani.index');
+        Route::post('ayarlar/veritabani/sina', [DatabaseController::class, 'sina'])->name('veritabani.sina');
+        Route::post('ayarlar/veritabani/tasi', [DatabaseController::class, 'tasi'])->name('veritabani.tasi');
 
         /*
          * GÜNCELLEME. Yalnızca bakar: çalışan sürüm GitHub'daki son başarılı
-         * derlemeyle karşılaştırılır (bkz. GuncellemeDenetimi).
+         * derlemeyle karşılaştırılır (bkz. UpdateCheck).
          */
-        Route::get('ayarlar/guncelleme', [GuncellemeController::class, 'index'])->name('guncelleme.index');
-        Route::post('ayarlar/guncelleme', [GuncellemeController::class, 'denetle'])->name('guncelleme.denetle');
+        Route::get('ayarlar/guncelleme', [UpdateController::class, 'index'])->name('guncelleme.index');
+        Route::post('ayarlar/guncelleme', [UpdateController::class, 'denetle'])->name('guncelleme.denetle');
 
         Route::get('ayarlar', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('ayarlar', [SettingsController::class, 'update'])->name('settings.update');
@@ -362,7 +362,7 @@ Route::middleware('auth')->group(function (): void {
  * değildir.
  */
 Route::middleware('auth')->prefix('hesap')->name('hesap.')->group(function (): void {
-    Route::get('profil', [ProfilController::class, 'index'])->name('profil');
-    Route::put('profil', [ProfilController::class, 'update'])->name('profil.kaydet');
-    Route::put('parola', [ProfilController::class, 'parola'])->name('parola');
+    Route::get('profil', [ProfileController::class, 'index'])->name('profil');
+    Route::put('profil', [ProfileController::class, 'update'])->name('profil.kaydet');
+    Route::put('parola', [ProfileController::class, 'parola'])->name('parola');
 });

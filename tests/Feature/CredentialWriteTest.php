@@ -378,7 +378,7 @@ class CredentialWriteTest extends TestCase
      * Gerekçe ARTIK YALNIZCA "kritik" işaretli kayıtta zorunlu.
      *
      * İşaretsiz kaydın gerekçesiz silinebildiği ayrıca sınanıyor
-     * (GerekceKritikKayittaSorulurTest).
+     * (ReasonAskedOnCriticalRecordTest).
      */
     #[Test]
     public function kritik_kaydin_silinmesi_gerekce_ister(): void

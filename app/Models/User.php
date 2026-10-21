@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\UserStatus;
+use App\Models\Concerns\ClosesSessions;
 use App\Models\Concerns\HasUuid;
-use App\Models\Concerns\OturumlariKapatir;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,11 +20,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  */
 class User extends Authenticatable
 {
+    use ClosesSessions;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
     use HasUuid;
-    use OturumlariKapatir;
 
     protected $fillable = [
         'name',

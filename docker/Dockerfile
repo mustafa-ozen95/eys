@@ -277,7 +277,7 @@ RUN cp /etc/eys/php.ini /etc/php/${PHP_VERSION}/fpm/conf.d/99-eys.ini \
  && cp /etc/eys/php.ini /etc/php/${PHP_VERSION}/cli/conf.d/99-eys.ini \
  && rm -f /etc/php/${PHP_VERSION}/fpm/pool.d/www.conf \
  && cp /etc/eys/php-fpm-pool.conf /etc/php/${PHP_VERSION}/fpm/pool.d/eys.conf \
- && chmod 0755 /usr/local/bin/eys-* /usr/local/bin/arayuz-havuzlari /usr/local/bin/dc-* \
+ && chmod 0755 /usr/local/bin/eys-* /usr/local/bin/interface-pools /usr/local/bin/dc-* \
  && rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf \
  && mkdir -p storage/framework/{cache/data,sessions,views} storage/logs bootstrap/cache \
  && chown -R eys:eys storage bootstrap/cache \
@@ -300,7 +300,7 @@ ENV UYGULAMA_SURUMU=${SURUM}
 # SURUM verilmezse (NineDeploy gibi platformlar derlemeye commit vermez)
 # bağlamdaki .git'ten okunur ve /uygulama/SURUM'a yazılır; config önce
 # ortama, sonra bu dosyaya bakar. .git yoksa (zip) dosya boş kalır.
-RUN --mount=type=bind,target=/tmp/baglam sh /tmp/baglam/docker/surum-oku.sh > /uygulama/SURUM
+RUN --mount=type=bind,target=/tmp/baglam sh /tmp/baglam/docker/version-read.sh > /uygulama/SURUM
 
 ENTRYPOINT ["/usr/local/bin/eys-entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

@@ -8,7 +8,7 @@ use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
 use App\Models\Credential;
 use App\Services\ActivityRecorder;
-use App\Support\IstekSiniri;
+use App\Support\RequestLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -37,7 +37,7 @@ class CredentialPasswordController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:reveal,credential'),
-            ...IstekSiniri::icin('reveal'),
+            ...RequestLimit::icin('reveal'),
         ];
     }
 

@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  * açık olan oturum çalışmaya devam ediyordu. Erişimi kaldırılan biri
  * sekmesini kapatmadığı sürece kasada gezinmeye devam edebiliyordu.
  *
- * OTURUM SATIRLARINI SİLMEKLE BİRLİKTE çalışır (bkz. OturumlariKapatir), ikisi
+ * OTURUM SATIRLARINI SİLMEKLE BİRLİKTE çalışır (bkz. ClosesSessions), ikisi
  * aynı şeyin iki katmanıdır ve biri diğerini gereksiz kılmaz:
  *
  *  - Satır silme ANINDA etkilidir ama yalnızca veritabanı oturumunda

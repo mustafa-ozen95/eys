@@ -9,7 +9,7 @@ actually change the password on the remote machine**.
 Sibling projects: NYS (network panel) and the Identity Management Center
 (identity provider).
 
-What is supported, and **to what extent**: [`DESTEK.md`](DESTEK.md) (Turkish).
+What is supported, and **to what extent**: [`SUPPORT.md`](SUPPORT.md) (Turkish).
 
 ## Three jobs
 

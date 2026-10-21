@@ -13,7 +13,7 @@ import { on } from '../lib/dom.js';
  * seçimi okur ve değişiklik hangi ekranda yapılırsa yapılsın hepsinde
  * geçerli olur.
  *
- * Alan adı sunucudan gelir (bkz. config/tema.php). Boşsa çerez yalnızca bu
+ * Alan adı sunucudan gelir (bkz. config/theme.php). Boşsa çerez yalnızca bu
  * konağa yazılır: paneller ayrı alan adlarında duruyorsa paylaşacak bir üst
  * alan yoktur ve tahmin etmeye çalışmak, tarayıcının çerezi sessizce
  * reddetmesiyle biterdi.

@@ -37,7 +37,7 @@ class ActivityRecorder
          * BOŞ GEREKÇE = GEREKÇE YOK.
          *
          * Gerekçe artık yalnızca "kritik" işaretli kayıtlarda zorunlu (bkz.
-         * App\Support\GerekceKurali); zorunlu olmadığı yerde form boş bir
+         * App\Support\ReasonRule); zorunlu olmadığı yerde form boş bir
          * dize gönderir. Boş dize kayda yazılsaydı denetim ekranında "gerekçe
          * verilmiş ama içi boş" gibi görünürdü — yokluk açıkça yokluk olarak
          * dursun. Normalleştirme TEK YERDE: gerekçe yazan bütün uçlar buradan

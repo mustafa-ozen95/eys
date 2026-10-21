@@ -32,7 +32,7 @@ class SettingsRepository
          * döndürmemeli — döndürme kapatılmışsa kapalı kalmalı.
          */
         try {
-            return Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->read());
+            return LegacyKeys::currentKeys(Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->read()));
         } catch (Throwable) {
             return $this->read();
         }
@@ -122,7 +122,7 @@ class SettingsRepository
                 }
 
                 Setting::updateOrCreate(
-                    ['key' => $key],
+                    ['key' => LegacyKeys::toStored($key)],
                     ['value' => json_encode($value, JSON_UNESCAPED_UNICODE), 'updated_by' => $actor?->getKey()],
                 );
 
@@ -154,8 +154,10 @@ class SettingsRepository
             return [];
         }
 
-        return $rows
-            ->map(fn (?string $value): mixed => $value === null ? null : json_decode($value, true))
-            ->all();
+        return LegacyKeys::currentKeys(
+            $rows
+                ->map(fn (?string $value): mixed => $value === null ? null : json_decode($value, true))
+                ->all(),
+        );
     }
 }

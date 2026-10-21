@@ -15,7 +15,7 @@ use SimpleXMLElement;
 /**
  * Sahte Junos cihazı.
  *
- * Canlı cihaza BAĞLANILMAZ (bkz. .ai/rules/calisma.md); NETCONF konuşan, yerel
+ * Canlı cihaza BAĞLANILMAZ (bkz. .ai/rules/work.md); NETCONF konuşan, yerel
  * kullanıcı tablosu tutan, lock/commit/confirmed commit'i taklit eden bir
  * durum makinesidir. Testler `$events` dizisine bakar: "kim ne yaptı" sırası
  * güvenliğin kendisidir (kurtarma hesabı parola değişiminden ÖNCE açılmalı,

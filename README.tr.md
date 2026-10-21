@@ -8,7 +8,7 @@ kasa paneli.
 
 Kardeş projeler: NYS (ağ paneli) ve Kimlik Yönetim Merkezi (kimlik sağlayıcı).
 
-Neyin **ne ölçüde** desteklendiği: [`DESTEK.md`](DESTEK.md).
+Neyin **ne ölçüde** desteklendiği: [`SUPPORT.md`](SUPPORT.md).
 
 ## Üç iş
 

@@ -19,7 +19,7 @@ use Tests\TestCase;
  * mailcow sürücüsü.
  *
  * Canlı bir mailcow'a BAĞLANILMAZ; API yanıtları taklit edilir
- * (bkz. .ai/rules/calisma.md). Sınanan şey: sürücü mailcow'un gerçekten
+ * (bkz. .ai/rules/work.md). Sınanan şey: sürücü mailcow'un gerçekten
  * döndürdüğü biçimleri doğru okuyor mu.
  */
 class MailcowDriverTest extends TestCase

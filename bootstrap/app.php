@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\EnsureUserIsActive;
-use App\Http\Middleware\KimlikDurumunuDogrula;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleApiClients;
-use App\Services\CihazArayuzu\ArayuzOturumu;
-use App\Services\CihazArayuzu\ArayuzTuru;
+use App\Http\Middleware\VerifyIdentityStatus;
+use App\Services\DeviceInterface\InterfaceSession;
+use App\Services\DeviceInterface\InterfaceType;
 use App\Services\ErrorLogger;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -77,9 +77,9 @@ return Application::configure(basePath: dirname(__DIR__))
          * Laravel her çerezi şifreler ve bu doğrudur — panelin çerezleri için.
          * Ama vekil kökeninde cihazın kendi çerezleri de duruyor ve onları
          * okuyan taraf cihazın betiği: şifrelenmiş değeri tanımaz. Adlar tek
-         * yerde, türün kendisinde sayılır (ArayuzTuru::tarayiciCerezleri).
+         * yerde, türün kendisinde sayılır (InterfaceType::tarayiciCerezleri).
          */
-        $middleware->encryptCookies(except: ArayuzTuru::sifrelenmeyenCerezler());
+        $middleware->encryptCookies(except: InterfaceType::sifrelenmeyenCerezler());
 
         /*
          * AYRILIŞ HABERİ CSRF JETONU TAŞIYAMAZ.
@@ -91,7 +91,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * bile kazanç, kendi oturumunu erken kapatmaktır.
          */
         $middleware->validateCsrfTokens(except: [
-            ltrim(ArayuzOturumu::ONEK, '/').'/ayril',
+            ltrim(InterfaceSession::ONEK, '/').'/ayril',
         ]);
 
         $middleware->trustProxies(
@@ -113,14 +113,14 @@ return Application::configure(basePath: dirname(__DIR__))
          * Merkezde rolü değişen ya da hesabı askıya alınan biri, oturumu açık
          * olduğu için burada erişmeye devam ediyordu. Kural her web isteğini
          * kapsar ama merkeze her istekte sorulmaz: yanıt kullanıcı başına
-         * önbelleklenir (bkz. KimlikDurumunuDogrula).
+         * önbelleklenir (bkz. VerifyIdentityStatus).
          */
         /*
          * PASİF HESAP İÇERİDE KALMAZ.
          *
          * Durumu değiştirmek yalnızca "bir daha giremesin" demekti; açık
          * oturum çalışmaya devam ediyordu. Oturum satırlarını silmek (bkz.
-         * OturumlariKapatir) anında etkili ama yalnızca veritabanı
+         * ClosesSessions) anında etkili ama yalnızca veritabanı
          * oturumunda ve model olayı üzerinden çalışıyor; bu ara katman her
          * istekte sorar ve hiçbir yolu atlamaz.
          *
@@ -144,7 +144,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AuthenticateSession::class,
             EnsureUserIsActive::class,
-            KimlikDurumunuDogrula::class,
+            VerifyIdentityStatus::class,
         ]);
 
         /*

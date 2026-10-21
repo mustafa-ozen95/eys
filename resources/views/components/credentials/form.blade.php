@@ -26,7 +26,7 @@
 
     {{--
         ALT GRUP: grubun içindeki bölme (ör. Yedekleme → Grup A). Liste seçili gruba
-        göre daralır (kosullu-alan.js · data-bagli); bölmesi olmayan grupta
+        göre daralır (conditional-field.js · data-bagli); bölmesi olmayan grupta
         yalnızca "Yok" kalır. Alan hiçbir grupta bölme yoksa HİÇ çizilmez —
         tek seçenekli bir kutu soru değil gürültüdür.
     --}}
@@ -42,7 +42,7 @@
     {{--
         SIRA: önce NE (platform), sonra NASIL (erişim türü), sonra NEREDE
         (adres). Erişim türü listesi platforma göre daralır
-        (bkz. OperatingSystem::accessTypes, kosullu-alan.js · data-bagli).
+        (bkz. OperatingSystem::accessTypes, conditional-field.js · data-bagli).
     --}}
     <div class="field-row">
         <x-form.field name="operating_system" label="Platform"
@@ -182,7 +182,7 @@
             {{--
                 KRİTİK İŞARETİ: gerekçe yalnızca işaretli kayıtlarda sorulur.
                 Her kayıtta sorulduğunda insanlar kutuya "test" yazıp
-                geçiyordu. Karar tek yerde: App\Support\GerekceKurali.
+                geçiyordu. Karar tek yerde: App\Support\ReasonRule.
             --}}
             <label class="checkbox">
                 <input type="checkbox" name="is_critical" value="1"
@@ -225,7 +225,7 @@
       komutla değişiyor, bağlantı makinenin SSH kimliğiyle kuruluyor).
       Hangi sürücülerin istediğini sürücüler söylüyor (NeedsMachineAccount);
       liste sunucudan geliyor. Başlangıç durumunu sunucu verir, JS yalnızca
-      kutular değişince günceller (bkz. rotation-hesabi.js).
+      kutular değişince günceller (bkz. rotation-account.js).
     --}}
     <x-form.field name="rotation_credential_id" label="Güncelleme hesabı — kasadan seç"
                   hint="Parola, makineye bu kayıtla bağlanılarak değiştirilir. Seçilmezse güncelleme düğmesi çıkmaz."
@@ -299,7 +299,7 @@
     GELİŞMİŞ: nadiren değişen ayarlar katlanmış durur. Rol istisnalarından
     biri işaretliyse AÇIK gelir — bir kaydı bir role kapatan ayar, kapalı bir
     bölümün içinde gözden kaçmamalı. Sıra burada sorulmaz: listede
-    sürükleyerek verilir (bkz. siralama.js); bölüm yalnız rol istisnasıdır.
+    sürükleyerek verilir (bkz. sorting.js); bölüm yalnız rol istisnasıdır.
 --}}
 @if ($canRestrict && $restrictableRoles->isNotEmpty())
 <details class="kayit-formu__gelismis" @if ($gelismisAcik) open @endif>

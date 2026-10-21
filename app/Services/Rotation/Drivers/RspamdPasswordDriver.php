@@ -8,8 +8,8 @@ use App\Models\Credential;
 use App\Services\Rotation\Contracts\NeedsMachineAccount;
 use App\Services\Rotation\Contracts\PasswordDriver;
 use App\Services\Rotation\Drivers\Concerns\ConnectsOverSsh;
-use App\Services\Rotation\Drivers\Concerns\SecerMakineSshKaydi;
-use App\Services\Rotation\MakineHesabi;
+use App\Services\Rotation\Drivers\Concerns\SelectsMachineSshRecord;
+use App\Services\Rotation\MachineAccount;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 use Illuminate\Support\Facades\Http;
@@ -51,7 +51,7 @@ class RspamdPasswordDriver implements NeedsMachineAccount, PasswordDriver
     use ConnectsOverSsh {
         ConnectsOverSsh::verify as private sshDogrula;
     }
-    use SecerMakineSshKaydi;
+    use SelectsMachineSshRecord;
 
     public const KEY = 'rspamd';
 
@@ -163,7 +163,7 @@ class RspamdPasswordDriver implements NeedsMachineAccount, PasswordDriver
     {
         return match (true) {
             blank($credential->host) => 'mailcow makinesinin adresi tanımlı değil.',
-            default => app(MakineHesabi::class)->eksikSebep($credential),
+            default => app(MachineAccount::class)->eksikSebep($credential),
         };
     }
 

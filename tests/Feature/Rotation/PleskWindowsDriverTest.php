@@ -10,7 +10,7 @@ use App\Models\CredentialGroup;
 use App\Models\User;
 use App\Services\Rotation\DriverRegistry;
 use App\Services\Rotation\Drivers\PleskWindowsPasswordDriver;
-use App\Services\Rotation\PowerShellGizli;
+use App\Services\Rotation\PowerShellSecret;
 use App\Services\Rotation\RotationSession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -249,7 +249,7 @@ class PleskWindowsDriverTest extends TestCase
 
         /* Parola betikte YOK: yerinde yalnızca yer tutucu duruyor. */
         $this->assertStringNotContainsString('YENI-PAROLA-42', $surucu->betik);
-        $this->assertStringContainsString(PowerShellGizli::TOKEN, $surucu->betik);
+        $this->assertStringContainsString(PowerShellSecret::TOKEN, $surucu->betik);
         $this->assertSame('YENI-PAROLA-42', $surucu->girdi);
     }
 

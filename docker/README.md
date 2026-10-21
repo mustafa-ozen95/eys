@@ -17,7 +17,7 @@ değişken ekranına girin.
 
 **HTTP portu dışarı açılmaz.** Alan adını ve TLS'i önündeki vekil verir (platformun
 kendisi ya da Caddy/nginx); panel isteğin HTTPS olduğunu `X-Forwarded-Proto`'dan bilir.
-Kendi Caddy'nizle kuracaksanız örnek kural `docker/vekil.caddy`'de. Vekilsiz deneme:
+Kendi Caddy'nizle kuracaksanız örnek kural `docker/proxy.caddy`'de. Vekilsiz deneme:
 `cp docker-compose.override.example.yml docker-compose.override.yml` (düz HTTP, port 8080).
 
 Tarayıcıdan SSH/RDP oturumları **WebSocket**'tir ve saatlerce açık kalabilir. Vekilin okuma
@@ -32,10 +32,10 @@ yalnız 80/443 dinlediği için bu portları compose'taki `arayuz-vekili` karş�
     ARAYUZ_ALANI=eys.ornek.test:9443
     ARAYUZ_VEKILI_KOPYA=1
 
-ve `eys_arayuz-sertifika` hacmine panelin sertifikası `tls.crt` + `tls.key` (ad aynı
+ve `eys_interface-certificate` hacmine panelin sertifikası `tls.crt` + `tls.key` (ad aynı
 olduğu için panelin sertifikası geçerli). Vekil TLS'i bitirip panelin 9080'ine verir;
 ACME yapmaz, sertifikayı kurulum koyar ve yeniler. Port aralığını değiştirmek üç yeri
-birden değiştirir: `docker/arayuz-vekili.Caddyfile`, compose'taki yayın aralığı ve
+birden değiştirir: `docker/interface-proxy.Caddyfile`, compose'taki yayın aralığı ve
 `ARAYUZ_PORT_ILK/SON`.
 
 
@@ -49,8 +49,8 @@ birden değiştirir: `docker/arayuz-vekili.Caddyfile`, compose'taki yayın aral�
 | `arayuz-vekili` | cihaz arayüzü portları (yukarıda); varsayılan kapalı |
 
 Adlar `ONEK` ile başlar (varsayılan `eys`): `eys_storage` (`storage/app`: APP_KEY
-verilmediyse, ilk parola, Ayarlar → Veritabanı bağlantısı), `eys_veritabani`,
-`eys_logs`, `eys_arayuz-sertifika`. Aynı sunucuda ikinci kurulum `ONEK`'i değiştirir.
+verilmediyse, ilk parola, Ayarlar → Veritabanı bağlantısı), `eys_database`,
+`eys_logs`, `eys_interface-certificate`. Aynı sunucuda ikinci kurulum `ONEK`'i değiştirir.
 
 `AG_YALITIMI=true` konteynerleri cihazlardan, KYM'den ve dışarıdan yalıtır (deneme ya da
 taşıma kurulumu canlı cihazların parolasını döndürmesin; ayrıca `ROTATION_ENABLED=false`).
@@ -105,7 +105,7 @@ Eksik olan her şey üretilir ve **hacimde saklanır**:
 | Üretilen | Nerede durur | Not |
 | --- | --- | --- |
 | `APP_KEY` | `storage/app/app-key.txt` | Yedekleyin |
-| Yönetici parolası | `storage/app/ilk-parola.txt` | Giriş yapıp değiştirin, sonra silin |
+| Yönetici parolası | `storage/app/initial-password.txt` | Giriş yapıp değiştirin, sonra silin |
 
 İlk yönetici `ADMIN_EMAIL` ile ve **yalnızca kullanıcı tablosu boşken** açılır; adres
 verilmezse hesap hiç açılmaz. Parola sabit **değildir**: verilmezse rastgele üretilir
@@ -147,7 +147,7 @@ Ekran **yalnızca bakar**; güncelleme aşağıdaki yoldan, yedekle yapılır.
   özelse `GUNCELLEME_JETONU` salt okunur bir jeton olmalı (fine-grained, yalnız panel depoları,
   Contents ve Actions: read). Erişilemezse kontrol "hata" der, panelin başka yeri etkilenmez.
 - Çalışan sürüm derlemede imaja yazılır (`ARG SURUM`, iş akışı commit'i verir). Derlemeye commit
-  vermeyen platformlarda (NineDeploy gibi) bağlamdaki `.git`'ten okunur (`docker/surum-oku.sh`;
+  vermeyen platformlarda (NineDeploy gibi) bağlamdaki `.git`'ten okunur (`docker/version-read.sh`;
   `.dockerignore` yalnız `HEAD` ve ref'leri alır).
 - Panel GitHub'a çıkamıyorsa (kapalı ağ) kontrol "erişilemedi" der.
 
@@ -185,14 +185,14 @@ Açılışta panel kapalıyken şu anki veritabanı hedefe kopyalanır ve her ta
 sayısı iki tarafta karşılaştırılır. Bir adım tutmazsa panel şu anki veritabanıyla açılır
 ve sebep sekmede görünür.
 
-Panelden tanımlanan bağlantı `storage/app/veritabani/baglanti.json` dosyasında APP_KEY ile
-şifreli durur ve ortamdaki `DB_*` değerlerinin yerine geçer. `durum.json` taşımanın
-aşamasını tutar ve sır içermez. Yeniden başlatmayı konteyner içindeki `dc-yeniden-baslat`
+Panelden tanımlanan bağlantı `storage/app/database/connection.json` dosyasında APP_KEY ile
+şifreli durur ve ortamdaki `DB_*` değerlerinin yerine geçer. `state.json` taşımanın
+aşamasını tutar ve sır içermez. Yeniden başlatmayı konteyner içindeki `dc-restart`
 yapar; bunun için yeniden başlatma politikası **`unless-stopped`** olmalı (compose'ta öyle).
 
 Taşıma bittikten sonra eski veritabanına **kendiliğinden dönülmez**; taşıma anındaki
 hâliyle durur. Bilerek dönmek için: uzak veritabanının dökümünü eskisine yükleyin,
-sonra `storage/app/veritabani` altındaki `baglanti.json` ve `durum.json`'u silip
+sonra `storage/app/database` altındaki `connection.json` ve `state.json`'u silip
 konteyneri yeniden başlatın. Dökümü yüklemezseniz taşımadan sonraki her şey kaybolur.
 
 APP_KEY değişirse bağlantı dosyası çözülemez ve panel açılmaz. Kasadaki

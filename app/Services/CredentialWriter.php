@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ActivityAction;
-use App\Models\AltGrup;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\Role;
+use App\Models\SubGroup;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -86,7 +86,7 @@ class CredentialWriter
     /**
      * Gerekçe ARTIK ZORUNLU DEĞİL.
      *
-     * Yalnızca "kritik" işaretli kayıtlarda soruluyor (bkz. GerekceKurali);
+     * Yalnızca "kritik" işaretli kayıtlarda soruluyor (bkz. ReasonRule);
      * imza bunu söylemeli, yoksa çağıran taraf boş bir dize uydurup
      * gerekçeymiş gibi yazar. Silmenin KENDİSİ her hâlükârda kayda geçer.
      */
@@ -253,7 +253,7 @@ class CredentialWriter
         });
 
         $grup = CredentialGroup::query()->whereKey($ilk->credential_group_id)->value('name');
-        $bolme = $ilk->alt_grup_id ? AltGrup::query()->whereKey($ilk->alt_grup_id)->value('name') : null;
+        $bolme = $ilk->alt_grup_id ? SubGroup::query()->whereKey($ilk->alt_grup_id)->value('name') : null;
 
         $this->activity->record(
             ActivityAction::Updated,

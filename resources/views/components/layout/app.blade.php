@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @auth
-        {{-- Ekran kilidi (bkz. oturum-kilidi.js): hareketsiz sekme bu süre sonunda oturumu kapatır. --}}
+        {{-- Ekran kilidi (bkz. session-lock.js): hareketsiz sekme bu süre sonunda oturumu kapatır. --}}
         <meta name="oturum-suresi" content="{{ (int) config('session.lifetime') }}">
         <meta name="oturum-cikis" content="{{ route('logout') }}">
         <meta name="oturum-giris" content="{{ route('login') }}">
@@ -15,9 +15,9 @@
 
     {{--
         Tema çerezinin alan adı. Merkez ve paneller ayrı köklerdir; üst alan
-        adı verilince seçim hepsinde paylaşılır (bkz. config/tema.php).
+        adı verilince seçim hepsinde paylaşılır (bkz. config/theme.php).
     --}}
-    <meta name="tema-alan" content="{{ config('tema.cerez_alani') }}">
+    <meta name="tema-alan" content="{{ config('theme.cerez_alani') }}">
     <meta name="robots" content="noindex, nofollow">
 
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
@@ -37,8 +37,8 @@
 <div class="shell">
     <x-nav.topbar />
 
-    <x-ui.sertifika-uyarisi />
-    <x-ui.guncelleme-uyarisi />
+    <x-ui.certificate-warning />
+    <x-ui.update-warning />
 
     {{ $slot }}
 </div>

@@ -14,10 +14,10 @@ use App\Policies\CredentialPolicy;
 use App\Services\Authorization\UserPermissionResolver;
 use App\Services\Portal\PortalLogin;
 use App\Services\Remote\TargetResolver;
+use App\Services\Rotation\BulkRound;
 use App\Services\Rotation\DriverRegistry;
 use App\Services\Rotation\RotationLauncher;
-use App\Services\Rotation\TopluTur;
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -197,7 +197,7 @@ class CredentialListing
 
             /*
              * Kullanıcının süren (ya da yeni biten) toplu turu. İlk çizim
-             * sunucudan gelir, yoklama devralır (bkz. toplu-ilerleme.js).
+             * sunucudan gelir, yoklama devralır (bkz. bulk-progress.js).
              */
             'topluTur' => $this->topluTur($user),
             'query' => $term,
@@ -257,7 +257,7 @@ class CredentialListing
              * kimliğidir; o kimlik kasada zaten duruyor. Elle kopyalamak
              * yerine kayıt SEÇİLİR — parola her turda o kayıttan okunur ve
              * SSH parolası döndüğünde eskiyen bir kopya kalmaz
-             * (bkz. MakineHesabi).
+             * (bkz. MachineAccount).
              *
              * Listede YALNIZCA KULLANICININ GÖREBİLDİĞİ SSH kayıtları var:
              * göremediği bir kaydı seçebilseydi, adını ve adresini oradan
@@ -281,7 +281,7 @@ class CredentialListing
              * kaydetmek için de hesabı seçmek gerekirdi.
              *
              * Liste bir SEÇİM YARDIMCISIDIR; geçerlilik kararını sürücü
-             * sunucuda veriyor (bkz. MakineHesabi::eksikSebep).
+             * sunucuda veriyor (bkz. MachineAccount::eksikSebep).
              */
             'updateRotationCredentialOptions' => $this->rotationCredentialOptions(
                 $user, $selected?->group, $selected, $this->rotation->makineErisimTurleri(),
@@ -655,11 +655,11 @@ class CredentialListing
              * Onay penceresi GEREKÇE soracak mı?
              *
              * Yanıt kaydın "kritik" işaretinden gelir ve aynı yanıt sunucuda
-             * da kullanılır (bkz. GerekceKurali). Burada ikinci bir koşul
+             * da kullanılır (bkz. ReasonRule). Burada ikinci bir koşul
              * yazılsaydı ekran ile sunucu bir gün ayrışır, kullanıcı
              * doldurmadığı bir alan yüzünden reddedilirdi.
              */
-            'gerekceIster' => GerekceKurali::ister($credential),
+            'gerekceIster' => ReasonRule::ister($credential),
 
             /*
              * "Parola güncelleme" başlığındaki soru işaretinin metni: bu
@@ -941,7 +941,7 @@ class CredentialListing
             /*
              * GÜNCELLEME HESABI DA ÖNDEN YÜKLENİR: listedeki her satır için
              * "bu kayıt döndürülebilir mi" sorusu soruluyor ve cevap seçilen
-             * kimliğe bakıyor (bkz. MakineHesabi). Yüklenmeseydi satır
+             * kimliğe bakıyor (bkz. MachineAccount). Yüklenmeseydi satır
              * başına bir sorgu daha koşardı.
              */
             ->with(['group', 'altGrup', 'rotationCredential'])
@@ -1015,8 +1015,8 @@ class CredentialListing
      */
     private function topluTur(User $user): ?array
     {
-        $parti = TopluTur::son($user);
-        $durum = $parti === null ? null : TopluTur::durum($user, $parti);
+        $parti = BulkRound::son($user);
+        $durum = $parti === null ? null : BulkRound::durum($user, $parti);
 
         if ($durum === null) {
             return null;
@@ -1025,7 +1025,7 @@ class CredentialListing
         $sorunSayisi = $durum['basarisiz'] + $durum['dogrulanamadi'] + $durum['baslamadi'];
         $lejant = [];
 
-        foreach (TopluTur::ETIKETLER as $anahtar => $etiket) {
+        foreach (BulkRound::ETIKETLER as $anahtar => $etiket) {
             $sayi = collect($durum['kayitlar'])->where('durum', $anahtar)->count();
 
             if ($sayi > 0) {
@@ -1038,7 +1038,7 @@ class CredentialListing
             'durum' => $durum,
             'sorunSayisi' => $sorunSayisi,
             'sonuc' => $durum['calisiyor'] ? 'suruyor' : ($sorunSayisi === 0 ? 'basarili' : 'sorunlu'),
-            'etiketler' => TopluTur::ETIKETLER,
+            'etiketler' => BulkRound::ETIKETLER,
             'lejant' => $lejant,
         ];
     }

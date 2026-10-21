@@ -17,7 +17,7 @@ use Tests\TestCase;
  * RIBCL sürücüsü — iLO 3 ve sonrası.
  *
  * Canlı bir iLO'ya BAĞLANILMAZ; HPE kılavuzundaki yanıt biçimleri taklit
- * edilir (bkz. .ai/rules/calisma.md).
+ * edilir (bkz. .ai/rules/work.md).
  */
 class RibclDriverTest extends TestCase
 {

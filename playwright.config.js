@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /*
  * Görsel testler CANLI adrese değil, kendi geliştirme sunucusuna bakar
- * (bkz. .ai/rules/calisma.md — canlı sisteme izinsiz bağlanılmaz).
+ * (bkz. .ai/rules/work.md — canlı sisteme izinsiz bağlanılmaz).
  * Adres PLAYWRIGHT_BASE_URL ile değiştirilebilir.
  */
 export default defineConfig({

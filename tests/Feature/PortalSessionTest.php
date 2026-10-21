@@ -11,7 +11,7 @@ use App\Models\ActivityLog;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\User;
-use App\Services\CihazArayuzu\ArayuzTuru;
+use App\Services\DeviceInterface\InterfaceType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\Test;
@@ -84,7 +84,7 @@ class PortalSessionTest extends TestCase
             ->assertForbidden();
     }
 
-    /** Gerekçe YALNIZCA "kritik" işaretli kayıtta zorunlu (bkz. GerekceKurali). */
+    /** Gerekçe YALNIZCA "kritik" işaretli kayıtta zorunlu (bkz. ReasonRule). */
     #[Test]
     public function gerekce_kritik_kayitta_zorunlu(): void
     {
@@ -235,9 +235,9 @@ class PortalSessionTest extends TestCase
 
         /*
          * Oturum yine de açılıyor — ama form gönderimiyle değil, arayüzün
-         * panelin kökeninden VEKİLLENMESİYLE (bkz. ArayuzOturumTest).
+         * panelin kökeninden VEKİLLENMESİYLE (bkz. InterfaceSessionTest).
          */
-        $this->assertSame(ArayuzTuru::Esxi, $credential->arayuz_turu);
+        $this->assertSame(InterfaceType::Esxi, $credential->arayuz_turu);
     }
 
     /**

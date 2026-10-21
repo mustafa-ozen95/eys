@@ -9,7 +9,7 @@ use App\Enums\PermissionEffect;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\User;
-use App\Services\CihazArayuzu\ArayuzTuru;
+use App\Services\DeviceInterface\InterfaceType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -395,7 +395,7 @@ class CredentialVisibilityTest extends TestCase
         /*
          * KİMLİKSİZ kayıt: bağlantı gösterilir. Kimliği olan bir appliance
          * kaydında ekran artık bağlantı değil OTURUM AÇ düğmesi gösteriyor
-         * (arayüz vekilleniyor, bkz. ArayuzOturumTest); buradaki soru ise
+         * (arayüz vekilleniyor, bkz. InterfaceSessionTest); buradaki soru ise
          * bağlantının hangi adrese gittiği.
          */
         $appliance = Credential::factory()->for($grup, 'group')->create([
@@ -444,7 +444,7 @@ class CredentialVisibilityTest extends TestCase
             'password' => 'VAMI-PAROLASI',
         ]);
 
-        $this->assertSame(ArayuzTuru::Vami, $kimlikli->arayuz_turu);
+        $this->assertSame(InterfaceType::Vami, $kimlikli->arayuz_turu);
     }
 
     /**

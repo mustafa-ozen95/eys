@@ -1,0 +1,47 @@
+#!/usr/bin/php
+<?php
+
+/*
+ * Başlatıcının panel veritabanı ayarına eli: uygulamayı ayağa kaldırmadan
+ * (göçlerden önce, veritabanı yokken) storage/app/database'yi okur ve
+ * aşamayı yazar. Dosya biçiminin tek sahibi App\Services\Database\ConnectionFile.
+ *
+ *   dc-database asama                      aşamanın adı (yoksa boş)
+ *   dc-database ortam                      AD=base64(değer) satırları
+ *   dc-database istemci                    mariadb istemci seçenek dosyası
+ *   dc-database ortam-istemci              aynısı, ortamın verdiği bağlantı (DB_*) için
+ *   dc-database yaz <aşama> [açıklama]     aşamayı ilerlet
+ *
+ * Panel kullanıcısıyla koşar (gosu): dosyalar onundur. APP_KEY ortamdan gelir.
+ * Kardeş panellerde aynı dosya; uygulama dizini UYGULAMA ile değişir.
+ */
+
+declare(strict_types=1);
+
+use App\Services\Database\ConnectionFile;
+use Illuminate\Encryption\Encrypter;
+
+$kok = getenv('UYGULAMA') ?: '/uygulama';
+require $kok.'/vendor/autoload.php';
+
+$anahtar = (string) getenv('APP_KEY');
+$anahtar = str_starts_with($anahtar, 'base64:') ? base64_decode(substr($anahtar, 7), true) : $anahtar;
+
+try {
+    $dosya = new ConnectionFile(new Encrypter((string) $anahtar, 'AES-256-CBC'), $kok.'/storage/app/database');
+
+    match ($argv[1] ?? '') {
+        'asama' => print ($dosya->asama() ?? '')."\n",
+        'ortam' => print $dosya->ortamSatirlari(),
+        'istemci' => print $dosya->istemciAyari(),
+        'ortam-istemci' => print ConnectionFile::istemciMetni(ConnectionFile::temizle([
+            'host' => getenv('DB_HOST'), 'port' => getenv('DB_PORT'),
+            'username' => getenv('DB_USERNAME'), 'password' => getenv('DB_PASSWORD'),
+        ])),
+        'yaz' => $dosya->asamaYaz((string) ($argv[2] ?? ''), isset($argv[3]) && $argv[3] !== '' ? $argv[3] : null),
+        default => throw new RuntimeException('kullanım: dc-database asama|ortam|istemci|ortam-istemci|yaz <aşama> [açıklama]'),
+    };
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage()."\n");
+    exit(1);
+}

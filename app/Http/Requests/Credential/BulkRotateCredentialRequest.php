@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Credential;
 
 use App\Models\Credential;
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -34,8 +34,8 @@ class BulkRotateCredentialRequest extends FormRequest
             'kayitlar' => ['required', 'array', 'min:1', 'max:'.self::LIMIT],
             'kayitlar.*' => ['uuid'],
             /* TOPLU İŞLEM: gerekçe kayıttan bağımsız, HER ZAMAN istenir
-               (bkz. GerekceKurali::toplu). */
-            'reason' => GerekceKurali::toplu(),
+               (bkz. ReasonRule::toplu). */
+            'reason' => ReasonRule::toplu(),
         ];
     }
 

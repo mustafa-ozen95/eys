@@ -8,8 +8,8 @@ use App\Models\Credential;
 use App\Services\Rotation\Contracts\NeedsMachineAccount;
 use App\Services\Rotation\Contracts\PasswordDriver;
 use App\Services\Rotation\Drivers\Concerns\ConnectsOverSsh;
-use App\Services\Rotation\Drivers\Concerns\SecerMakineSshKaydi;
-use App\Services\Rotation\MakineHesabi;
+use App\Services\Rotation\Drivers\Concerns\SelectsMachineSshRecord;
+use App\Services\Rotation\MachineAccount;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 
@@ -42,7 +42,7 @@ use App\Services\Rotation\RotationSession;
 class MailcowAdminPasswordDriver implements NeedsMachineAccount, PasswordDriver
 {
     use ConnectsOverSsh;
-    use SecerMakineSshKaydi;
+    use SelectsMachineSshRecord;
 
     public const KEY = 'mailcow_admin';
 
@@ -87,7 +87,7 @@ class MailcowAdminPasswordDriver implements NeedsMachineAccount, PasswordDriver
         return match (true) {
             blank($credential->host) => 'mailcow makinesinin adresi tanımlı değil.',
             blank($credential->username) => 'Yönetici kullanıcı adı tanımlı değil.',
-            default => app(MakineHesabi::class)->eksikSebep($credential),
+            default => app(MachineAccount::class)->eksikSebep($credential),
         };
     }
 
@@ -139,10 +139,10 @@ class MailcowAdminPasswordDriver implements NeedsMachineAccount, PasswordDriver
              * güncelleme hesabı KASADAN seçilmişse (rotation_credential_id) o
              * alan boş kalıyor ve doğrulama bağlanamıyordu. Tur o zaman
              * "yeni parola doğrulanamadı" deyip geri almaya kalkıyor — oysa
-             * parola çoktan değişmiş oluyor. Aynı çözümleme MakineHesabi'nde
+             * parola çoktan değişmiş oluyor. Aynı çözümleme MachineAccount'nde
              * duruyor ve turun kendisi de onu kullanıyor.
              */
-            [$kimlik, $kimlikParolasi] = app(MakineHesabi::class)->bul($credential)
+            [$kimlik, $kimlikParolasi] = app(MachineAccount::class)->bul($credential)
                 ?? [(string) $credential->rotation_username, (string) $credential->rotation_password];
 
             $session = $this->open($credential, $kimlik, $kimlikParolasi);

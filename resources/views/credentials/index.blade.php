@@ -133,7 +133,7 @@
                         listedeki onay kutuları döndürmeye ait ve
                         döndürülemeyen kayıtlarda kapalı duruyor — oysa o
                         kayıtların parolası pekâlâ çıktıya girebilir
-                        (gerekçesi ParolaDisaAktarimRequest'te).
+                        (gerekçesi PasswordExportRequest'te).
 
                         Form YERİNDE GÖNDERİLMEZ: yanıt bir dosya ve tarayıcı
                         onu kendi indirmeli.
@@ -209,7 +209,7 @@
                 Dışarıda iki yanı eşit durur ve liste kaysa da görünür kalır.
             --}}
             @if ($topluTur)
-                @include('credentials.partials.toplu-ilerleme', ['tur' => $topluTur])
+                @include('credentials.partials.bulk-progress', ['tur' => $topluTur])
             @endif
 
             <div class="column__body">
@@ -243,13 +243,13 @@
                     kayıtlar da kendi bölümlerinin içinde (iki ayrı liste: bir
                     kayıt başka bölüme, bir bölüm başka gruba bırakılamaz).
                     Yalnızca yönetici; her bırakış onay penceresi açar
-                    (bkz. siralama.js). "Alt grupsuz" en sonda sabit durur.
+                    (bkz. sorting.js). "Alt grupsuz" en sonda sabit durur.
                 --}}
                 <div class="credential-bolumler" @if ($bolumSirasi) data-sira="{{ $bolumSirasi }}" data-sira-alan="sira" @endif>
                     @foreach ($bolumler as $bolum)
                         @if ($bolum['uuid'] !== null)
                             <div class="credential-bolum-kap" @if ($bolumSirasi) draggable="true" data-sira-kimlik="{{ $bolum['uuid'] }}" @endif>
-                                @include('credentials.partials.bolum')
+                                @include('credentials.partials.section')
                             </div>
                         @endif
                     @endforeach
@@ -257,7 +257,7 @@
 
                 @foreach ($bolumler as $bolum)
                     @if ($bolum['uuid'] === null)
-                        @include('credentials.partials.bolum')
+                        @include('credentials.partials.section')
                     @endif
                 @endforeach
             </div>
@@ -282,7 +282,7 @@
                             tek varlık sebebi buydu.
 
                             İlk doluluk sunucudan gelir; gerisini yoklama
-                            devralır (bkz. dondurme-ilerleme.js).
+                            devralır (bkz. rotation-progress.js).
                         --}}
                         <div class="ilerleme detail__ilerleme"
                              data-ilerleme
@@ -334,7 +334,7 @@
                                 <span class="eyebrow">Kullanıcı adı</span>
 
                                 @if ($selected['username'])
-                                    <x-ui.kopyalanabilir label="Kullanıcı adı">{{ $selected['username'] }}</x-ui.kopyalanabilir>
+                                    <x-ui.copyable label="Kullanıcı adı">{{ $selected['username'] }}</x-ui.copyable>
                                 @else
                                     <p class="text-muted text-sm">Kullanıcı adı yok.</p>
                                 @endif
@@ -370,11 +370,11 @@
                     <div class="detail__section">
                         <span class="eyebrow">Konsol</span>
 
-                        <x-ui.ipucu baslik="Konsol nasıl açılıyor?">
+                        <x-ui.hint baslik="Konsol nasıl açılıyor?">
                             Bağlantıyı panel kurar; ekran görüntü olarak tarayıcınıza taşınır.
                             Parola size gösterilmez ve girmeniz gerekmez — bu yüzden konsol açmak
                             parolayı görme yetkisi istemez. Açılış ve kapanış kayda geçer.
-                        </x-ui.ipucu>
+                        </x-ui.hint>
 
                         @if ($selected['consoleReady'])
                             <p class="text-muted text-sm">
@@ -423,7 +423,7 @@
                     <div class="detail__section">
                         <span class="eyebrow">{{ $selected['arayuzTuru'] ? 'Arayüz oturumu' : 'Portal oturumu' }}</span>
 
-                        <x-ui.ipucu baslik="Bu bağlantı nasıl kuruluyor?">
+                        <x-ui.hint baslik="Bu bağlantı nasıl kuruluyor?">
                             {{--
                                 KISA TUTULUR. Burada yolun tekniğini anlatmak, meraklı bir kullanıcıya
                                 "parola şurada, bak" demekten farksız olurdu. Kullanıcının
@@ -438,14 +438,14 @@
                                 panoya basılmaz. Bu yol parolayı görme yetkisi gerektirir.
                                 Her açış kayda geçer.
                             @endif
-                        </x-ui.ipucu>
+                        </x-ui.hint>
 
                         @if ($selected['arayuzTuru'])
                             {{--
                                 Bu arayüzler forma gönderilebilen bir giriş
                                 kabul etmiyor (ESXi CSRF jetonunu istemcide
                                 üretiyor, VAMI jetonu localStorage'da tutuyor;
-                                ölçümler ArayuzTuru'nde). Bu yüzden arayüzün
+                                ölçümler InterfaceType'nde). Bu yüzden arayüzün
                                 KENDİSİ panelin kökeninden vekilleniyor ve
                                 oturum orada açılıyor. Parola yine ekrana
                                 çıkmaz.
@@ -503,7 +503,7 @@
                                 arayüzler. vCenter ARTIK buraya düşmez: oturumu
                                 SAML kimlik sağlayıcısından açılıyor (bkz.
                                 PortalLogin::vcenter). ESXi ve VAMI de düşmez:
-                                onların arayüzü vekilleniyor (bkz. ArayuzTuru).
+                                onların arayüzü vekilleniyor (bkz. InterfaceType).
                                 Geriye kayıtta
                                 giriş adresi yazılmamış sıradan web arayüzleri
                                 kalıyor. Onlarda da "giriş adresini girin" DENMEZ:
@@ -549,10 +549,10 @@
                     <div class="detail__section">
                         <span class="eyebrow">Arayüz</span>
 
-                        <x-ui.ipucu baslik="Bu düğme ne yapıyor?">
+                        <x-ui.hint baslik="Bu düğme ne yapıyor?">
                             Adresi yeni sekmede açar, o kadar. Oturum açmaz: kullanıcı adını ve parolayı
                             karşı tarafa kendiniz girersiniz.
-                        </x-ui.ipucu>
+                        </x-ui.hint>
 
                         <p class="text-muted text-sm">
                             Bu kayıt için panelden oturum açılamıyor; arayüz yeni sekmede açılır.
@@ -568,9 +568,9 @@
                         <span class="eyebrow">Parola güncelleme</span>
 
                         @if ($selected['dondurmeGereksinimi'])
-                            <x-ui.ipucu baslik="Bu kayıtta parola güncelleme neyi gerektiriyor?">
+                            <x-ui.hint baslik="Bu kayıtta parola güncelleme neyi gerektiriyor?">
                                 {{ $selected['dondurmeGereksinimi'] }}
-                            </x-ui.ipucu>
+                            </x-ui.hint>
                         @endif
 
                         @if ($selected['stuckRotation'])

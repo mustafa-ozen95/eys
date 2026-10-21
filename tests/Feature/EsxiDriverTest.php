@@ -17,7 +17,7 @@ use Tests\TestCase;
  * ESXi sürücüsü.
  *
  * Canlı bir ESXi'ye BAĞLANILMAZ; SOAP yanıtları taklit edilir
- * (bkz. .ai/rules/calisma.md). Sınanan şey: sürücü doğru zarfı gönderiyor,
+ * (bkz. .ai/rules/work.md). Sınanan şey: sürücü doğru zarfı gönderiyor,
  * nesne kimliklerini SUNUCUDAN okuyor ve hata gövdesini kaçırmıyor mu.
  */
 class EsxiDriverTest extends TestCase

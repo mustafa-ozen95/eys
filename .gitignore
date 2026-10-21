@@ -32,8 +32,8 @@ Thumbs.db
 /playwright-report
 
 # Veri depoya girmez: yazılım burada, veri yerelde.
-/database/seeders/yerel/*
-!/database/seeders/yerel/OKUBENI.md
+/database/seeders/local/*
+!/database/seeders/local/README.md
 
 # Kurulum yapılandırması — APP_KEY, veritabanı parolası, Guacamole sırrı ve
 # SMTP parolası taşıyabilir; ASLA izlenmez. Örneği .env.example'dır.

@@ -307,7 +307,7 @@ class DriverRegistry
      *
      * Yeni kayıt penceresinde sürücü henüz seçilmemiştir; orada daraltacak bir
      * bilgi yok. Düzenleme penceresi kaydın kendi sürücüsüne sorar
-     * (bkz. MakineHesabi::erisimTurleri).
+     * (bkz. MachineAccount::erisimTurleri).
      *
      * @return list<string>
      */

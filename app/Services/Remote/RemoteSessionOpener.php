@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Remote;
 
 use App\Enums\AccessType;
+use App\Models\ConsoleSession;
 use App\Models\Credential;
-use App\Models\KonsolOturumu;
 use Illuminate\Support\Str;
 
 /**
@@ -55,7 +55,7 @@ class RemoteSessionOpener
          * kesilince sessizce düşer ve geriye "kapandı" satırı olmayan bir
          * oturum kalırdı (bkz. konsol_oturumlari göçü).
          */
-        KonsolOturumu::create([
+        ConsoleSession::create([
             'token' => $token,
             'user_id' => $userId,
             'credential_id' => $credential->getKey(),
@@ -115,7 +115,7 @@ class RemoteSessionOpener
     /** Denetim izini kapatır. İz yoksa (eski oturum) sessizce geçilir. */
     public function iziKapat(string $token, string $sebep): void
     {
-        KonsolOturumu::query()
+        ConsoleSession::query()
             ->where('token', $token)
             ->whereNull('closed_at')
             ->update(['closed_at' => now(), 'closed_reason' => $sebep]);
@@ -124,7 +124,7 @@ class RemoteSessionOpener
     /** Canlı tutma: oturum hâlâ ayakta. */
     public function izeDokun(string $token): void
     {
-        KonsolOturumu::query()
+        ConsoleSession::query()
             ->where('token', $token)
             ->whereNull('closed_at')
             ->update(['last_seen_at' => now()]);

@@ -9,7 +9,7 @@ use App\Enums\OperatingSystem;
 use App\Models\Concerns\HasUuid;
 use App\Policies\CredentialPolicy;
 use App\Services\Authorization\UserPermissionResolver;
-use App\Services\CihazArayuzu\ArayuzTuru;
+use App\Services\DeviceInterface\InterfaceType;
 use App\Services\Portal\PortalLogin;
 use Database\Factories\CredentialFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,7 +68,7 @@ class Credential extends Model
      * Güncelleme hesabının KAYDI.
      *
      * Kopya yerine bağ: parola her turda o kayıttan okunur, SSH parolası
-     * döndüğünde burası kendiliğinden güncel kalır (bkz. MakineHesabi).
+     * döndüğünde burası kendiliğinden güncel kalır (bkz. MachineAccount).
      *
      * @return BelongsTo<Credential, $this>
      */
@@ -120,11 +120,11 @@ class Credential extends Model
      * Yetkiye katılmaz: görünürlük yalnızca gruba ve kayda sorulur
      * (bkz. scopeVisibleTo). Alt grup yalnızca nerede listeleneceğini söyler.
      *
-     * @return BelongsTo<AltGrup, $this>
+     * @return BelongsTo<SubGroup, $this>
      */
     public function altGrup(): BelongsTo
     {
-        return $this->belongsTo(AltGrup::class, 'alt_grup_id');
+        return $this->belongsTo(SubGroup::class, 'alt_grup_id');
     }
 
     /**
@@ -159,24 +159,24 @@ class Credential extends Model
      * Bu arayüzlerin oturumu DIŞARIDAN açılamıyor (ESXi CSRF jetonunu
      * istemcide üretiyor, VAMI jetonu localStorage'da tutuyor); onun yerine
      * arayüzün kendisi panelden servis ediliyor. Gereken tek şey adres ve
-     * kayıtlı kimlik — hangi kaydın hangi türe düştüğü ArayuzTuru'nde.
+     * kayıtlı kimlik — hangi kaydın hangi türe düştüğü InterfaceType'nde.
      *
-     * @return Attribute<?ArayuzTuru, never>
+     * @return Attribute<?InterfaceType, never>
      */
     protected function arayuzTuru(): Attribute
     {
-        return Attribute::get(function (): ?ArayuzTuru {
+        return Attribute::get(function (): ?InterfaceType {
             if (! $this->has_password || (blank($this->host) && blank($this->url))) {
                 return null;
             }
 
-            $tur = ArayuzTuru::icin($this);
+            $tur = InterfaceType::icin($this);
 
             /*
              * KULLANICI ADI ŞARTI TÜRE GÖRE: neredeyse hepsi ister, Rspamd
              * istemez — hesap kavramı yok, tek bir parola var ve cihaz
              * kullanıcı adını hiç görmüyor. Şart genel tutulduğunda o kayıtta
-             * arayüz sessizce açılmıyordu (bkz. ArayuzTuru::kullaniciAdiGerekir).
+             * arayüz sessizce açılmıyordu (bkz. InterfaceType::kullaniciAdiGerekir).
              */
             if ($tur !== null && $tur->kullaniciAdiGerekir() && blank($this->username)) {
                 return null;

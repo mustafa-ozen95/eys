@@ -6,13 +6,13 @@ namespace App\Http\Requests\Credential;
 
 use App\Enums\AccessType;
 use App\Enums\OperatingSystem;
-use App\Models\AltGrup;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\Role;
+use App\Models\SubGroup;
 use App\Policies\CredentialPolicy;
 use App\Services\Authorization\UserPermissionResolver;
-use App\Support\Konak;
+use App\Support\Host;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -63,7 +63,7 @@ abstract class CredentialRequest extends FormRequest
             /*
              * ALT GRUP SEÇİLEN GRUBUN İÇİNDEN OLMALI.
              *
-             * Formdaki liste gruba göre daralıyor (kosullu-alan.js ·
+             * Formdaki liste gruba göre daralıyor (conditional-field.js ·
              * data-bagli) ama karar burada: başka grubun bölmesi elle
              * gönderilebilir, o zaman kayıt bir grupta durup öbür grubun
              * başlığı altında listelenirdi.
@@ -121,7 +121,7 @@ abstract class CredentialRequest extends FormRequest
             'rol_kutulari' => ['sometimes', 'boolean'],
 
             /*
-             * Adres gerçek bir ağ adresi olmalı (bkz. App\Support\Konak):
+             * Adres gerçek bir ağ adresi olmalı (bkz. App\Support\Host):
              * değer root'la yeniden yüklenen nginx yapılandırmasına metin
              * olarak giriyor. DEĞİŞMEMİŞ DEĞER SORULMAZ — bu doğrulamadan
              * önce yazılmış bir kaydın başka bir alanını düzenlemek bu
@@ -204,7 +204,7 @@ abstract class CredentialRequest extends FormRequest
                 return;
             }
 
-            if (in_array($alan, ['host', 'uplink'], true) ? ! Konak::gecerliMi($deger) : ! Konak::adresGecerliMi($deger)) {
+            if (in_array($alan, ['host', 'uplink'], true) ? ! Host::gecerliMi($deger) : ! Host::adresGecerliMi($deger)) {
                 $basarisiz('Geçerli bir alan adı ya da IP adresi yazın.');
             }
         };
@@ -493,7 +493,7 @@ abstract class CredentialRequest extends FormRequest
 
             /* Doğrulama alt grubun bu gruba ait olduğunu zaten sordu. */
             'alt_grup_id' => $this->filled('alt_grup')
-                ? AltGrup::query()->where('uuid', $this->string('alt_grup'))->value('id')
+                ? SubGroup::query()->where('uuid', $this->string('alt_grup'))->value('id')
                 : null,
 
             'name' => $this->string('name')->squish()->value(),

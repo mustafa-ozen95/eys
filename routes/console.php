@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schedule;
 | İki iş doğası gereği periyodiktir ve elle çalıştırıldıklarında unutuluyorlar:
 |
 |  - Merkezdeki rol/durum değişikliğini yerele taşıyan tur. Panelde gezinen
-|    kişi için bunu ara katman zaten yapıyor (KimlikDurumunuDogrula), ama
+|    kişi için bunu ara katman zaten yapıyor (VerifyIdentityStatus), ama
 |    panele hiç uğramayan bir hesap merkezde askıya alındığında burada açık
 |    kalıyordu.
 |

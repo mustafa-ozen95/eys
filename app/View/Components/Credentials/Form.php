@@ -25,7 +25,7 @@ class Form extends Component
     public string $kilitNotu = 'Kayıtta parola var; adresi yalnızca parolayı görebilenler değiştirebilir.';
 
     /*
-     * KOŞULLU ALANLAR (bkz. kosullu-alan.js).
+     * KOŞULLU ALANLAR (bkz. conditional-field.js).
      *
      * Form her alanı her kayıtta gösteriyordu: uzak masaüstü kaydında portal
      * formu, üyelik kaydında port, SSH kaydında RDP kipi. Gereksiz alan

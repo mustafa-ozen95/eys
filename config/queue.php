@@ -53,7 +53,7 @@ return [
             |
             | Taban 960: en uzun iş (900) + pay. Ortam değişkeni bunu
             | AŞAĞI ÇEKEMEZ; ayarı elle kısmak sessiz bir arıza üretirdi.
-            | İkisinin ayrışmadığını KuyrukAyariTest denetler.
+            | İkisinin ayrışmadığını QueueSettingTest denetler.
             */
             'retry_after' => max((int) env('DB_QUEUE_RETRY_AFTER', 90), 960),
             'after_commit' => false,

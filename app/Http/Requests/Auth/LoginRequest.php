@@ -74,7 +74,7 @@ class LoginRequest extends FormRequest
 
         /*
          * Son giriş zamanı BURADA YAZILMAZ: `Login` olayını dinleyen tek bir
-         * yer yazıyor (bkz. SonGirisiIsaretle). Burada yazılıyordu ve merkezle
+         * yer yazıyor (bkz. MarkLastLogin). Burada yazılıyordu ve merkezle
          * giriş yapanlarda hiç yazılmıyordu.
          */
         $activity->record(ActivityAction::LoggedIn, "{$user->name} giriş yaptı", $user);
@@ -90,7 +90,7 @@ class LoginRequest extends FormRequest
          * `tooManyAttempts($key, 0)` sınırı kaldırmaz: sayaç sıfırdan büyük
          * ya da eşit olduğu için İLK yanlış paroladan sonra kilitler, yani
          * kapatmak isterken en sert hâline getirirdi. Aynı tuzak istek
-         * sınırlarında da var (bkz. App\Support\IstekSiniri ve
+         * sınırlarında da var (bkz. App\Support\RequestLimit ve
          * config/auth.php'deki login_throttle).
          */
         if ($limit <= 0) {

@@ -72,7 +72,7 @@ trait ManagesWindowsAccounts
      * TAŞIMA yapar, çünkü sırrın betiğe nasıl gireceğini de taşıma belirliyor.
      *
      * PAROLA BETİĞE GİRMEZ: betikte yalnızca bir yer tutucu durur
-     * (bkz. PowerShellGizli) — SSH'ta standart girdiden, WinRM'de kabuğun
+     * (bkz. PowerShellSecret) — SSH'ta standart girdiden, WinRM'de kabuğun
      * ortam değişkeninden okunur.
      */
     private function run(RotationSession $session, string $script, string $failure, ?string $stdin = null): void

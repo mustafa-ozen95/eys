@@ -8,9 +8,9 @@ use App\Models\Credential;
 use App\Services\Rotation\Contracts\NeedsMachineAccount;
 use App\Services\Rotation\Contracts\PasswordDriver;
 use App\Services\Rotation\Drivers\Concerns\ConnectsOverSsh;
-use App\Services\Rotation\Drivers\Concerns\DogrularPleskGirisi;
-use App\Services\Rotation\Drivers\Concerns\SecerMakineSshKaydi;
-use App\Services\Rotation\MakineHesabi;
+use App\Services\Rotation\Drivers\Concerns\SelectsMachineSshRecord;
+use App\Services\Rotation\Drivers\Concerns\VerifiesPleskLogin;
+use App\Services\Rotation\MachineAccount;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 
@@ -41,10 +41,10 @@ class PleskPasswordDriver implements NeedsMachineAccount, PasswordDriver
      * kendi giriş ucu veriyor. Çakışma açıkça çözülür ki hangisinin
      * kullanıldığı okunurken görünsün.
      */
-    use ConnectsOverSsh, DogrularPleskGirisi {
-        DogrularPleskGirisi::verify insteadof ConnectsOverSsh;
+    use ConnectsOverSsh, VerifiesPleskLogin {
+        VerifiesPleskLogin::verify insteadof ConnectsOverSsh;
     }
-    use SecerMakineSshKaydi;
+    use SelectsMachineSshRecord;
 
     public const KEY = 'plesk';
 
@@ -73,7 +73,7 @@ class PleskPasswordDriver implements NeedsMachineAccount, PasswordDriver
      */
     protected function connectPort(Credential $credential): int
     {
-        return app(MakineHesabi::class)->port($credential) ?? $this->defaultPort();
+        return app(MachineAccount::class)->port($credential) ?? $this->defaultPort();
     }
 
     /**
@@ -99,7 +99,7 @@ class PleskPasswordDriver implements NeedsMachineAccount, PasswordDriver
             blank($credential->host) => 'Adres tanımlı değil.',
             $credential->username !== 'admin' => 'Bu sürücü yalnızca Plesk yönetici hesabını (admin) günceller.',
             blank($credential->password) => 'Kayıtlı parola yok; güncelleme mevcut parolayla başlar.',
-            default => app(MakineHesabi::class)->eksikSebep($credential),
+            default => app(MachineAccount::class)->eksikSebep($credential),
         };
     }
 

@@ -18,7 +18,7 @@ use Illuminate\Database\Seeder;
  * anlatır; parola olmasa da "hangi makineler var, hangi panelleri koşuyorlar"
  * bilgisi tek başına da kimseye verilmez. Yazılım depoya girer, veri girmez.
  *
- * Liste `database/seeders/yerel/kasa-yapisi.php` içindedir (.gitignore'da);
+ * Liste `database/seeders/local/vault-layout.php` içindedir (.gitignore'da);
  * yoksa seeder hiçbir şey yapmaz. Parola, adres ve kullanıcı adı orada da
  * YOKTUR — onlar panelden girilir.
  *
@@ -40,7 +40,7 @@ class CredentialGroupSeeder extends Seeder
      */
     private function yapi(): array
     {
-        $dosya = __DIR__.'/yerel/kasa-yapisi.php';
+        $dosya = __DIR__.'/local/vault-layout.php';
 
         if (! is_file($dosya)) {
             return [];
@@ -57,7 +57,7 @@ class CredentialGroupSeeder extends Seeder
         $yapi = $this->yapi();
 
         if ($yapi === []) {
-            $this->command?->warn('yerel/kasa-yapisi.php yok; grup eklenmedi.');
+            $this->command?->warn('local/vault-layout.php yok; grup eklenmedi.');
 
             return;
         }

@@ -16,7 +16,7 @@ declare(strict_types=1);
 | biçimde düşüyordu.
 |
 | SIFIR = SINIR YOK. Ara katman o zaman hiç eklenmez; "throttle:0,1" yazmak
-| sınırı kaldırmaz, ucu tamamen kapatırdı (bkz. App\Support\IstekSiniri).
+| sınırı kaldırmaz, ucu tamamen kapatırdı (bkz. App\Support\RequestLimit).
 |
 */
 

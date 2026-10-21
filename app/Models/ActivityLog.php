@@ -116,11 +116,11 @@ class ActivityLog extends Model
     /**
      * Toplu parola çıktısında dosyaya giren kayıtlar (çıktı başına tek denetim satırı).
      *
-     * @return HasMany<ParolaCiktisiSatiri, $this>
+     * @return HasMany<PasswordOutputRow, $this>
      */
     public function ciktiSatirlari(): HasMany
     {
-        return $this->hasMany(ParolaCiktisiSatiri::class);
+        return $this->hasMany(PasswordOutputRow::class);
     }
 
     /** @return MorphTo<Model, $this> */

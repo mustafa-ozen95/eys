@@ -22,7 +22,7 @@ use Tests\TestCase;
 /**
  * Junos switch parola döndürme sürücüsü.
  *
- * Hiçbir cihaza ya da sokete BAĞLANILMAZ (bkz. .ai/rules/calisma.md): taşıma
+ * Hiçbir cihaza ya da sokete BAĞLANILMAZ (bkz. .ai/rules/work.md): taşıma
  * FakeJunosDevice'ın bellek içi durum makinesidir. Sınanan şey NETCONF'un
  * kendisi değil, SIRA: kurtarma hesabı parola değişiminden önce açılıyor mu,
  * çalışmıyorsa tur parolaya hiç dokunmadan geri alınıyor mu, ve izin

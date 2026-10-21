@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * SON GİRİŞ ALANI DENETİM KAYDINDAN DOLDURULUR.
  *
  * Son giriş her giriş yolunda (parola ve merkez) `Login` olayıyla yazılır
- * (bkz. SonGirisiIsaretle); bu göç alanı boş kalmış hesaplar için GEÇMİŞİ
+ * (bkz. MarkLastLogin); bu göç alanı boş kalmış hesaplar için GEÇMİŞİ
  * denetim kaydından doldurur. Kaynak uydurma değil: `activity_logs` zincirindeki
  * `logged_in` satırları, girişin kendisinin kanıtı.
  *

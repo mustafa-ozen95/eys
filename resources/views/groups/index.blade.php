@@ -15,16 +15,16 @@
             {{--
                 GRUPLAR KATLANIR BÖLÜMLER HÂLİNDE. Başlık grubu anlatır; açılınca
                 alt grupları görünür ve orada yönetilir: ekleme ve düzenleme
-                pencerede (bkz. partials/alt-penceresi), sıra sürükleyerek.
+                pencerede (bkz. partials/sub-window), sıra sürükleyerek.
 
-                İki seviye de SÜRÜKLENEREK sıralanır (bkz. siralama.js): dış
+                İki seviye de SÜRÜKLENEREK sıralanır (bkz. sorting.js): dış
                 liste grupları, her bölümün içindeki tablo alt grupları.
                 Bölüm `?acik=` ile açık gelir: alt grup ekleyince/değiştirince
                 sayfa yerinde yenileniyor ve çalışılan bölüm kapanmamalı.
             --}}
             <div data-sira="{{ route('groups.sirala') }}" data-sira-alan="sira">
                 @forelse ($groups as $group)
-                    <x-ui.katlanir :title="$group->name"
+                    <x-ui.collapsible :title="$group->name"
                                    :subtitle="$group->kind->label().' · '.$group->credentials_count.' kayıt · '.($viewerCounts[$group->uuid] ?? 0).' görebilen'"
                                    :open="$acikGrup === $group->uuid"
                                    draggable="true"
@@ -90,7 +90,7 @@
                                 @endforelse
                             </tbody>
                         </table>
-                    </x-ui.katlanir>
+                    </x-ui.collapsible>
                 @empty
                     <x-ui.panel>
                         <x-ui.empty title="Grup yok" text="İlk grubu ekleyerek başlayın." />
@@ -100,5 +100,5 @@
         </div>
     </div>
 
-    @include('groups.partials.alt-penceresi')
+    @include('groups.partials.sub-window')
 </x-layout.app>

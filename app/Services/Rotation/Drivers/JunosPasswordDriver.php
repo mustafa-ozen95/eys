@@ -9,7 +9,7 @@ use App\Services\Rotation\Contracts\NamesRecoveryAccount;
 use App\Services\Rotation\Contracts\PasswordDriver;
 use App\Services\Rotation\DeviceUnreachableException;
 use App\Services\Rotation\Junos\ConfigurationWriter;
-use App\Services\Rotation\Junos\JunosOturum;
+use App\Services\Rotation\Junos\JunosSession;
 use App\Services\Rotation\Junos\NetconfClient;
 use App\Services\Rotation\Junos\NetconfException;
 use App\Services\Rotation\Junos\NetconfSession;
@@ -86,7 +86,7 @@ class JunosPasswordDriver implements NamesRecoveryAccount, PasswordDriver
         }
 
         return new RotationSession(
-            new JunosOturum($target, $netconf),
+            new JunosSession($target, $netconf),
             $username,
             $password,
             static fn () => $netconf->close(),
@@ -196,7 +196,7 @@ class JunosPasswordDriver implements NamesRecoveryAccount, PasswordDriver
      */
     private function yaz(RotationSession $session, string $belge, string $ozet, bool $geriAlinabilir, string $failure, array $gizli): void
     {
-        /** @var JunosOturum $oturum */
+        /** @var JunosSession $oturum */
         $oturum = $session->handle;
 
         try {

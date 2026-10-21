@@ -9,7 +9,7 @@ use App\Http\Requests\Credential\PortalSessionRequest;
 use App\Models\Credential;
 use App\Services\ActivityRecorder;
 use App\Services\Portal\PortalLogin;
-use App\Support\IstekSiniri;
+use App\Support\RequestLimit;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -42,7 +42,7 @@ class PortalSessionController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:session,credential'),
-            ...IstekSiniri::icin('portal'),
+            ...RequestLimit::icin('portal'),
         ];
     }
 

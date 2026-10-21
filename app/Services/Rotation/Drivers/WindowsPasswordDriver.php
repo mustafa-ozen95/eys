@@ -8,7 +8,7 @@ use App\Models\Credential;
 use App\Services\Rotation\Contracts\PasswordDriver;
 use App\Services\Rotation\Drivers\Concerns\ConnectsOverSsh;
 use App\Services\Rotation\Drivers\Concerns\ManagesWindowsAccounts;
-use App\Services\Rotation\PowerShellGizli;
+use App\Services\Rotation\PowerShellSecret;
 use App\Services\Rotation\RotationSession;
 
 /**
@@ -81,7 +81,7 @@ class WindowsPasswordDriver implements PasswordDriver
         string $gizli,
     ): void {
         /* SSH'ta sır standart girdiden gider; bu yol yıllardır çalışıyor. */
-        $encoded = PowerShellGizli::kodla(PowerShellGizli::stdinIle($script));
+        $encoded = PowerShellSecret::kodla(PowerShellSecret::stdinIle($script));
 
         $this->execute(
             $session,

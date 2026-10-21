@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Credential;
 
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -13,7 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * Onay penceresi gerekçeyi forma ekliyor ama pencere tarayıcıda; isteği elle
  * kuran gerekçesiz döndürebilirdi.
  *
- * ZORUNLULUK KAYDA BAĞLI (bkz. GerekceKurali). Tur yine her hâlükârda kayda
+ * ZORUNLULUK KAYDA BAĞLI (bkz. ReasonRule). Tur yine her hâlükârda kayda
  * geçer ve yazılı onay (adres yazdırma) kritik olmayan kayıtta da durur;
  * kalkan yalnızca "neden" kutusudur.
  */
@@ -28,7 +28,7 @@ class RotateCredentialRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reason' => GerekceKurali::kayit($this->route('credential')),
+            'reason' => ReasonRule::kayit($this->route('credential')),
         ];
     }
 

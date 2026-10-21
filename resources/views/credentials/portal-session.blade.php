@@ -40,6 +40,6 @@
     Dosya Vite paketinde değil — bu sayfa panelin düzenini kullanmayan, tek
     kullanımlık bir ara durak; oraya bütün paketi yüklemek anlamsız olurdu.
 --}}
-<script src="{{ asset('oturum-ac.js') }}"></script>
+<script src="{{ asset('session-open.js') }}"></script>
 </body>
 </html>

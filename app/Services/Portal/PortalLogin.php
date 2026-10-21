@@ -7,8 +7,8 @@ namespace App\Services\Portal;
 use App\Enums\AccessType;
 use App\Enums\OperatingSystem;
 use App\Models\Credential;
-use App\Services\CihazArayuzu\ArayuzTuru;
 use App\Services\DeviceAddress;
+use App\Services\DeviceInterface\InterfaceType;
 
 /**
  * Fırlatma sayfasının göndereceği giriş isteği.
@@ -93,7 +93,7 @@ final class PortalLogin
          * vekile hiç uğramadan eski yoldan açılabilirdi. Karar tek yerde ve
          * vekilden yana.
          */
-        if (ArayuzTuru::icin($credential) !== null) {
+        if (InterfaceType::icin($credential) !== null) {
             return false;
         }
 
@@ -140,7 +140,7 @@ final class PortalLogin
          *
          * Şimdilik çare kullanıcıda: arayüzden çıkış yapmak ya da cihazın
          * çerezlerini temizlemek. Kalıcı çözüm, oturumu panelin tuttuğu
-         * vekil yolu (bkz. ArayuzTuru) — orada ikinci açılış diye bir sorun
+         * vekil yolu (bkz. InterfaceType) — orada ikinci açılış diye bir sorun
          * yok, yeni oturum açılır.
          */
         return null;
@@ -306,7 +306,7 @@ final class PortalLogin
      */
     private static function vcenter(Credential $credential): ?self
     {
-        $adres = VcenterSsoAdresi::al($credential);
+        $adres = VcenterSsoAddress::al($credential);
 
         if ($adres === null) {
             return null;

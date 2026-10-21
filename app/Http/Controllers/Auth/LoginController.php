@@ -7,8 +7,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\ActivityRecorder;
-use App\Services\Kimlik\MerkezIstemcisi;
-use App\Services\Kimlik\OrtakCikis;
+use App\Services\Identity\CenterClient;
+use App\Services\Identity\SharedLogout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,14 +24,14 @@ class LoginController extends Controller
      * Giriş ekranı.
      *
      * Merkezin açık olup olmadığı KARAR olarak buradan geçer; Blade config
-     * okumaz. Soruyu `MerkezIstemcisi` yanıtlar: ayar tek başına yetmiyor,
+     * okumaz. Soruyu `CenterClient` yanıtlar: ayar tek başına yetmiyor,
      * istemci bilgileri de gerekiyor.
      */
-    public function create(MerkezIstemcisi $merkez): View
+    public function create(CenterClient $merkez): View
     {
         return view('auth.login', [
             'merkezAcik' => $merkez->acikMi(),
-            'merkezAd' => config('kimlik.ad'),
+            'merkezAd' => config('identity.ad'),
         ]);
     }
 
@@ -45,18 +45,18 @@ class LoginController extends Controller
 
     /**
      * ORTAK ÇIKIŞ: merkezden giren kişinin çıkışı merkeze bildirilir; merkez
-     * kendi oturumunu ve öteki panelleri kapatır (bkz. OrtakCikis). Bu
+     * kendi oturumunu ve öteki panelleri kapatır (bkz. SharedLogout). Bu
      * paneldeki öteki oturumları da (başka cihaz) aynı an kapatır.
      *
      * ZAMAN AŞIMI ORTAK DEĞİL: ekran kilidinin çıkışı (süre doldu) yalnız bu
      * oturumu kapatır; bir sekmede süresi dolan kişi öteki panellerden atılmaz.
      */
-    public function destroy(Request $request, MerkezIstemcisi $merkez): RedirectResponse
+    public function destroy(Request $request, CenterClient $merkez): RedirectResponse
     {
-        $bag = $request->user() !== null && ! OrtakCikis::zamanAsimiMi($request) ? OrtakCikis::bag($request->user()) : null;
+        $bag = $request->user() !== null && ! SharedLogout::zamanAsimiMi($request) ? SharedLogout::bag($request->user()) : null;
 
         if ($bag !== null) {
-            OrtakCikis::isle($bag, OrtakCikis::simdiMs());
+            SharedLogout::isle($bag, SharedLogout::simdiMs());
 
             if ($merkez->acikMi()) {
                 rescue(fn () => $merkez->oturumKapandi($bag->subject));

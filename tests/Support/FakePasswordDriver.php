@@ -13,7 +13,7 @@ use App\Services\Rotation\RotationSession;
 /**
  * Sahte makine.
  *
- * Canlı sisteme bağlanılmaz (bkz. .ai/rules/calisma.md); sıra, davranışı
+ * Canlı sisteme bağlanılmaz (bkz. .ai/rules/work.md); sıra, davranışı
  * programlanabilen bir makineye karşı sınanır. Gerçek sürücünün işi yalnızca
  * konuşmak; sıranın doğruluğu buradan kanıtlanır.
  *

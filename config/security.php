@@ -11,7 +11,7 @@ declare(strict_types=1);
 |
 | İçerik CSP'si `script-src 'self'` taşır: satır içi <script> bloğu sessizce
 | çalışmaz ve ekran bozulur. Bu yüzden her betik dosyadan yüklenir (ör.
-| portal-session.blade.php → public/oturum-ac.js); yeni bir görünüm de satır
+| portal-session.blade.php → public/session-open.js); yeni bir görünüm de satır
 | içi betik eklememeli.
 */
 

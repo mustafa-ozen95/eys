@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Rotation\Drivers\Concerns;
 
 use App\Models\Credential;
-use App\Services\Rotation\PowerShellGizli;
+use App\Services\Rotation\PowerShellSecret;
 use App\Services\Rotation\RotationException;
 use App\Services\Rotation\RotationSession;
 use Illuminate\Support\Facades\Process;
@@ -107,13 +107,13 @@ trait RunsOverWinRm
          * WS-Man kabuğu açılırken ortam değişkeni verilebiliyor ve değişken
          * komut satırında görünmüyor.
          */
-        $encoded = PowerShellGizli::kodla(PowerShellGizli::ortamIle($script));
+        $encoded = PowerShellSecret::kodla(PowerShellSecret::ortamIle($script));
 
         $sonuc = $this->call($credential, $session->username, $session->password, [
             'action' => 'run',
             'program' => 'powershell.exe',
             'arguments' => ['-NonInteractive', '-NoProfile', '-EncodedCommand', $encoded],
-            'env' => $gizli === '' ? [] : [PowerShellGizli::DEGISKEN => $gizli],
+            'env' => $gizli === '' ? [] : [PowerShellSecret::DEGISKEN => $gizli],
         ], $failure);
 
         if ((int) ($sonuc['status'] ?? 1) !== 0) {

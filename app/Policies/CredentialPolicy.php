@@ -148,7 +148,7 @@ class CredentialPolicy
      *
      *   arayuz   Oturum SUNUCUDA açılıyor; dönen çerez panelde kalıyor ve
      *            vekil her isteğe onu ekliyor. Parola tarayıcıya HİÇ gitmiyor
-     *            (bkz. ArayuzGirisi). Görme yetkisi aramak, var olmayan bir
+     *            (bkz. InterfaceLogin). Görme yetkisi aramak, var olmayan bir
      *            sızıntıya karşı önlem almak olurdu.
      *
      * Konsolda (connect) da aynı karar verilmiş: "parolayı GÖRMEK gerekmez —

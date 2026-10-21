@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Remote;
 
 use App\Models\Credential;
-use App\Support\GerekceKurali;
+use App\Support\ReasonRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
@@ -30,14 +30,14 @@ class RemoteSessionRequest extends FormRequest
             'id' => ['required', 'uuid'],
 
             /*
-             * GEREKÇE KRİTİK KAYITLARDA ZORUNLU (bkz. GerekceKurali).
+             * GEREKÇE KRİTİK KAYITLARDA ZORUNLU (bkz. ReasonRule).
              *
              * Konsol açmak her hâlükârda gerekçesiyle ya da gerekçesiz kayda
              * geçer; soru yalnızca işaretli kayıtlarda sorulur. Her konsol
              * açılışında "neden" istemek, kutuya "bakım" yazdırmaktan başka
              * bir şey üretmiyordu.
              */
-            'reason' => GerekceKurali::kayit($this->hedef()),
+            'reason' => ReasonRule::kayit($this->hedef()),
         ];
     }
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Credential\BulkRotateCredentialRequest;
+use App\Services\Rotation\BulkRound;
 use App\Services\Rotation\RotationLauncher;
-use App\Services\Rotation\TopluTur;
-use App\Support\IstekSiniri;
+use App\Support\RequestLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -28,7 +28,7 @@ class BulkCredentialRotationController extends Controller implements HasMiddlewa
     {
         return [
             new Middleware('can:rotateAny,App\Models\Credential'),
-            ...IstekSiniri::icin('rotate_bulk'),
+            ...RequestLimit::icin('rotate_bulk'),
         ];
     }
 
@@ -43,11 +43,11 @@ class BulkCredentialRotationController extends Controller implements HasMiddlewa
 
         /*
          * Parti açılır: ekrandaki TEK gösterge bu partinin kayıtlarını izler
-         * (bkz. TopluTur). Kuyruğa hiçbir şey girmediyse izlenecek bir şey
+         * (bkz. BulkRound). Kuyruğa hiçbir şey girmediyse izlenecek bir şey
          * de yoktur.
          */
         if ($sonuc['queuedIds'] !== []) {
-            TopluTur::baslat($request->user(), $sonuc['queuedIds']);
+            BulkRound::baslat($request->user(), $sonuc['queuedIds']);
         }
 
         $kuyruga = count($sonuc['queued']);

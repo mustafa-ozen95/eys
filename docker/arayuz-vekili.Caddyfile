@@ -1,0 +1,56 @@
+# =============================================================================
+#  Cihaz arayüzü vekili — 9443 ve oturum başına 9450-9479 (TLS)
+# =============================================================================
+#  Panelin kendi alan adını (443) platformun vekili verir; ama vekillenen cihaz
+#  arayüzleri AYNI adın AYRI portlarında açılır (bkz. config/remote.php) ve
+#  platform vekilleri yalnız 80/443 dinler. Bu servis o portları karşılar,
+#  TLS'i bitirir ve panelin 9080'ine verir. Ad aynı olduğu için panelin
+#  sertifikası geçerlidir: /sertifika/tls.crt ve tls.key (hacim, salt okunur).
+#
+#  Adres YAZILMAZ (":9443"): her ad için aynı sertifika verilir, alan adını
+#  panel ARAYUZ_ALANI ile bilir. ACME yok: sertifikayı kurulum koyar.
+#
+#  Port aralığını değiştirirken üç yer birden değişir: burası, compose'taki
+#  yayın aralığı ve ARAYUZ_PORT_ILK/SON. Caddy port ARALIĞI kabul etmiyor
+#  (ölçüldü: "invalid port '9450-9479'"), adresler tek tek yazılı.
+# =============================================================================
+{
+	auto_https off
+	admin off
+}
+
+# Ortak köken: panel mutlak adresleri Host'tan üretiyor; PORT DA GEÇMELİ, yoksa
+# ürettiği adresler panelin kendi kökenine düşer.
+:9443 {
+	tls /sertifika/tls.crt /sertifika/tls.key
+
+	reverse_proxy panel:9080 {
+		header_up Host {host}:9443
+		header_up X-Real-IP {remote_host}
+
+		# Cihaz arayüzleri uzun yoklama (long poll) kullanıyor; kısa bir okuma
+		# süresi bağlantıyı koparır ve ekran donuk görünür.
+		transport http {
+			read_timeout 3600s
+			write_timeout 3600s
+		}
+	}
+}
+
+# Oturum başına port: her cihaz arayüzü KENDİ portunda açılır; ortak portta
+# oturumu tarayıcıya ait çerez taşıyordu ve aynı anda iki arayüz açan
+# kullanıcının istekleri son açılana gidiyordu.
+:9450, :9451, :9452, :9453, :9454, :9455, :9456, :9457, :9458, :9459, :9460, :9461, :9462, :9463, :9464, :9465, :9466, :9467, :9468, :9469, :9470, :9471, :9472, :9473, :9474, :9475, :9476, :9477, :9478, :9479 {
+	tls /sertifika/tls.crt /sertifika/tls.key
+
+	reverse_proxy panel:9080 {
+		# PORT DA GEÇMELİ: panel oturumu Host başlığındaki porttan buluyor.
+		header_up Host {http.request.hostport}
+		header_up X-Real-IP {remote_host}
+
+		transport http {
+			read_timeout 3600s
+			write_timeout 3600s
+		}
+	}
+}

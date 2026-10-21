@@ -1,0 +1,104 @@
+# =============================================================================
+#  İmajı derle ve GitHub Container Registry'ye yükle
+# =============================================================================
+#  Sunucunun imajı kaynaktan derlemesi gerekmesin diye. Bu imaj Guacamole
+#  sunucusunu kaynaktan derliyor (resmi imaj musl tabanlı, ikilileri glibc
+#  tabanlı imajımıza taşınamıyor) ve bu uzun sürüyor. Her sunucunun bunu
+#  tekrarlaması yerine bir kez burada derlenir.
+#
+#  Sunucu tarafı: imajı çekip yeniden başlatır (paket özelse önce bir kez
+#  docker login ghcr.io).
+# =============================================================================
+name: imaj
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # Aynı dal için ikinci bir derleme başlarsa öncekini iptal et: uzun süren
+  # iki derlemenin yarışması kayda hangisinin son yazdığını belirsizleştirir.
+  group: imaj-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runner'daki boş alan sınırlı; imaj ve derleme ara katmanları buna
+      # sığmayabilir. Kullanılmayan araç zincirleri silinmezse "no space left
+      # on device" ile düşer.
+      - name: Yer aç
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: etiket
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # `latest` her zaman son main'i gösterir; tarih ve commit etiketi
+          # GERİ DÖNÜŞ HEDEFİDİR. Tek sabit etiket kullanılsaydı yeni derleme
+          # onun üstüne yazar ve geri dönecek imaj kalmazdı.
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYY-MM-DD'}},enable={{is_default_branch}}
+            type=sha,format=short
+            # Sürüm etiketi: `git tag v1.2.0 && git push --tags`
+            #   1.2.0 → tam sürüm, geri dönüşün sabit hedefi
+            #   1.2   → yama güncellemelerini kendiliğinden alır
+            #   1     → geriye uyumlu her sürümü alır
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          # İmaja gömülür: hangi sürüm, hangi commit, ne zaman derlendi.
+          # `docker inspect` bunları okur; imaj etiketi
+          # değiştirilse bile içerideki bilgi doğru kalır.
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - uses: docker/build-push-action@v6
+        # Depo açık: derleme kaydı (.dockerbuild artefaktı) ve provenance
+        # commit yazarını ve olay yükünü taşır, herkes indirebilir. Kapalı.
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.etiket.outputs.tags }}
+          labels: ${{ steps.etiket.outputs.labels }}
+          # Panel kendi sürümünü bilsin (Ayarlar → Güncelleme).
+          build-args: |
+            SURUM=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Özet
+        run: |
+          echo "### Yüklenen etiketler" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.etiket.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

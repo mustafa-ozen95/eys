@@ -1,0 +1,189 @@
+# =============================================================================
+#  eys — Erişim Yönetim Sistemi — Compose (compose-spec.io)
+# =============================================================================
+#  Her ortamda aynı dosya: `docker compose up -d --build`, NineDeploy, Coolify,
+#  Dokploy, Portainer... Ayarların hepsi ortamdan gelir (.env ya da platformun
+#  değişken ekranı); liste ve açıklamalar .env.example'da.
+#
+#      cp .env.example .env      # en az APP_URL, DB_PASSWORD, ADMIN_EMAIL
+#      docker compose up -d --build
+#
+#  HTTP portu dışarı AÇILMAZ: alan adını ve TLS'i önündeki vekil (platformun
+#  kendisi ya da Caddy/nginx) verir, panele konteyner ağından 80'den ulaşır.
+#  Vekilsiz deneme için docker-compose.override.example.yml.
+#
+#  Servisler: panel (nginx + php-fpm + işçi + zamanlayıcı; ttyd, guacd ve
+#  Tomcat de içeride, kod onları localhost'ta varsayıyor), db (MariaDB), redis
+#  (önbellek, oturum, kuyruk; kalıcılık kapalı), arayuz-vekili (cihaz
+#  arayüzlerinin 9443 ve 9450-9479 TLS portları; varsayılan kapalı).
+#
+#  Dışarıdaki ya da platformun yönettiği bir veritabanı: DB_HOST ve kimlik
+#  bilgilerini verin, VT_KOPYA=0 ile db servisi hiç kalkmaz.
+#
+#  Adlar: konteyner ve hacimler ONEK ile başlar (varsayılan eys). Aynı
+#  sunucuda ikinci kurulum ONEK'i değiştirir.
+# =============================================================================
+
+services:
+  panel:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ${ONEK:-eys}:yerel
+    container_name: ${ONEK:-eys}
+    restart: unless-stopped
+    # Kapanış NE KADAR SÜRÜYORSA o kadar beklenir; buradaki değer bir hedef
+    # değil, asla devreye girmemesi gereken bir TAVANDIR. Parola döndüren bir
+    # iş sürerken kapanış dakikalara çıkabilir; kesilmiş bir döndürme,
+    # panelin bilmediği bir parola demektir.
+    stop_grace_period: 1h
+    # 80: panel. 9080: cihaz arayüzü kökeni (arayuz-vekili ya da sunucudaki
+    # vekil 9443 ve 9450-9479'u buraya verir).
+    expose: ["80", "9080"]
+    # Tanımsız değişken konteynere GEÇMEZ (boş değer de değil): varsayılanlar
+    # başlatıcıda ve config/ altında.
+    environment:
+      - APP_NAME
+      - APP_ENV
+      - APP_DEBUG
+      - APP_KEY
+      - APP_URL
+      - APP_LOCALE
+      - APP_TIMEZONE
+      - TRUSTED_PROXIES
+      - DB_HOST
+      - DB_PORT
+      - DB_DATABASE
+      - DB_USERNAME
+      - DB_PASSWORD
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+      - ADMIN_EMAIL
+      - ADMIN_NAME
+      - ADMIN_PASSWORD
+      - ORNEK_VERI
+      - LOGIN_THROTTLE
+      - ACTIVITY_CHAIN_KEY
+      - ROTATION_ENABLED
+      - GUACAMOLE_SECRET
+      - GUACAMOLE_USER
+      - ARAYUZ_ALANI
+      - ARAYUZ_TURLERI
+      - ARAYUZ_PORT_ILK
+      - ARAYUZ_PORT_SON
+      - KIMLIK_ACIK
+      - KIMLIK_ADRES
+      - KIMLIK_ISTEMCI
+      - KIMLIK_ISTEMCI_SIR
+      - KIMLIK_DONUS
+      - KIMLIK_BILDIRIM_SIR
+      - KIMLIK_AD
+      - KIMLIK_KOK
+      - KIMLIK_DOGRULAMA_DAKIKA
+      - KIMLIK_YONETICI_DEVRI
+      - TEMA_ALANI
+      - GUNCELLEME_JETONU
+      - MAIL_MAILER
+      - MAIL_HOST
+      - MAIL_PORT
+      - MAIL_USERNAME
+      - MAIL_PASSWORD
+      - MAIL_SCHEME
+      - MAIL_FROM_ADDRESS
+      - MAIL_FROM_NAME
+    volumes:
+      # ⚠ APP_KEY ile BİRLİKTE yedeklenir: anahtar olmadan veritabanındaki
+      # kasa parolaları okunamaz.
+      - storage:/uygulama/storage/app
+      - logs:/uygulama/storage/logs
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+
+  db:
+    image: mariadb:11.4
+    container_name: ${ONEK:-eys}-db
+    restart: unless-stopped
+    # 0: dışarıdaki ya da platformun veritabanı kullanılıyor (DB_HOST).
+    deploy:
+      replicas: ${VT_KOPYA:-1}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-eys}
+      MARIADB_USER: ${DB_USERNAME:-eys}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD gerekli (.env.example)}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - veritabani:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: ${ONEK:-eys}-redis
+    restart: unless-stopped
+    # Kalıcılık KAPALI: burada yalnız önbellek, oturum ve kuyruk durur.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  # ---------------------------------------------------------------------------
+  #  CİHAZ ARAYÜZÜ VEKİLİ — 9443 ve 9450-9479, TLS (varsayılan KAPALI)
+  # ---------------------------------------------------------------------------
+  #  Vekillenen cihaz arayüzleri (ESXi, VAMI...) panelle AYNI adın AYRI
+  #  portlarında açılır; platform vekilleri yalnız 80/443 dinlediği için bu
+  #  portları burası karşılar. Açmak: ARAYUZ_VEKILI_KOPYA=1, ARAYUZ_ALANI
+  #  (ad:9443) ve `arayuz-sertifika` hacmine panelin sertifikası
+  #  (tls.crt, tls.key). Sunucuda bu portları başka bir vekil (ör. Caddy)
+  #  karşılıyorsa kapalı kalır.
+  arayuz-vekili:
+    build:
+      context: .
+      dockerfile: docker/arayuz-vekili.Dockerfile
+    image: ${ONEK:-eys}-arayuz-vekili:yerel
+    container_name: ${ONEK:-eys}-arayuz-vekili
+    restart: unless-stopped
+    deploy:
+      replicas: ${ARAYUZ_VEKILI_KOPYA:-0}
+    ports:
+      - "9443:9443"
+      - "9450-9479:9450-9479"
+    volumes:
+      - arayuz-sertifika:/sertifika:ro
+    depends_on:
+      - panel
+
+networks:
+  default:
+    # Ağ yalıtımı: true iken konteynerler cihazlara, KYM'ye ve dışarıya
+    # bağlanamaz (taşıma ya da deneme kurulumunda canlı cihazların parolası
+    # döndürülmesin). Port yayınları da o zaman dışarıdan erişilmez.
+    internal: ${AG_YALITIMI:-false}
+
+volumes:
+  storage:
+    name: ${ONEK:-eys}_storage
+  logs:
+    name: ${ONEK:-eys}_logs
+  veritabani:
+    name: ${ONEK:-eys}_veritabani
+  arayuz-sertifika:
+    name: ${ONEK:-eys}_arayuz-sertifika

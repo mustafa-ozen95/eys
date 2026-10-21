@@ -1,0 +1,14 @@
+# Vekilsiz, doğrudan porttan deneme:
+#     cp docker-compose.override.example.yml docker-compose.override.yml
+# Compose bu dosyayı kendiliğinden okur. Bir platformun (NineDeploy, Coolify...)
+# ya da önde bir vekilin arkasında GEREKMEZ.
+#
+# Düz HTTP'de oturum çerezi Secure olmamalı, yoksa tarayıcı onu geri
+# göndermez ve giriş yapılamaz. Gerçek kullanım için önüne TLS bitiren bir
+# vekil koyun.
+services:
+  panel:
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      - SESSION_SECURE_COOKIE=false

@@ -1,0 +1,514 @@
+#!/bin/bash
+# =============================================================================
+#  Konteyner başlatıcı
+# =============================================================================
+#  Sırayla: dizinler → yapılandırma → veritabanı → göçler → süreç yöneticisi.
+#
+#  Veritabanı ve redis AYRI servislerdir (docker-compose.yml: db, redis);
+#  imajda ikisi de yok. Adresleri ortamdan gelir (DB_*, REDIS_*), varsayılan
+#  compose'taki servis adları. Panel yalnız HTTP dinler (80 ve cihaz arayüzü
+#  için 9080): TLS'i önündeki vekil bitirir. Koşullu servisler (Guacamole)
+#  supervisord'a conf.d altından bildirilir (koşullu program tanımı yok).
+# =============================================================================
+set -euo pipefail
+
+UYGULAMA=/uygulama
+PHP=/usr/bin/php
+CONFD=/etc/supervisor/conf.d
+
+bilgi() { printf '\033[1;34m[eys]\033[0m %s\n' "$*"; }
+uyari() { printf '\033[1;33m[eys]\033[0m %s\n' "$*" >&2; }
+hata()  { printf '\033[1;31m[eys]\033[0m %s\n' "$*" >&2; exit 1; }
+
+# -----------------------------------------------------------------------------
+#  1. Çalışma dizinleri
+# -----------------------------------------------------------------------------
+mkdir -p /run/php "${CONFD}"
+chown eys:eys /run/php
+
+mkdir -p "${UYGULAMA}"/storage/{app,logs} \
+         "${UYGULAMA}"/storage/framework/{cache/data,sessions,views} \
+         "${UYGULAMA}"/bootstrap/cache
+chown -R eys:eys "${UYGULAMA}"/storage "${UYGULAMA}"/bootstrap/cache
+
+# Sertifika sekmesinin istek dizini: panel istek.json bırakır, konteyner
+# dışındaki sertifika ajanı okur. Dizin root'a ait gelirse (yeni hacim,
+# chown'suz açılmış host dizini) panel yazamaz ve sekme istek bırakamaz. Bağlı
+# değilse dokunulmaz.
+if [ -d /etc/dc/sertifika-panel ]; then
+    chown eys:eys /etc/dc/sertifika-panel 2>/dev/null && chmod 0750 /etc/dc/sertifika-panel \
+        || uyari "/etc/dc/sertifika-panel yazılabilir değil (salt okunur bağlanmış olabilir); Sertifika sekmesi istek bırakamaz."
+fi
+
+# -----------------------------------------------------------------------------
+#  2. Varsayılanlar
+# -----------------------------------------------------------------------------
+#  İmajda .env DOSYASI YOKTUR; Laravel ayarları doğrudan ortamdan okur.
+#  Buradaki her değer ortamla (docker-compose.yml, .env ya da platformun
+#  değişken ekranı) ezilebilir.
+#
+#  DB_CONNECTION verilmezse Laravel SQLite'a düşer ve göçler "Database file at
+#  path [eys] does not exist" ile patlar.
+: "${APP_NAME:=Erişim Yönetim Sistemi}"
+: "${APP_ENV:=production}"
+: "${APP_DEBUG:=false}"
+: "${APP_LOCALE:=tr}"
+: "${APP_TIMEZONE:=Europe/Istanbul}"
+: "${LOG_CHANNEL:=stderr}"
+
+: "${DB_CONNECTION:=mysql}"
+: "${DB_HOST:=db}"
+: "${DB_PORT:=3306}"
+: "${DB_DATABASE:=eys}"
+: "${DB_USERNAME:=eys}"
+
+# Veritabanı OTURUMUNUN saat dilimi: konteynerin saati (TZ). MariaDB TIMESTAMP
+# sütununu oturumun dilimine çevirerek okur ve yazar. İç veritabanı konteynerin
+# saatinde çalışır, uzak ya da yönetilen bir sunucu çoğu zaman UTC'de: dilim
+# eşitlenmezse taşınan her kayıt 3 saat kaymış okunur ve denetim zinciri kırık
+# görünür. Türkiye'de yaz saati yok; sabit fark yeter, sunucuda dilim tablosu
+# gerekmez.
+: "${DB_TIMEZONE:=$(date +%:z)}"
+
+# Önbellek, oturum ve kuyruk REDIS'te durur.
+#
+# Veritabanı sürücüsü her istekte SQL yazıyordu: oturum tablosu panelin en çok
+# yazılan tablosu hâline geliyor, yedeği de gereksiz yere şişiriyordu. Redis
+# compose'taki redis servisi; başka bir Redis REDIS_HOST ile gösterilir.
+: "${REDIS_CLIENT:=phpredis}"
+: "${REDIS_HOST:=redis}"
+: "${CACHE_STORE:=redis}"
+: "${SESSION_DRIVER:=redis}"
+: "${QUEUE_CONNECTION:=redis}"
+: "${FILESYSTEM_DISK:=local}"
+
+# ADMIN_EMAIL'in VARSAYILANI YOK: bir varsayılan adres, kurulumu yapan
+# kişinin sahip olmadığı bir hesabın açılması demek olurdu. Verilmezse
+# hesap hiç açılmaz (aşağıya bakın).
+# Konteyner kurulumunda ÖRNEK VERİ KAPALI: admin dışındaki yerleşik roller
+# yazılmaz. Kurulumu yapan kendi rollerini panelden açar.
+: "${ORNEK_VERI:=false}"
+
+: "${ADMIN_NAME:=Sistem Yöneticisi}"
+
+# Oturum çerezi varsayılan olarak Secure'dur: panel TLS arkasında durur.
+# Düz HTTP ile denemek isteyen bunu bilerek kapatır.
+: "${SESSION_SECURE_COOKIE:=true}"
+
+export APP_NAME APP_ENV APP_DEBUG APP_LOCALE APP_TIMEZONE LOG_CHANNEL \
+       DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD DB_TIMEZONE \
+       CACHE_STORE SESSION_DRIVER QUEUE_CONNECTION FILESYSTEM_DISK \
+       REDIS_CLIENT REDIS_HOST REDIS_PORT REDIS_PASSWORD \
+       SESSION_SECURE_COOKIE ADMIN_EMAIL ADMIN_NAME ORNEK_VERI TEMA_ALANI
+
+# -----------------------------------------------------------------------------
+#  3. APP_KEY
+# -----------------------------------------------------------------------------
+#  KASADAKİ BÜTÜN PAROLALAR BU ANAHTARLA ŞİFRELENİR. Kaybolursa veritabanı
+#  dursa bile hiçbiri okunamaz ve geri getirilemez — panelin tek varlık
+#  sebebi o sütunlardır.
+#
+#  Anahtar HACİMDE saklanır. Her açılışta yenisi üretilseydi bir yeniden
+#  başlatma bütün kasayı okunamaz hâle getirirdi.
+ANAHTAR_DOSYASI="${UYGULAMA}/storage/app/app-key.txt"
+
+if [[ -z "${APP_KEY:-}" ]]; then
+    if [[ -s "${ANAHTAR_DOSYASI}" ]]; then
+        APP_KEY="$(cat "${ANAHTAR_DOSYASI}")"
+        export APP_KEY
+    else
+        APP_KEY="base64:$(head -c 32 /dev/urandom | base64)"
+        export APP_KEY
+
+        printf '%s' "${APP_KEY}" > "${ANAHTAR_DOSYASI}"
+        chmod 0600 "${ANAHTAR_DOSYASI}"
+        chown eys:eys "${ANAHTAR_DOSYASI}"
+
+        # Anahtarın KENDİSİ günlüğe yazılmaz: konteyner günlüğünü okuyabilen
+        # (docker logs, günlük toplayıcılar) kasanın bütün parolalarını açan
+        # anahtarı da okurdu. Anahtar zaten 0600 bir dosyada; burada yalnızca
+        # nerede olduğu söylenir.
+        uyari "════════════════════════════════════════════════════════════════"
+        uyari " APP_KEY verilmemişti, üretildi ve saklandı."
+        uyari ""
+        uyari " Dosya: storage/app/app-key.txt (hacimde durur, yalnızca eys"
+        uyari " kullanıcısı okur; restart'ta yeniden üretilmez). Okumak için:"
+        uyari "   docker exec <kapsayıcı> cat /uygulama/storage/app/app-key.txt"
+        uyari ""
+        uyari " YEDEKLEYİN — kaybolursa kasadaki bütün parolalar okunamaz olur."
+        uyari "════════════════════════════════════════════════════════════════"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+#  4. Paneldeki veritabanı ayarı (Ayarlar → Veritabanı)
+# -----------------------------------------------------------------------------
+#  Panelde uzak bir veritabanı tanımlandıysa bağlantı storage/app/veritabani'de
+#  şifreli durur ve yukarıdaki DB_* değerlerini EZER (bkz. BaglantiDosyasi).
+#
+#  TAŞIMA BURADA YAPILIR, panel çalışmıyorken: kopya alınırken kimse yazmasın
+#  diye. Panel isteği bırakıp konteyneri yeniden başlatır (dc-yeniden-baslat);
+#  bu açılış ORTAMIN VERDİĞİ veritabanını (DB_*, çoğunlukla compose'taki db
+#  servisi) uzak hedefe kopyalar, tablo ve satır sayılarını iki tarafta
+#  karşılaştırır ve uzak veritabanıyla devam eder. Bir adım tutmazsa taşıma
+#  "basarisiz" yazılır ve panel ortamın veritabanıyla açılır. Kaynağa
+#  yazılmaz: taşıma anındaki hâliyle durur.
+VT_DIZIN="${UYGULAMA}/storage/app/veritabani"
+VT_ASAMA=""
+VT_NEDEN=""
+VT_OZET=""
+declare -A VT_BAG=()
+
+vt() { gosu eys env UYGULAMA="${UYGULAMA}" "${PHP}" /usr/local/bin/dc-veritabani "$@"; }
+
+# Veritabanı bağlantıyı kabul edene kadar bekler (en çok ~3 dk). Seçenek
+# dosyası ilk argüman: parola komut satırına girmez.
+mariadb_bekle() {
+    for _ in $(seq 1 90); do
+        mariadb-admin "--defaults-extra-file=$1" --connect-timeout=2 ping --silent >/dev/null 2>&1 && return 0
+        sleep 2
+    done
+    return 1
+}
+
+vt_ilk_satir() { head -n 1 "$1" 2>/dev/null | cut -c 1-300; }
+
+# Bağlantıyı VT_BAG'e okur. Değerler base64 gelir: parolada tırnak, boşluk ya
+# da satır sonu olabilir ve eval'siz taşımanın güvenli yolu bu.
+vt_oku() {
+    local satirlar satir
+    satirlar="$(vt ortam)" || return 1
+    while IFS= read -r satir; do
+        [[ -n "${satir}" ]] && VT_BAG["${satir%%=*}"]="$(printf '%s' "${satir#*=}" | base64 -d)"
+    done <<< "${satirlar}"
+    [[ -n "${VT_BAG[DB_HOST]:-}" && -n "${VT_BAG[DB_DATABASE]:-}" ]]
+}
+
+vt_ortama_al() {
+    DB_CONNECTION=mysql
+    DB_HOST="${VT_BAG[DB_HOST]}"
+    DB_PORT="${VT_BAG[DB_PORT]}"
+    DB_DATABASE="${VT_BAG[DB_DATABASE]}"
+    DB_USERNAME="${VT_BAG[DB_USERNAME]}"
+    DB_PASSWORD="${VT_BAG[DB_PASSWORD]}"
+    DB_URL=""
+    export DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD DB_URL
+}
+
+# Tablo başına kesin satır sayısı ("tablo sayı" satırları). Kopya sırasında
+# panel kapalı olduğu için iki tarafın çıktısı BİREBİR aynı olmalı.
+#
+# Sıralama KABUKTA yapılır: MariaDB ile MySQL'in information_schema
+# harmanlaması farklı ve ORDER BY "jobs" ile "job_batches"ı iki tarafta ters
+# diziyordu. Sayılar aynıyken kopya tutmadı sanılıyordu (MySQL 8.4, ölçüldü).
+vt_sayim() {
+    local tablolar t n
+    tablolar="$(mariadb "$@" -N -B -e "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'")" || return 1
+    for t in $(LC_ALL=C sort <<< "${tablolar}"); do
+        n="$(mariadb "$@" -N -B -e "SELECT COUNT(*) FROM \`${t}\`")" || return 1
+        printf '%s %s\n' "${t}" "${n}"
+    done
+}
+
+vt_kopyala() {
+    local kaynak_cnf=$1 cnf=$2 hata=$3 n kaynak hedef
+    # Seçenek dosyası İLK argüman olmak zorunda (mariadb istemcisinin kuralı).
+    local -a ic=("--defaults-extra-file=${kaynak_cnf}" --connect-timeout=10 "--database=${DB_DATABASE}")
+    local -a uzak=("--defaults-extra-file=${cnf}" --connect-timeout=10 "--database=${VT_BAG[DB_DATABASE]}")
+
+    # Kopya yalnızca tabloları taşır. Görünüm, yordam, tetikleyici ve olay
+    # tanımlayan kullanıcıya bağlıdır ve hedefte ayrı yetki ister; bu panelde
+    # yoklar, olursa eksik bir kopya yerine taşıma yapılmaz.
+    n="$(mariadb "${ic[@]}" -N -B -e "SELECT
+        (SELECT COUNT(*) FROM information_schema.views WHERE table_schema = DATABASE())
+      + (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = DATABASE())
+      + (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE())
+      + (SELECT COUNT(*) FROM information_schema.events WHERE event_schema = DATABASE())" 2>"${hata}")" \
+        || { VT_NEDEN="Mevcut veritabanı okunamadı: $(vt_ilk_satir "${hata}")"; return 1; }
+    [[ "${n}" == "0" ]] \
+        || { VT_NEDEN="Mevcut veritabanında görünüm, yordam, tetikleyici ya da zamanlanmış olay var (${n}); bu taşıma onları kopyalamaz."; return 1; }
+
+    n="$(mariadb "${uzak[@]}" -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()" 2>"${hata}")" \
+        || { VT_NEDEN="Uzak veritabanına bağlanılamadı: $(vt_ilk_satir "${hata}")"; return 1; }
+    [[ "${n}" == "0" ]] \
+        || { VT_NEDEN="Uzak veritabanı boş değil (${n} tablo); üzerine yazılmaz."; return 1; }
+
+    # --skip-add-locks: hedef kullanıcıdan LOCK TABLES yetkisi istenmesin.
+    # --no-tablespaces: kaynak kullanıcıdan PROCESS yetkisi istenmesin.
+    bilgi "Taşıma: kopyalanıyor..."
+    if ! mariadb-dump "--defaults-extra-file=${kaynak_cnf}" --single-transaction --skip-add-locks --skip-triggers \
+            --no-tablespaces --hex-blob --default-character-set=utf8mb4 "${DB_DATABASE}" 2>"${hata}" \
+        | mariadb "${uzak[@]}" --default-character-set=utf8mb4 2>>"${hata}"; then
+        VT_NEDEN="Kopya yarıda kaldı: $(vt_ilk_satir "${hata}") Uzak veritabanını boşaltıp yeniden deneyin."
+        return 1
+    fi
+
+    bilgi "Taşıma: iki tarafta tablo ve satırlar sayılıyor..."
+    kaynak="$(vt_sayim "${ic[@]}")" || { VT_NEDEN="Mevcut veritabanında sayım yapılamadı."; return 1; }
+    hedef="$(vt_sayim "${uzak[@]}" 2>"${hata}")" || { VT_NEDEN="Uzak veritabanında sayım yapılamadı: $(vt_ilk_satir "${hata}")"; return 1; }
+    [[ -n "${kaynak}" && "${kaynak}" == "${hedef}" ]] \
+        || { VT_NEDEN="Kopya tutmadı: iki taraftaki tablo ya da satır sayıları farklı. Uzak veritabanını boşaltıp yeniden deneyin."; return 1; }
+
+    VT_OZET="$(awk '{ n++; s += $2 } END { printf "%d tablo, %d satır kopyalandı; iki tarafta sayılar aynı.", n, s }' <<< "${kaynak}")"
+}
+
+vt_tasi() {
+    local kaynak_cnf=/run/dc-vt-kaynak.cnf cnf=/run/dc-vt-hedef.cnf hata=/run/dc-vt.hata sonuc=0
+
+    vt_oku || { VT_NEDEN="Bağlantı dosyası okunamadı."; return 1; }
+    if [[ "${VT_BAG[DB_HOST]}" == "${DB_HOST}" && "${VT_BAG[DB_PORT]}" == "${DB_PORT}" && "${VT_BAG[DB_DATABASE]}" == "${DB_DATABASE}" ]]; then
+        VT_NEDEN="Hedef, panelin şu anki veritabanının kendisi (${DB_HOST}:${DB_PORT}/${DB_DATABASE})."
+        return 1
+    fi
+    ( umask 077; vt ortam-istemci > "${kaynak_cnf}" && vt istemci > "${cnf}" ) \
+        || { rm -f "${kaynak_cnf}" "${cnf}"; VT_NEDEN="Bağlantı dosyası okunamadı."; return 1; }
+
+    bilgi "Taşıma: mevcut veritabanı bekleniyor (${DB_HOST}:${DB_PORT})..."
+    if mariadb_bekle "${kaynak_cnf}"; then
+        vt_kopyala "${kaynak_cnf}" "${cnf}" "${hata}" || sonuc=1
+    else
+        VT_NEDEN="Mevcut veritabanına (${DB_HOST}:${DB_PORT}) bağlanılamadı."
+        sonuc=1
+    fi
+    rm -f "${kaynak_cnf}" "${cnf}" "${hata}"
+    return "${sonuc}"
+}
+
+# Bu açılış zaten istenen yeniden başlatmadır; kalmış bir istek (konteyner
+# döngü görmeden durdurulduysa) bir kez daha boşuna başlatırdı.
+rm -f "${VT_DIZIN}/yeniden-baslat"
+
+if [[ -f "${VT_DIZIN}/durum.json" ]]; then
+    VT_ASAMA="$(vt asama)" || hata "Veritabanı ayarı okunamadı (${VT_DIZIN}/durum.json)."
+fi
+
+case "${VT_ASAMA}" in
+    tasiniyor|deneniyor)
+        # Bir önceki açılış taşımanın ortasında kapandı (elle durdurma, elektrik).
+        # Panel uzak veritabanına henüz yazmadı; ortamın veritabanıyla devam
+        # etmek veri kaybettirmez.
+        uyari "Önceki açılış veritabanı taşımasının ortasında kapanmış; ortamın veritabanıyla devam ediliyor."
+        vt yaz basarisiz "Önceki açılış taşımanın ortasında kapandı; panel ortamın veritabanıyla açıldı. Uzak veritabanını boşaltıp yeniden deneyin."
+        VT_ASAMA=basarisiz
+        ;;
+    tasinacak)
+        bilgi "Veritabanı uzak sunucuya taşınıyor..."
+        vt yaz tasiniyor
+        if vt_tasi; then
+            vt yaz deneniyor "${VT_OZET}"
+            VT_ASAMA=deneniyor
+            bilgi "Taşıma: ${VT_OZET}"
+        else
+            uyari "Taşıma yapılmadı: ${VT_NEDEN:-bilinmeyen sebep}"
+            vt yaz basarisiz "${VT_NEDEN:-Bilinmeyen sebep.}"
+            VT_ASAMA=basarisiz
+        fi
+        ;;
+esac
+
+if [[ "${VT_ASAMA}" == "deneniyor" || "${VT_ASAMA}" == "etkin" ]]; then
+    if [[ -z "${VT_BAG[DB_HOST]:-}" ]] && ! vt_oku; then
+        # "etkin"de ortamın veritabanına DÖNÜLMEZ: taşıma anında donmuştu.
+        [[ "${VT_ASAMA}" == "etkin" ]] \
+            && hata "Panel uzak veritabanında ama bağlantı dosyası okunamıyor (APP_KEY değişmiş ya da dosya silinmiş olabilir). Ortamın veritabanı taşıma anındaki hâliyle duruyor; kendiliğinden ona dönülmez."
+        vt yaz basarisiz "Bağlantı dosyası okunamadı."
+        VT_ASAMA=basarisiz
+    else
+        vt_ortama_al
+        bilgi "Veritabanı: paneldeki ayar (${DB_HOST}:${DB_PORT}/${DB_DATABASE})."
+    fi
+fi
+
+# Koşullu servislerin conf.d parçaları her açılışta baştan yazılır.
+rm -f "${CONFD}"/*.conf
+
+# -----------------------------------------------------------------------------
+#  3b. Guacamole (RDP oturumları)
+# -----------------------------------------------------------------------------
+#  Kimlik doğrulaması json-auth'tur: panel imzalayıp şifrelediği JSON'u POST
+#  eder, Guacamole güvenir. Bu yüzden Guacamole'un KENDİ VERİTABANI YOKTUR —
+#  tek gereken paylaşılan sır.
+#
+#  Sır verilmemişse guacd ve Tomcat hiç başlatılmaz: RDP kullanmayan bir
+#  kurulumda 200 MB'lık bir JVM boşuna dönmesin. SSH (ttyd) her hâlükârda
+#  çalışır; onu uygulama kendi başlatıyor.
+if [[ -n "${GUACAMOLE_SECRET:-}" ]]; then
+    # Anahtar 16 BAYT (32 onaltılık karakter) olmalı: json-auth eklentisi
+    # AES-128 kullanıyor. Yanlış uzunluk AÇILIŞTA değil, ilk oturum
+    # denendiğinde "Guacamole anahtarı 16 baytlık onaltılık bir değer olmalı"
+    # ile patlıyordu; sebebi aramak saatler alabiliyor. Burada erken söylenir.
+    if [[ ! "${GUACAMOLE_SECRET}" =~ ^[0-9a-fA-F]{32}$ ]]; then
+        uyari "════════════════════════════════════════════════════════════════"
+        uyari " GUACAMOLE_SECRET geçersiz: 32 onaltılık karakter (16 bayt) olmalı."
+        uyari " Şu an ${#GUACAMOLE_SECRET} karakter. Üretmek için:"
+        uyari ""
+        uyari "   openssl rand -hex 16"
+        uyari ""
+        uyari " RDP oturumları bu hâliyle AÇILMAZ; SSH (ttyd) etkilenmez."
+        uyari "════════════════════════════════════════════════════════════════"
+    fi
+
+    bilgi "Guacamole açık (RDP oturumları)."
+
+    mkdir -p /etc/guacamole
+    cat > /etc/guacamole/guacamole.properties <<EOF
+# eys-entrypoint tarafından üretildi.
+guacd-hostname: 127.0.0.1
+guacd-port: 4822
+json-secret-key: ${GUACAMOLE_SECRET}
+EOF
+    chmod 0640 /etc/guacamole/guacamole.properties
+    chown root:eys /etc/guacamole/guacamole.properties
+    chown -R eys:eys /usr/local/tomcat/work /usr/local/tomcat/temp /usr/local/tomcat/logs
+
+    #  FreeRDP, sertifika deposunu $HOME/.config/freerdp altında açar. guacd
+    #  root DEĞİL "eys" olarak koşuyor; HOME verilmezse root'unkini miras alır,
+    #  /root/.config'e yazamaz ve TLS/NLA pazarlığı hiç başlamadan
+    #  "Security negotiation failed" ile düşer. Parolanın yanlış olduğu
+    #  sanılıyordu; değildi. Yazılabilir bir HOME şart.
+    mkdir -p /var/lib/guacamole
+    chown -R eys:eys /var/lib/guacamole
+
+    cat > "${CONFD}/guacamole.conf" <<'EOF'
+[program:guacd]
+command = /opt/guacamole/sbin/guacd -b 127.0.0.1 -L info -f
+environment = HOME="/var/lib/guacamole"
+user = eys
+priority = 15
+autorestart = true
+startsecs = 3
+stdout_logfile = /dev/stdout
+stdout_logfile_maxbytes = 0
+stderr_logfile = /dev/stderr
+stderr_logfile_maxbytes = 0
+
+[program:tomcat]
+command = /usr/local/tomcat/bin/catalina.sh run
+environment = JAVA_HOME="/opt/java/openjdk",CATALINA_HOME="/usr/local/tomcat",GUACAMOLE_HOME="/etc/guacamole",HOME="/var/lib/guacamole"
+user = eys
+priority = 16
+autorestart = true
+startsecs = 10
+stdout_logfile = /dev/stdout
+stdout_logfile_maxbytes = 0
+stderr_logfile = /dev/stderr
+stderr_logfile_maxbytes = 0
+EOF
+else
+    bilgi "Guacamole kapalı (GUACAMOLE_SECRET yok); RDP oturumları çalışmaz."
+fi
+
+# -----------------------------------------------------------------------------
+#  5. Veritabanını bekle
+# -----------------------------------------------------------------------------
+#  compose'taki db servisi ilk açılışta veri dizinini kurarken birkaç saniye
+#  bağlantı kabul etmez; uzak sunucu ağ ya da bakım yüzünden geç gelebilir.
+#  Gelmezse panel açılmaz (çıkış kodu yeniden başlatır): boş bir SQLite'a ya
+#  da yanlış yere düşmekten iyidir.
+if [[ -z "${DB_PASSWORD:-}" ]]; then
+    hata "DB_PASSWORD verilmedi. Veritabanının parolası ortamdan gelir (bkz. .env.example)."
+fi
+VT_BEKLE_CNF=/run/dc-vt-bekle.cnf
+( umask 077; vt ortam-istemci > "${VT_BEKLE_CNF}" ) || hata "Veritabanı bağlantısı hazırlanamadı."
+bilgi "Veritabanı bekleniyor (${DB_HOST}:${DB_PORT})..."
+mariadb_bekle "${VT_BEKLE_CNF}" || { rm -f "${VT_BEKLE_CNF}"; hata "Veritabanına (${DB_HOST}:${DB_PORT}) bağlanılamadı."; }
+rm -f "${VT_BEKLE_CNF}"
+
+# -----------------------------------------------------------------------------
+#  6. Göçler ve önbellek
+# -----------------------------------------------------------------------------
+#  --isolated: birden fazla örnek aynı anda kalksa bile göç BİR kez koşar.
+#  --isolated kilidi ÖNBELLEĞE yazılır ve önbellek veritabanındadır: göçler
+#  koşmadan `cache_locks` tablosu HENÜZ YOK. İlk açılışta bu, göçün kendisini
+#  "Table 'cache_locks' doesn't exist" ile düşürüyordu — tavuk-yumurta.
+#
+#  Kilit bu tek komut için DOSYA önbelleğine alınır: hem tabloya ihtiyaç
+#  kalmaz hem koruma durur (aynı hacmi paylaşan ikinci bir örnek göçü ikinci
+#  kez koşturamaz).
+#
+#  Önceki açılışın yapılandırma önbelleği SİLİNİR: konteyner yeniden
+#  başladığında bootstrap/cache yerinde kalıyor ve Laravel ortamı değil onu
+#  okuyor. Veritabanı taşımasından sonra göçler eski bağlantıya koşardı.
+rm -f "${UYGULAMA}/bootstrap/cache/config.php"
+
+bilgi "Göçler çalıştırılıyor..."
+if [[ "${VT_ASAMA}" == "deneniyor" ]]; then
+    # Uzak veritabanıyla ilk açılış: göçler koşmazsa taşıma geri alınır.
+    # Panel bu veritabanına henüz hiç yazmadı; ortamın veritabanına dönmek
+    # veri kaybettirmez. Çıkış kodu yeniden başlatmayı tetikler, bir sonraki
+    # açılış "basarisiz"ı görüp ortamın veritabanıyla açılır.
+    if ! gosu eys env CACHE_STORE=file "${PHP}" artisan migrate --force --isolated; then
+        vt yaz basarisiz "Uzak veritabanıyla ilk açılışta göçler koşmadı; panel ortamın veritabanıyla açıldı. Uzak veritabanını boşaltıp yeniden deneyin." || true
+        hata "Uzak veritabanında göçler koşmadı; taşıma geri alındı, panel ortamın veritabanıyla yeniden açılacak."
+    fi
+    vt yaz etkin
+    bilgi "Veritabanı taşıması tamamlandı: panel artık uzak veritabanında."
+else
+    gosu eys env CACHE_STORE=file "${PHP}" artisan migrate --force --isolated
+fi
+
+# İlk yönetici YALNIZCA veritabanı boşken oluşturulur; var olan kuruluma
+# dokunulmaz. CredentialGroupSeeder BİLEREK çağrılmaz — örnek grupları yeni
+# bir kuruluma yazmak yanlış olurdu.
+if [[ "$(gosu eys "${PHP}" artisan tinker --execute='echo App\Models\User::query()->count();' 2>/dev/null | tail -1)" == "0" ]]; then
+    # Hesap HER ZAMAN açılır — kimsenin giremediği bir panel işe yaramaz.
+    # Ad, adres ve parola ortamdan gelir; verilmeyenler için:
+    #   * adres verilmediyse .local bir adres kullanılır (hiçbir yere yönlenmez),
+    #   * parola verilmediyse RASTGELE üretilir ve bir kez gösterilir.
+    # Sabit bir parola konulsaydı imajı indiren herkeste aynı giriş olurdu;
+    # asıl tehlike adresin değil, parolanın paylaşılmasıdır.
+    if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+        ADMIN_EMAIL="admin@eys.local"
+        export ADMIN_EMAIL
+        uyari "ADMIN_EMAIL verilmedi; admin@eys.local kullanılıyor."
+        uyari "Değiştirmek: panelde Hesap → Profil, ya da erisim:yonetici-ekle"
+    fi
+
+    URETILDI=0
+
+    if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
+        # Sabit bir varsayılan parola KONULMAZ: imaj herkese aynı, parola
+        # herkese aynı olurdu.
+        ADMIN_PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 20)"
+        export ADMIN_PASSWORD
+        URETILDI=1
+    fi
+
+    bilgi "İlk yönetici oluşturuluyor: ${ADMIN_EMAIL}"
+    gosu eys "${PHP}" artisan db:seed --force --class=Database\\Seeders\\AdminUserSeeder
+
+    if [[ "${URETILDI}" == "1" ]]; then
+        ILK_PAROLA="${UYGULAMA}/storage/app/ilk-parola.txt"
+        printf '%s\n%s\n' "${ADMIN_EMAIL}" "${ADMIN_PASSWORD}" > "${ILK_PAROLA}"
+        chmod 0600 "${ILK_PAROLA}"
+        chown eys:eys "${ILK_PAROLA}"
+
+        # Parolanın kendisi günlüğe yazılmaz (bkz. APP_KEY notu yukarıda);
+        # dosya 0600 ve hacimde durur.
+        uyari "════════════════════════════════════════════════════════════════"
+        uyari " İlk yönetici parolası ÜRETİLDİ:"
+        uyari ""
+        uyari "   e-posta: ${ADMIN_EMAIL}"
+        uyari "   parola : storage/app/ilk-parola.txt dosyasında (2. satır). Okumak için:"
+        uyari "     docker exec <kapsayıcı> cat /uygulama/storage/app/ilk-parola.txt"
+        uyari ""
+        uyari " Giriş yapıp parolayı değiştirdikten sonra o dosyayı SİLİN."
+        uyari "════════════════════════════════════════════════════════════════"
+    fi
+fi
+
+bilgi "Önbellekler üretiliyor..."
+gosu eys "${PHP}" artisan optimize
+
+# Vekillenen cihazlar için nginx bağlantı havuzları.
+#
+# nginx, hedefi değişkenden okuyan bir proxy_pass'e havuz tutmuyor ve her
+# isteğe yeni TLS el sıkışması yapıyor; zayıf işlemcili bir BMC'de bu tek
+# başına yarım saniye (gerekçe: ArayuzHavuzlariCommand). Dosya nginx
+# AÇILMADAN ÖNCE yazılmalı: içindeki eşlemeyi vekil kullanıyor.
+bilgi "Cihaz bağlantı havuzları üretiliyor..."
+/usr/local/bin/arayuz-havuzlari yaz \
+    || uyari "Havuzlar üretilemedi; arayüzler havuzsuz (yavaş ama çalışır) bağlanacak."
+
+bilgi "Panel hazır."
+exec "$@"

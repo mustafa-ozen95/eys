@@ -1,0 +1,46 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.env.*
+!.env.example
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+/tests/Browser/test-results
+/playwright-report
+
+# Veri depoya girmez: yazılım burada, veri yerelde.
+/database/seeders/yerel/*
+!/database/seeders/yerel/OKUBENI.md
+
+# Kurulum yapılandırması — APP_KEY, veritabanı parolası, Guacamole sırrı ve
+# SMTP parolası taşıyabilir; ASLA izlenmez. Örneği .env.example'dır.
+/eys.conf
+
+# Yerel görsel sınama yapılandırması (ortamın kendi Chromium'u ile).
+.pw-env.config.js
+docker-compose.override.yml
+# İmajda derlemede yazılır (docker/Dockerfile); depoya girmez.
+/SURUM

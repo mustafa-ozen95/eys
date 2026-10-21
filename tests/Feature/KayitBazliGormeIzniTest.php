@@ -232,11 +232,12 @@ class KayitBazliGormeIzniTest extends TestCase
 
         view()->share('errors', new ViewErrorBag);
 
-        $html = view('components.credentials.form', [
-            'credential' => $izinli, 'canRestrict' => true,
-            'restrictableRoles' => collect([$rol]), 'rolGorunum' => [$rol->uuid => 'gorur'],
-            'groupOptions' => [], 'accessTypes' => [], 'operatingSystems' => [],
-        ])->render();
+        /* Bileşen sınıflı: hesaplar sınıfta yapılır, o yüzden etiketle çizilir. */
+        $html = (string) $this->blade(
+            '<x-credentials.form :credential="$credential" :can-restrict="true" :restrictable-roles="$roller"
+                :rol-gorunum="$gorunum" :group-options="[]" :access-types="[]" :operating-systems="[]" />',
+            ['credential' => $izinli, 'roller' => collect([$rol]), 'gorunum' => [$rol->uuid => 'gorur']],
+        );
 
         $this->assertMatchesRegularExpression('/name="rol_gorunum\['.$rol->uuid.'\]".*?<option value="gorur"\s+selected/s', $html);
         $this->assertStringNotContainsString('restricted_roles[]', $html, 'eski kutu listesi kalkmalı');

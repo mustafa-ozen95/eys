@@ -9,26 +9,20 @@
     adlarıyla yeniden çizer (bkz. toplu-ilerleme.js). Sayıların hepsi tur
     kayıtlarından okunur; gösterge tahmin etmez.
 --}}
-@php
-    $d = $tur['durum'];
-    $sorunSayisi = $d['basarisiz'] + $d['dogrulanamadi'] + $d['baslamadi'];
-    $sonuc = $d['calisiyor'] ? 'suruyor' : ($sorunSayisi === 0 ? 'basarili' : 'sorunlu');
-    $etiketler = App\Services\Rotation\TopluTur::ETIKETLER;
-@endphp
-<section class="toplu toplu--{{ $sonuc }}"
+<section class="toplu toplu--{{ $tur['sonuc'] }}"
          role="status" aria-live="polite" aria-label="Toplu parola güncelleme"
          data-toplu-kok
-         data-toplu-yuzde="{{ $d['yuzde'] }}"
-         @if ($d['calisiyor'])
+         data-toplu-yuzde="{{ $tur['durum']['yuzde'] }}"
+         @if ($tur['durum']['calisiyor'])
              data-toplu-ilerleme
              data-toplu-ilerleme-adres="{{ route('credentials.rotate.bulk.progress', $tur['parti']) }}"
          @endif>
     <div class="toplu__bas">
         <div class="toplu__halka" aria-hidden="true">
             <span class="toplu__yuzde" data-toplu-yuzde-metin>
-                @if ($d['calisiyor'])
-                    %{{ $d['yuzde'] }}
-                @elseif ($sorunSayisi === 0)
+                @if ($tur['durum']['calisiyor'])
+                    %{{ $tur['durum']['yuzde'] }}
+                @elseif ($tur['sorunSayisi'] === 0)
                     <svg viewBox="0 0 24 24" class="toplu__isaret"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
                 @else
                     <svg viewBox="0 0 24 24" class="toplu__isaret"><path d="M12 7v6M12 16.5v.5"/></svg>
@@ -39,18 +33,18 @@
         <div class="toplu__baslik">
             <span class="toplu__ust">Toplu parola güncelleme</span>
             <span class="toplu__ana">
-                <strong data-toplu-biten>{{ $d['biten'] }}</strong><span class="toplu__toplam">/{{ $d['toplam'] }} makine</span>
-                <span class="toplu__durum" data-toplu-metin>{{ $d['calisiyor'] ? '' : $d['metin'] }}</span>
+                <strong data-toplu-biten>{{ $tur['durum']['biten'] }}</strong><span class="toplu__toplam">/{{ $tur['durum']['toplam'] }} makine</span>
+                <span class="toplu__durum" data-toplu-metin>{{ $tur['durum']['calisiyor'] ? '' : $tur['durum']['metin'] }}</span>
             </span>
         </div>
 
-        <span class="toplu__simdi" data-toplu-simdi @if (! $d['suren']) hidden @endif>
+        <span class="toplu__simdi" data-toplu-simdi @if (! $tur['durum']['suren']) hidden @endif>
             <span class="toplu__nabiz" aria-hidden="true"></span>
             <span>Şu an</span>
-            <strong data-toplu-suren>{{ $d['suren'] }}</strong>
+            <strong data-toplu-suren>{{ $tur['durum']['suren'] }}</strong>
         </span>
 
-        @unless ($d['calisiyor'])
+        @unless ($tur['durum']['calisiyor'])
             {{-- Kapatmak turlara dokunmaz; yalnızca kartı ekrandan kaldırır. --}}
             <form method="POST" action="{{ route('credentials.rotate.bulk.dismiss', $tur['parti']) }}" class="toplu__kapat" data-yerinde>
                 @csrf
@@ -62,25 +56,22 @@
 
     {{-- Her makine bir parça; üstüne gelince adı ve durumu görünür. --}}
     <ol class="toplu__iz" data-toplu-iz>
-        @foreach ($d['kayitlar'] as $k)
-            <li class="toplu__parca toplu__parca--{{ $k['durum'] }}" title="{{ $k['ad'] }} · {{ $etiketler[$k['durum']] }}"></li>
+        @foreach ($tur['durum']['kayitlar'] as $k)
+            <li class="toplu__parca toplu__parca--{{ $k['durum'] }}" title="{{ $k['ad'] }} · {{ $tur['etiketler'][$k['durum']] }}"></li>
         @endforeach
     </ol>
 
     <div class="toplu__alt">
         <span class="toplu__lejant" data-toplu-lejant>
-            @foreach ($etiketler as $anahtar => $etiket)
-                @php($sayi = collect($d['kayitlar'])->where('durum', $anahtar)->count())
-                @if ($sayi > 0)
-                    <span class="toplu__lej"><i class="toplu__renk toplu__parca--{{ $anahtar }}"></i>{{ $sayi }} {{ mb_strtolower($etiket) }}</span>
-                @endif
+            @foreach ($tur['lejant'] as $satir)
+                <span class="toplu__lej"><i class="toplu__renk toplu__parca--{{ $satir['anahtar'] }}"></i>{{ $satir['sayi'] }} {{ mb_strtolower($satir['etiket']) }}</span>
             @endforeach
         </span>
 
-        @if (! $d['calisiyor'] && $d['sorunlu'] !== [])
+        @if (! $tur['durum']['calisiyor'] && $tur['durum']['sorunlu'] !== [])
             {{-- Sorunlu makineler ADIYLA: hangisine bakılacağını aramak zorunda kalınmasın. --}}
             <span class="toplu__sorunlu">
-                @foreach ($d['sorunlu'] as $s)
+                @foreach ($tur['durum']['sorunlu'] as $s)
                     <span class="toplu__cip" title="{{ $s['durum'] }}">{{ $s['ad'] }}</span>
                 @endforeach
             </span>

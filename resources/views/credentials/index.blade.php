@@ -284,13 +284,12 @@
                             İlk doluluk sunucudan gelir; gerisini yoklama
                             devralır (bkz. dondurme-ilerleme.js).
                         --}}
-                        @php($tur = $selected['runningRotation'])
                         <div class="ilerleme detail__ilerleme"
                              data-ilerleme
                              data-ilerleme-adres="{{ route('credentials.rotate.progress', $selected['model']) }}">
                             <div class="ilerleme__ust">
-                                <span class="ilerleme__metin" data-ilerleme-metin>{{ $tur?->stage->running() ?? 'Sıraya alındı, işçi bekleniyor…' }}</span>
-                                <span class="ilerleme__adim" data-ilerleme-adim>{{ $tur ? $tur->completedSteps().'/'.$tur->totalSteps() : '0/'.$selected['pendingSteps'] }}</span>
+                                <span class="ilerleme__metin" data-ilerleme-metin>{{ $selected['runningRotation']?->stage->running() ?? 'Sıraya alındı, işçi bekleniyor…' }}</span>
+                                <span class="ilerleme__adim" data-ilerleme-adim>{{ $selected['runningRotation'] ? $selected['runningRotation']->completedSteps().'/'.$selected['runningRotation']->totalSteps() : '0/'.$selected['pendingSteps'] }}</span>
                             </div>
 
                             <div class="ilerleme__yol"
@@ -298,8 +297,8 @@
                                  aria-label="Parola güncelleme ilerlemesi"
                                  aria-valuemin="0"
                                  aria-valuemax="100"
-                                 aria-valuenow="{{ $tur?->progress() ?? 4 }}">
-                                <div class="ilerleme__cubuk" data-ilerleme-cubuk data-baslangic="{{ $tur?->progress() ?? 4 }}"></div>
+                                 aria-valuenow="{{ $selected['runningRotation']?->progress() ?? 4 }}">
+                                <div class="ilerleme__cubuk" data-ilerleme-cubuk data-baslangic="{{ $selected['runningRotation']?->progress() ?? 4 }}"></div>
                             </div>
                         </div>
                     @endif
@@ -330,9 +329,7 @@
                             "yok" bir bilgi, çünkü orada bir şey OLMASI
                             beklenir.
                         --}}
-                        @php($kimlikVar = $selected['hasUsername'] || $selected['hasPassword'])
-
-                        @if ($kimlikVar && ($selected['username'] || ! $selected['hasUsername']))
+                        @if ($selected['kimlikVar'] && ($selected['username'] || ! $selected['hasUsername']))
                             <div class="detail__block">
                                 <span class="eyebrow">Kullanıcı adı</span>
 
@@ -344,7 +341,7 @@
                             </div>
                         @endif
 
-                        @if ($kimlikVar && ($selected['canReveal'] || ! $selected['hasPassword']))
+                        @if ($selected['kimlikVar'] && ($selected['canReveal'] || ! $selected['hasPassword']))
                             <div class="detail__block">
                                 <span class="eyebrow">Parola</span>
 

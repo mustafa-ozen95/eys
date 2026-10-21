@@ -701,6 +701,8 @@ class CredentialListing
             'username' => $fields['username'] ? $credential->username : null,
 
             'hasPassword' => $credential->has_password,
+            /* Kullanıcı adı ya da parola var mı: "kayıtlı değil" satırlarının ön koşulu. */
+            'kimlikVar' => filled($credential->username) || $credential->has_password,
             'canReveal' => $fields['password'] && $credential->has_password,
             'canUpdate' => $user->can('update', $credential),
             'canDelete' => $user->can('delete', $credential),
@@ -1005,13 +1007,40 @@ class CredentialListing
         return $secili?->uuid;
     }
 
-    /** @return array{parti: string, durum: array<string, mixed>}|null */
+    /**
+     * Toplu tur göstergesinin hazır verisi: sonuç sınıfı, durum etiketleri ve
+     * yalnızca sayısı sıfırdan büyük olan lejant satırları.
+     *
+     * @return array{parti: string, durum: array<string, mixed>, sonuc: string, sorunSayisi: int, etiketler: array<string, string>, lejant: array<int, array{anahtar: string, etiket: string, sayi: int}>}|null
+     */
     private function topluTur(User $user): ?array
     {
         $parti = TopluTur::son($user);
         $durum = $parti === null ? null : TopluTur::durum($user, $parti);
 
-        return $durum === null ? null : ['parti' => $parti, 'durum' => $durum];
+        if ($durum === null) {
+            return null;
+        }
+
+        $sorunSayisi = $durum['basarisiz'] + $durum['dogrulanamadi'] + $durum['baslamadi'];
+        $lejant = [];
+
+        foreach (TopluTur::ETIKETLER as $anahtar => $etiket) {
+            $sayi = collect($durum['kayitlar'])->where('durum', $anahtar)->count();
+
+            if ($sayi > 0) {
+                $lejant[] = ['anahtar' => $anahtar, 'etiket' => $etiket, 'sayi' => $sayi];
+            }
+        }
+
+        return [
+            'parti' => $parti,
+            'durum' => $durum,
+            'sorunSayisi' => $sorunSayisi,
+            'sonuc' => $durum['calisiyor'] ? 'suruyor' : ($sorunSayisi === 0 ? 'basarili' : 'sorunlu'),
+            'etiketler' => TopluTur::ETIKETLER,
+            'lejant' => $lejant,
+        ];
     }
 
     /** @param  Collection<int, Credential>  $credentials */

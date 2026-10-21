@@ -1,84 +1,3 @@
-@props([
-    'credential' => null,
-    'groupOptions' => [],
-    'altGrupOptions' => [],
-    'altGrupHaritasi' => [],
-    'accessTypes' => [],
-    'operatingSystems' => [],
-    'rotationDrivers' => [],
-    'rotationCredentialOptions' => [],
-    'makineHesabiSurucileri' => [],
-    'selectedGroup' => null,
-    'visibleFields' => [],
-
-    /* Görünen ama değiştirilemeyen hedef alanları (Credential::kilitliHedefAlanlari). */
-    'lockedFields' => [],
-
-    /* Kayıt bazında rol kısıtı ve ek izin: yalnızca yöneticiye gösterilir. */
-    'canRestrict' => false,
-    'restrictableRoles' => null,
-    'restrictedRoleUuids' => [],
-    'grantedRoleUuids' => [],
-    'konsolRoleUuids' => [],
-    'gormeRoleUuids' => [],
-    'rolGorunum' => [],
-    'portalRoleUuids' => [],
-])
-
-@php
-    $restrictableRoles = $restrictableRoles ?? collect();
-
-    /*
-     * KİLİTLİ HEDEF ALANI: değer görünür ama kutu SALT OKUNUR.
-     * Kayıtta parola/döndürme kimliği var ve kullanıcının parola yetkisi
-     * yok; adresi değiştirmek sırrı başka yere göndermek olurdu. Asıl
-     * koruma sunucudadır (CredentialRequest::gorulmeyeniKoru).
-     */
-    $kilitNotu = 'Kayıtta parola var; adresi yalnızca parolayı görebilenler değiştirebilir.';
-
-    /*
-     * KOŞULLU ALANLAR (bkz. kosullu-alan.js).
-     *
-     * Form her alanı her kayıtta gösteriyordu: uzak masaüstü kaydında portal
-     * formu, üyelik kaydında port, SSH kaydında RDP kipi. Gereksiz alan
-     * kafa karıştırır; alan, açılır listedeki seçime ya da işaretlenen
-     * kutuya göre görünür.
-     *
-     * Kurallar alanların hangi türde dolu olduğuna göre kuruldu: RDP kipi
-     * yalnızca RDP'de, bağlantı adresi SSH/RDP/VNC dışında, portal alanları
-     * yalnızca web ve panelde, adres ve port üyelik/lisans dışında dolu.
-     * Yani bu kurallarla hiçbir dolu alan gizlenmiyor — ve betik ayrıca
-     * DOLU ya da HATALI alanı hiçbir kuralla gizlemiyor.
-     *
-     * Sözdizimi: "alan:değer,değer" · "alan:!değer" (değilse) · "alan:*"
-     * (doluysa / işaretliyse) · koşullar "|" ile VEYA'lanır.
-     */
-    $konsolTurleri = 'ssh,rdp,vnc';
-    $adressizTurler = 'membership,license';
-    $portalTurleri = 'panel,web';
-
-    /*
-     * Parola güncelleme: platformu döndürülebilen kayıtlar, web ve panel
-     * (Plesk, mailcow, rspamd sürücüleri uygulama hesabı üzerinde çalışır)
-     * ve sürücüsü elle seçilmiş her kayıt.
-     */
-    $guncellemeKosulu = 'operating_system:'.collect(App\Enums\OperatingSystem::cases())
-        ->filter->rotatable()->map->value->implode(',')
-        .'|access_type:'.$portalTurleri.'|rotation_driver:*';
-
-    /* Platform => o platformda anlamlı erişim türleri (en olası önce). */
-    $erisimHaritasi = collect(App\Enums\OperatingSystem::cases())
-        ->mapWithKeys(fn ($os) => [$os->value => array_map(fn ($t) => $t->value, $os->accessTypes())])
-        ->all();
-
-    /* Rol istisnalarından biri işaretliyse "Gelişmiş" açık gelir: kısıt gizli kalmamalı. */
-    $gelismisAcik = old('restricted_roles', $restrictedRoleUuids) !== []
-        || old('granted_roles', $grantedRoleUuids) !== []
-        || old('konsol_roles', $konsolRoleUuids) !== []
-        || old('gorme_roles', $gormeRoleUuids) !== []
-        || old('portal_roles', $portalRoleUuids) !== [];
-@endphp
-
 {{--
     Ekleme ve düzenleme AYNI formu kullanır. İki ayrı form olsaydı biri
     değiştiğinde diğeri sessizce eski kalırdı — kural kopyalanmaz, paylaştırılır.
@@ -308,9 +227,6 @@
       liste sunucudan geliyor. Başlangıç durumunu sunucu verir, JS yalnızca
       kutular değişince günceller (bkz. rotation-hesabi.js).
     --}}
-    @php($surucuSecimi = old('rotation_driver', $credential?->rotation_driver ?? ''))
-    @php($kasaSecimi = old('rotation_credential_id', $credential?->rotation_credential_id ?? ''))
-
     <x-form.field name="rotation_credential_id" label="Güncelleme hesabı — kasadan seç"
                   hint="Parola, makineye bu kayıtla bağlanılarak değiştirilir. Seçilmezse güncelleme düğmesi çıkmaz."
                   data-makine-hesabi="{{ json_encode($makineHesabiSurucileri) }}"

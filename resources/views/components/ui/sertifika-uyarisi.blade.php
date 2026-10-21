@@ -1,8 +1,3 @@
-@php
-    $durum = \App\Services\SertifikaDurumu::oku();
-    $goster = \App\Services\SertifikaDurumu::uyarilmali() && (auth()->user()?->role?->is_admin);
-@endphp
-
 @if ($goster)
     {{--
         Yalnızca yöneticiye: sertifikayı yenileyecek kişi odur, diğerleri

@@ -17,11 +17,11 @@ import { emit } from './toast.js';
  * "Oturumu kapat" düğmesi vardı; sekmenin çarpısının yaptığının kopyasıydı.
  */
 
-const CANLI_TUTMA_ARALIGI = 4 * 60 * 1000;
-const PENCERE_KONTROL_ARALIGI = 2000;
-const KAPATMA_UCU = '/ajax/uzak-oturum/kapat';
+const KEEP_ALIVE_INTERVAL = 4 * 60 * 1000;
+const WINDOW_CHECK_INTERVAL = 2000;
+const CLOSE_ENDPOINT = '/ajax/remote-session/disconnect';
 
-const acikOturumlar = new Map();
+const openSessions = new Map();
 
 function csrf() {
     return $('meta[name="csrf-token"]')?.content ?? '';
@@ -30,64 +30,64 @@ function csrf() {
 /**
  * Sayfa kapanırken çalışır: fetch iptal edilir, sendBeacon edilmez.
  */
-function kapatBeacon(token) {
-    navigator.sendBeacon?.(KAPATMA_UCU, new Blob(
+function closeBeacon(token) {
+    navigator.sendBeacon?.(CLOSE_ENDPOINT, new Blob(
         [JSON.stringify({ token, _token: csrf() })],
         { type: 'application/json' },
     ));
 }
 
-function canliTut(token, pencere) {
-    const zamanlayici = setInterval(async () => {
+function keepAlive(token, popup) {
+    const timer = setInterval(async () => {
         // Oturum penceresi kapandıysa canlı tutmanın anlamı yok.
-        if (pencere?.closed) {
-            durdur(token);
+        if (popup?.closed) {
+            stop(token);
 
             return;
         }
 
         try {
-            const cevap = await http.post('/ajax/uzak-oturum/canli-tut', { token }, { silent: true });
+            const reply = await http.post('/ajax/remote-session/keep-alive', { token }, { silent: true });
 
-            if (!cevap.alive) {
-                durdur(token);
+            if (!reply.alive) {
+                stop(token);
             }
         } catch {
-            durdur(token);
+            stop(token);
         }
-    }, CANLI_TUTMA_ARALIGI);
+    }, KEEP_ALIVE_INTERVAL);
 
-    acikOturumlar.set(token, zamanlayici);
+    openSessions.set(token, timer);
 
-    izle(token, pencere);
+    watch(token, popup);
 }
 
 /**
  * Pencerenin kapandığını yalnızca yoklayarak anlayabiliyoruz; kapanınca
  * kaydın da kapanması için sunucuya haber verilir.
  */
-function izle(token, pencere) {
-    if (!pencere) {
+function watch(token, popup) {
+    if (!popup) {
         return;
     }
 
-    const kontrol = setInterval(() => {
-        if (!pencere.closed) {
+    const check = setInterval(() => {
+        if (!popup.closed) {
             return;
         }
 
-        clearInterval(kontrol);
-        durdur(token);
-        http.post(KAPATMA_UCU, { token }, { silent: true }).catch(() => {});
-    }, PENCERE_KONTROL_ARALIGI);
+        clearInterval(check);
+        stop(token);
+        http.post(CLOSE_ENDPOINT, { token }, { silent: true }).catch(() => {});
+    }, WINDOW_CHECK_INTERVAL);
 }
 
-function durdur(token) {
-    clearInterval(acikOturumlar.get(token));
-    acikOturumlar.delete(token);
+function stop(token) {
+    clearInterval(openSessions.get(token));
+    openSessions.delete(token);
 }
 
-let pagehideBagli = false;
+let pagehideBound = false;
 
 /*
  * KONSOL SEKMEDE AÇILIR.
@@ -114,8 +114,8 @@ let pagehideBagli = false;
  * dokunmaz. Yenilemesiz geçişte init yeniden koşar; açılmış çerçeve ikinci
  * kez yüklenmez.
  */
-function cerceveyiAc(cerceve) {
-    if (!cerceve.dataset.src || cerceve.getAttribute('src')) {
+function openFrame(frame) {
+    if (!frame.dataset.src || frame.getAttribute('src')) {
         return;
     }
 
@@ -125,7 +125,7 @@ function cerceveyiAc(cerceve) {
         /* Depolama kapalıysa Guacamole da okuyamaz; sorun yok. */
     }
 
-    cerceve.src = cerceve.dataset.src;
+    frame.src = frame.dataset.src;
 }
 
 /**
@@ -144,33 +144,33 @@ function cerceveyiAc(cerceve) {
  * Çerçeve panelin kendi kökeninde duruyor (nginx /rdp-proxy), o yüzden
  * `contentWindow.focus()` erişilebilir.
  */
-function cerceveyiOdakla() {
-    const cerceve = $('[data-oturum-cercevesi]');
+function focusFrame() {
+    const frame = $('[data-session-frame]');
 
-    if (!cerceve) {
+    if (!frame) {
         return;
     }
 
-    cerceveyiAc(cerceve);
+    openFrame(frame);
 
-    const odakla = () => {
+    const focusOn = () => {
         try {
-            cerceve.contentWindow?.focus();
+            frame.contentWindow?.focus();
         } catch {
             /* Başka kökene düşerse odak veremeyiz; ekran yine çalışır. */
         }
     };
 
-    cerceve.addEventListener('load', odakla);
-    cerceve.addEventListener('mouseenter', odakla);
-    cerceve.addEventListener('pointerenter', odakla);
+    frame.addEventListener('load', focusOn);
+    frame.addEventListener('mouseenter', focusOn);
+    frame.addEventListener('pointerenter', focusOn);
 
     /* Sayfa zaten yüklü geldiyse `load` bir daha tetiklenmez. */
-    odakla();
+    focusOn();
 }
 
 export function init() {
-    const jeton = $('[data-oturum-jetonu]')?.dataset.oturumJetonu;
+    const pageToken = $('[data-session-token]')?.dataset.sessionToken;
 
     /*
      * KAPATMA DÜĞMESİ KALDIRILDI.
@@ -183,38 +183,38 @@ export function init() {
 
     // Oturum penceresi kapanırsa (çarpı, sekme kapatma, başka adrese gitme).
     // window dinleyicisi bir kez kurulur; init her sayfa geçişinde koşuyor.
-    if (jeton && ! pagehideBagli) {
-        pagehideBagli = true;
-        window.addEventListener('pagehide', () => kapatBeacon(jeton));
+    if (pageToken && ! pagehideBound) {
+        pagehideBound = true;
+        window.addEventListener('pagehide', () => closeBeacon(pageToken));
     }
 
-    on('click', '[data-uzak-baglan]', async (event, dugme) => {
-        dugme.disabled = true;
+    on('click', '[data-remote-connect]', async (event, button) => {
+        button.disabled = true;
 
         try {
-            const oturum = await http.post(dugme.dataset.uzakBaglan, {
-                id: dugme.dataset.uzakKimlik,
+            const session = await http.post(button.dataset.remoteConnect, {
+                id: button.dataset.remoteId,
 
                 /* Gerekçeyi onay penceresi bıraktı (bkz. confirm.js). */
-                reason: dugme.dataset.gerekce ?? '',
+                reason: button.dataset.reason ?? '',
             });
 
-            const pencere = window.open(oturum.url, `oturum-${oturum.token}`);
+            const popup = window.open(session.url, `session-${session.token}`);
 
-            canliTut(oturum.token, pencere);
-            emit(`${oturum.label} oturumu açıldı.`, 'success');
+            keepAlive(session.token, popup);
+            emit(`${session.label} oturumu açıldı.`, 'success');
         } finally {
-            dugme.disabled = false;
+            button.disabled = false;
         }
     });
 
-    cerceveyiOdakla();
+    focusFrame();
 
     // Paneli açan sekme kapanırsa açık oturumlar sunucuda da kapatılır.
     window.addEventListener('pagehide', () => {
-        acikOturumlar.forEach((zamanlayici, token) => {
-            clearInterval(zamanlayici);
-            kapatBeacon(token);
+        openSessions.forEach((timer, token) => {
+            clearInterval(timer);
+            closeBeacon(token);
         });
     });
 }

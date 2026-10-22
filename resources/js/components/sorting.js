@@ -7,13 +7,13 @@ import { on } from '../lib/dom.js';
  * elle 10, 20, 30 yazmak sırayı değiştirmenin dolambaçlı yolu olurdu.
  *
  * Bırakma anında yeni sıra sunucuya gönderilir: tarayıcıda görünen sıra ile
- * kayıttaki sıra ayrılamaz. Gönderim YERİNDE yapılır (data-yerinde, bkz.
+ * kayıttaki sıra ayrılamaz. Gönderim YERİNDE yapılır (data-inline, bkz.
  * navigation.js): sayfa yenilenmez, kaydırma ve açık panel kaybolmaz.
  *
  * Dış kütüphane kullanılmaz; tarayıcının kendi sürükleme olayları yeterli.
  *
- *   <tbody data-sira="{{ route(...) }}" data-sira-alan="sira">
- *       <tr draggable="true" data-sira-kimlik="{{ $uuid }}">…</tr>
+ *   <tbody data-order="{{ route(...) }}" data-order-field="sira">
+ *       <tr draggable="true" data-order-id="{{ $uuid }}">…</tr>
  */
 
 /*
@@ -21,25 +21,25 @@ import { on } from '../lib/dom.js';
  * liste, içtekinin satırlarını kendi satırı sanmamalı — yoksa bir grup bir
  * alt grup satırının önüne sokulur ve tablo bozulurdu.
  */
-function satirlar(liste) {
-    return [...liste.children].filter((satir) => satir.matches('[data-sira-kimlik]'));
+function rows(list) {
+    return [...list.children].filter((row) => row.matches('[data-order-id]'));
 }
 
-function sirali(liste) {
-    return satirlar(liste).map((satir) => satir.dataset.siraKimlik);
+function ordered(list) {
+    return rows(list).map((row) => row.dataset.orderId);
 }
 
 /** Sürüklenen satırın imlece göre nereye bırakılacağını bulur. */
-function hedefSatir(liste, y) {
-    return satirlar(liste).filter((satir) => !satir.classList.contains('is-dragging')).reduce(
-        (yakin, satir) => {
-            const kutu = satir.getBoundingClientRect();
-            const fark = y - kutu.top - kutu.height / 2;
+function targetRow(list, y) {
+    return rows(list).filter((row) => !row.classList.contains('is-dragging')).reduce(
+        (nearby, row) => {
+            const box = row.getBoundingClientRect();
+            const diff = y - box.top - box.height / 2;
 
-            return fark < 0 && fark > yakin.fark ? { fark, satir } : yakin;
+            return diff < 0 && diff > nearby.diff ? { diff, row } : nearby;
         },
-        { fark: Number.NEGATIVE_INFINITY, satir: null },
-    ).satir;
+        { diff: Number.NEGATIVE_INFINITY, row: null },
+    ).row;
 }
 
 /*
@@ -48,48 +48,48 @@ function hedefSatir(liste, y) {
  * gönderimi confirm.js yakalar; vazgeçilirse satırlar eski yerine döner —
  * ekranda görünen sıra ile kayıttaki sıra ayrılamaz.
  */
-let bekleyen = null;
+let pending = null;
 
-function geriAl() {
-    if (!bekleyen) {
+function undo() {
+    if (!pending) {
         return;
     }
 
-    bekleyen.eskiSira.forEach((satir) => bekleyen.liste.appendChild(satir));
-    bekleyen.form.remove();
-    bekleyen = null;
+    pending.oldOrder.forEach((row) => pending.list.appendChild(row));
+    pending.form.remove();
+    pending = null;
 }
 
-function gonder(liste, eskiSira) {
+function send(list, oldOrder) {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = liste.dataset.sira;
+    form.action = list.dataset.order;
     form.hidden = true;
-    form.setAttribute('data-yerinde', '');
+    form.setAttribute('data-inline', '');
     form.setAttribute('data-confirm', 'Yeni dizilim kaydedilecek; kenar çubuğu ve listeler bu sırayla gelir.');
     form.setAttribute('data-confirm-title', 'Sırayı kaydet');
     form.setAttribute('data-confirm-reasonless', '');
 
-    const alanlar = [
+    const fields = [
         ['_token', document.querySelector('meta[name="csrf-token"]')?.content ?? ''],
         ['_method', 'PUT'],
-        ...sirali(liste).map((kimlik) => [`${liste.dataset.siraAlan ?? 'sira'}[]`, kimlik]),
+        ...ordered(list).map((identity) => [`${list.dataset.orderField ?? 'sira'}[]`, identity]),
     ];
 
-    alanlar.forEach(([ad, deger]) => {
-        const girdi = document.createElement('input');
-        girdi.type = 'hidden';
-        girdi.name = ad;
-        girdi.value = deger;
-        form.appendChild(girdi);
+    fields.forEach(([name, val]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = val;
+        form.appendChild(input);
     });
 
     document.body.appendChild(form);
-    bekleyen = { liste, eskiSira, form };
+    pending = { list, oldOrder, form };
 
     /* Onaylanınca confirm.js formu gönderir; bekleyen kayıt temizlenir. */
-    form.addEventListener('eys:onaylandi', () => {
-        bekleyen = null;
+    form.addEventListener('eys:confirmed', () => {
+        pending = null;
     });
 
     /* requestSubmit "submit" olayını üretir; onay penceresi onu yakalar. */
@@ -97,85 +97,85 @@ function gonder(liste, eskiSira) {
 }
 
 export function init() {
-    let suruklenen = null;
+    let dragged = null;
 
-    let eskiSira = [];
+    let oldOrder = [];
 
     /* Sürüklenenin ilk yeri: liste dışına bırakılırsa tam oraya döner. */
-    let eskiYer = null;
+    let oldPlace = null;
 
-    on('dragstart', '[data-sira-kimlik]', (event, satir) => {
-        suruklenen = satir;
-        eskiSira = satirlar(satir.parentElement);
-        eskiYer = { liste: satir.parentElement, sonraki: satir.nextSibling };
-        satir.classList.add('is-dragging');
+    on('dragstart', '[data-order-id]', (event, row) => {
+        dragged = row;
+        oldOrder = rows(row.parentElement);
+        oldPlace = { list: row.parentElement, next: row.nextSibling };
+        row.classList.add('is-dragging');
         event.dataTransfer.effectAllowed = 'move';
     });
 
-    on('dragend', '[data-sira-kimlik]', (event, satir) => {
-        satir.classList.remove('is-dragging');
+    on('dragend', '[data-order-id]', (event, row) => {
+        row.classList.remove('is-dragging');
 
         /* Liste dışına bırakıldı (drop gelmedi): kaydedilmeyen dizilim ekranda kalmasın. */
-        if (suruklenen && eskiYer) {
-            eskiYer.liste.insertBefore(suruklenen, eskiYer.sonraki);
-            suruklenen = null;
+        if (dragged && oldPlace) {
+            oldPlace.list.insertBefore(dragged, oldPlace.next);
+            dragged = null;
         }
     });
 
     /*
      * İÇ İÇE LİSTELER: kayıt listesinde bölümler sıralanır, bölümün içinde
-     * de kayıtlar. En yakın [data-sira] her zaman doğru liste değil — bölüm
+     * de kayıtlar. En yakın [data-order] her zaman doğru liste değil — bölüm
      * sürüklenirken imleç bir kaydın üstündeyse en yakını kayıt listesidir.
      * Doğru liste, sürüklenenin DOĞRUDAN ebeveyni olandır; başka bir listeye
      * (alt gruptan ana gruba) bırakma böylece hiç mümkün olmaz.
      */
-    const listeBul = (hedef) => {
-        let liste = hedef instanceof Element ? hedef.closest('[data-sira]') : null;
+    const findList = (target) => {
+        let list = target instanceof Element ? target.closest('[data-order]') : null;
 
-        while (liste && suruklenen?.parentElement !== liste) {
-            liste = liste.parentElement?.closest('[data-sira]') ?? null;
+        while (list && dragged?.parentElement !== list) {
+            list = list.parentElement?.closest('[data-order]') ?? null;
         }
 
-        return liste;
+        return list;
     };
 
     document.addEventListener('dragover', (event) => {
-        const liste = suruklenen ? listeBul(event.target) : null;
+        const list = dragged ? findList(event.target) : null;
 
-        if (!liste) {
+        if (!list) {
             return;
         }
 
         event.preventDefault();
 
-        const hedef = hedefSatir(liste, event.clientY);
+        const target = targetRow(list, event.clientY);
 
-        if (hedef) {
-            liste.insertBefore(suruklenen, hedef);
+        if (target) {
+            list.insertBefore(dragged, target);
         } else {
-            liste.appendChild(suruklenen);
+            list.appendChild(dragged);
         }
     });
 
     document.addEventListener('drop', (event) => {
-        const liste = suruklenen ? listeBul(event.target) : null;
+        const list = dragged ? findList(event.target) : null;
 
-        if (!liste) {
+        if (!list) {
             return;
         }
 
         event.preventDefault();
-        suruklenen = null;
+        dragged = null;
 
-        gonder(liste, eskiSira);
+        send(list, oldOrder);
     });
 
     /* Vazgeçildi: pencere kapanır, satırlar eski yerine döner. */
-    on('click', '[data-confirm-cancel]', geriAl);
+    on('click', '[data-confirm-cancel]', undo);
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-            geriAl();
+            undo();
         }
     });
 }

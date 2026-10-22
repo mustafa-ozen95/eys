@@ -16,17 +16,17 @@
     kaldığı için tarayıcının kaydedecek bir şeyi olmuyor.
 */
 (() => {
-    const ADRES = @json($kimlikAdresi);
+    const ENDPOINT = @json($identityUrl);
 
-    const bekle = (secici, sure = 30000) => new Promise((coz, red) => {
-        const bitis = Date.now() + sure;
-        const bak = () => {
-            const n = document.querySelector(secici);
-            if (n && n.offsetParent !== null) return coz(n);
-            if (Date.now() > bitis) return red(new Error(secici));
-            setTimeout(bak, 100);
+    const wait = (selectorText, duration = 30000) => new Promise((resolve, red) => {
+        const deadline = Date.now() + duration;
+        const look = () => {
+            const n = document.querySelector(selectorText);
+            if (n && n.offsetParent !== null) return resolve(n);
+            if (Date.now() > deadline) return red(new Error(selectorText));
+            setTimeout(look, 100);
         };
-        bak();
+        look();
     });
 
     /*
@@ -38,29 +38,29 @@
      * ağacında "credentials + login" taşıyanı arıyor — enjektör, hata ayıklama
      * bilgisinden bağımsız olarak uygulama kökünde duruyor.
      */
-    const kapsam = (alan) => {
+    const ngScope = (field) => {
         if (!window.angular) return null;
 
-        const uygun = (k) => k && k.credentials && typeof k.login === 'function';
+        const suitable = (k) => k && k.credentials && typeof k.login === 'function';
 
-        let k = window.angular.element(alan).scope && window.angular.element(alan).scope();
+        let k = window.angular.element(field).scope && window.angular.element(field).scope();
 
-        while (k && !uygun(k)) k = k.$parent;
+        while (k && !suitable(k)) k = k.$parent;
 
-        if (uygun(k)) return k;
+        if (suitable(k)) return k;
 
-        const enjektor = window.angular.element(document.body).injector
+        const ngInjector = window.angular.element(document.body).injector
             && window.angular.element(document.body).injector();
 
-        if (!enjektor) return null;
+        if (!ngInjector) return null;
 
-        const ara = (s) => {
-            if (uygun(s)) return s;
+        const find = (s) => {
+            if (suitable(s)) return s;
 
             let c = s && s.$$childHead;
 
             while (c) {
-                const b = ara(c);
+                const b = find(c);
 
                 if (b) return b;
 
@@ -70,23 +70,23 @@
             return null;
         };
 
-        return ara(enjektor.get('$rootScope'));
+        return find(ngInjector.get('$rootScope'));
     };
 
-    const ac = async () => {
-        const kullanici = await bekle('#username');
+    const run = async () => {
+        const username = await wait('#username');
 
-        const yanit = await fetch(ADRES, { credentials: 'same-origin' });
+        const response = await fetch(ENDPOINT, { credentials: 'same-origin' });
 
         /*
          * Uç tek kullanımlık: sayfa yenilenirse 410 döner. O zaman hiçbir şey
          * yapılmaz ve kullanıcı cihazın kendi giriş ekranında kalır — sessizce
          * boş bir form göndermekten iyidir.
          */
-        if (!yanit.ok) return;
+        if (!response.ok) return;
 
-        const kimlik = await yanit.json();
-        const k = kapsam(kullanici);
+        const identity = await response.json();
+        const k = ngScope(username);
 
         /*
          * Kapsam bulunamazsa HİÇBİR ŞEY YAPILMAZ. Forma yazmak "çalışsın" diye
@@ -100,16 +100,16 @@
         }
 
         k.$apply(() => {
-            k.credentials.username = kimlik.kullanici;
-            k.credentials.password = kimlik.parola;
+            k.credentials.username = identity.username;
+            k.credentials.password = identity.password;
         });
 
         k.login(k.credentials);
     };
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => ac().catch(() => {}));
+        document.addEventListener('DOMContentLoaded', () => run().catch(() => {}));
     } else {
-        ac().catch(() => {});
+        run().catch(() => {});
     }
 })();

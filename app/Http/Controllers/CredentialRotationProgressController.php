@@ -43,37 +43,37 @@ class CredentialRotationProgressController extends Controller implements HasMidd
          */
         if (RotationLauncher::waiting($credential, $rotation)) {
             return response()->json([
-                'calisiyor' => true,
-                'yuzde' => 4,
-                'adim' => 0,
-                'toplam' => $surucular->adimSayisi($credential),
-                'asama' => null,
-                'metin' => 'Sıraya alındı, işçi bekleniyor…',
-                'durum' => 'queued',
-                'durum_metni' => 'Sırada',
-                'mesaj' => null,
+                'running' => true,
+                'percent' => 4,
+                'step' => 0,
+                'total' => $surucular->adimSayisi($credential),
+                'stage' => null,
+                'text' => 'Sıraya alındı, işçi bekleniyor…',
+                'status' => 'queued',
+                'status_text' => 'Sırada',
+                'message' => null,
             ]);
         }
 
         if ($rotation === null) {
-            return response()->json(['calisiyor' => false]);
+            return response()->json(['running' => false]);
         }
 
         RotationLauncher::forgetPending($credential);
 
         $stage = $rotation->stage ?? RotationStage::Started;
-        $calisiyor = $rotation->status?->value === 'running';
+        $running = $rotation->status?->value === 'running';
 
         return response()->json([
-            'calisiyor' => $calisiyor,
-            'yuzde' => $rotation->progress(),
-            'adim' => $rotation->completedSteps(),
-            'toplam' => $rotation->totalSteps(),
-            'asama' => $stage->value,
-            'metin' => $calisiyor ? $stage->running() : $stage->label(),
-            'durum' => $rotation->status?->value,
-            'durum_metni' => $rotation->status?->label(),
-            'mesaj' => $rotation->message,
+            'running' => $running,
+            'percent' => $rotation->progress(),
+            'step' => $rotation->completedSteps(),
+            'total' => $rotation->totalSteps(),
+            'stage' => $stage->value,
+            'text' => $running ? $stage->running() : $stage->label(),
+            'status' => $rotation->status?->value,
+            'status_text' => $rotation->status?->label(),
+            'message' => $rotation->message,
         ]);
     }
 }

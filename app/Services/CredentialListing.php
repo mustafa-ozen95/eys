@@ -109,12 +109,12 @@ class CredentialListing
              * süzülmüş listede sürüklemek görünmeyen satırların yerini
              * tahmin ettirirdi. Sunucu ayrıca denetler.
              *
-             *   siralanabilir  bölüm içindeki kayıtlar (credentials.sirala)
-             *   bolumSirasi    grubun alt grup bölümleri (groups.alt.sirala)
+             *   siralanabilir  bölüm içindeki kayıtlar (credentials.reorder)
+             *   bolumSirasi    grubun alt grup bölümleri (groups.sub.reorder)
              */
             'siralanabilir' => $siralanabilir = $user->isAdmin() && $selectedGroup !== null && ! $daraltmaKalksin,
             'bolumSirasi' => $siralanabilir && $selectedGroup->altGruplar->isNotEmpty()
-                ? route('groups.alt.sirala', $selectedGroup)
+                ? route('groups.sub.reorder', $selectedGroup)
                 : null,
             /*
              * KİŞİSEL ALAN BOŞKEN DE ÇİZİLİR.
@@ -199,7 +199,7 @@ class CredentialListing
              * Kullanıcının süren (ya da yeni biten) toplu turu. İlk çizim
              * sunucudan gelir, yoklama devralır (bkz. bulk-progress.js).
              */
-            'topluTur' => $this->topluTur($user),
+            'bulkRound' => $this->bulkRound($user),
             'query' => $term,
             'platform' => $platform,
             'platforms' => ['' => 'Tüm platformlar', ...OperatingSystem::options()],
@@ -236,7 +236,7 @@ class CredentialListing
 
             /*
              * Alt grup kutusu: bütün bölmeler tek listede, grup adıyla
-             * başlıklı; ekranda seçili gruba göre daralır (data-bagli).
+             * başlıklı; ekranda seçili gruba göre daralır (data-linked).
              * Kullanıcının göremediği grubun bölmesi listede yok — $groups
              * zaten görünenlerdir.
              */
@@ -730,7 +730,7 @@ class CredentialListing
              *
              * canSession  portal fırlatma: parola tarayıcıdan gönderiliyor,
              *             bu yüzden parolayı görme yetkisi de aranıyor.
-             * canArayuz   cihaz arayüzü vekili: oturum sunucuda açılıyor,
+             * canInterface   cihaz arayüzü vekili: oturum sunucuda açılıyor,
              *             parola tarayıcıya hiç gitmiyor.
              *
              * Tek yetenekle sorulsaydı, vekilden açılabilecek bir arayüz
@@ -738,9 +738,9 @@ class CredentialListing
              * sızıntıya karşı gereksiz bir önlem.
              */
             'canSession' => $user->can('session', $credential),
-            'canArayuz' => $user->can('arayuz', $credential),
+            'canInterface' => $user->can('deviceInterface', $credential),
             'portalReady' => $credential->can_open_portal_session,
-            'arayuzTuru' => $credential->arayuz_turu,
+            'interfaceType' => $credential->interface_type,
             'portalOnceki' => $this->portalOnceki($credential, $fields),
             'portalLanding' => $this->portalLanding($credential, $fields),
             'portalLandingBekle' => PortalLogin::inisGecikmesi($credential),
@@ -1013,7 +1013,7 @@ class CredentialListing
      *
      * @return array{parti: string, durum: array<string, mixed>, sonuc: string, sorunSayisi: int, etiketler: array<string, string>, lejant: array<int, array{anahtar: string, etiket: string, sayi: int}>}|null
      */
-    private function topluTur(User $user): ?array
+    private function bulkRound(User $user): ?array
     {
         $parti = BulkRound::son($user);
         $durum = $parti === null ? null : BulkRound::durum($user, $parti);
@@ -1022,24 +1022,24 @@ class CredentialListing
             return null;
         }
 
-        $sorunSayisi = $durum['basarisiz'] + $durum['dogrulanamadi'] + $durum['baslamadi'];
+        $sorunSayisi = $durum['failed'] + $durum['unverified'] + $durum['unstarted'];
         $lejant = [];
 
         foreach (BulkRound::ETIKETLER as $anahtar => $etiket) {
-            $sayi = collect($durum['kayitlar'])->where('durum', $anahtar)->count();
+            $sayi = collect($durum['records'])->where('status', $anahtar)->count();
 
             if ($sayi > 0) {
-                $lejant[] = ['anahtar' => $anahtar, 'etiket' => $etiket, 'sayi' => $sayi];
+                $lejant[] = ['key' => $anahtar, 'label' => $etiket, 'count' => $sayi];
             }
         }
 
         return [
-            'parti' => $parti,
-            'durum' => $durum,
-            'sorunSayisi' => $sorunSayisi,
-            'sonuc' => $durum['calisiyor'] ? 'suruyor' : ($sorunSayisi === 0 ? 'basarili' : 'sorunlu'),
-            'etiketler' => BulkRound::ETIKETLER,
-            'lejant' => $lejant,
+            'round' => $parti,
+            'status' => $durum,
+            'problemCount' => $sorunSayisi,
+            'result' => $durum['running'] ? 'running' : ($sorunSayisi === 0 ? 'success' : 'problem'),
+            'labels' => BulkRound::ETIKETLER,
+            'legend' => $lejant,
         ];
     }
 

@@ -108,7 +108,7 @@ return new class extends Migration
         //
         // Kullanıcısı olan bir kurulum yükseltiliyorsa öbür roller de kurulur:
         // yoksa linkUsers herkesi tek kalan role, YÖNETİCİYE bağlardı.
-        if (! config('app.ornek_veri') && ! DB::table('users')->exists()) {
+        if (! config('app.sample_data') && ! DB::table('users')->exists()) {
             $roles = array_slice($roles, 0, 1);
         }
 

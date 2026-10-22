@@ -38,11 +38,11 @@ final class SharedLogoutTest extends TestCase
 
         config([
             'identity.acik' => true,
-            'identity.yapilandirildi' => true,
-            'identity.adres' => 'https://merkez.ornek.test',
-            'identity.istemci' => 'istemci',
-            'identity.sir' => 'oauth-sirri',
-            'identity.bildirim_sirri' => self::SIR,
+            'identity.configured' => true,
+            'identity.url' => 'https://merkez.ornek.test',
+            'identity.client_id' => 'istemci',
+            'identity.client_secret' => 'oauth-sirri',
+            'identity.notify_secret' => self::SIR,
         ]);
     }
 
@@ -60,8 +60,8 @@ final class SharedLogoutTest extends TestCase
 
     private function cikisBildir(string $subject, int $an, ?string $imza = null): TestResponse
     {
-        return $this->withHeaders(['X-Kimlik-Imza' => $imza ?? hash_hmac('sha256', 'cikis|'.$subject.'|'.$an, self::SIR)])
-            ->postJson(route('api.kimlik.cikis'), ['subject' => $subject, 'an' => $an]);
+        return $this->withHeaders(['X-Identity-Signature' => $imza ?? hash_hmac('sha256', 'logout|'.$subject.'|'.$an, self::SIR)])
+            ->postJson(route('api.identity.logout'), ['subject' => $subject, 'time' => $an]);
     }
 
     #[Test]
@@ -73,8 +73,8 @@ final class SharedLogoutTest extends TestCase
         $this->assertNull($bag->fresh()->merkez_cikis_ms, 'imzasız bildirim uygulanmaz');
 
         /* İmza anı da kapsar: başka anla gönderilen imza tutmaz. */
-        $this->withHeaders(['X-Kimlik-Imza' => hash_hmac('sha256', 'cikis|'.$bag->subject.'|1', self::SIR)])
-            ->postJson(route('api.kimlik.cikis'), ['subject' => $bag->subject, 'an' => 9_999])->assertOk();
+        $this->withHeaders(['X-Identity-Signature' => hash_hmac('sha256', 'logout|'.$bag->subject.'|1', self::SIR)])
+            ->postJson(route('api.identity.logout'), ['subject' => $bag->subject, 'time' => 9_999])->assertOk();
         $this->assertNull($bag->fresh()->merkez_cikis_ms);
 
         $this->cikisBildir($bag->subject, 5_000)->assertOk();
@@ -89,7 +89,7 @@ final class SharedLogoutTest extends TestCase
     {
         $bag = $this->bag();
         $bag->forceFill(['merkez_cikis_ms' => 2_000])->save();
-        Cache::put('kimlik:dogrulama:'.$bag->user_id, true, 60);
+        Cache::put('identity:verify:'.$bag->user_id, true, 60);
 
         $this->actingAs($bag->user)->withSession([SharedLogout::OTURUM_ANAHTARI => 1_000])
             ->get(route('credentials.index'))
@@ -117,21 +117,21 @@ final class SharedLogoutTest extends TestCase
     #[Test]
     public function panelden_cikis_merkeze_bildirilir(): void
     {
-        Http::fake(['*/api/oturum-kapandi' => Http::response(['sonuc' => 'alındı'])]);
+        Http::fake(['*/api/session-closed' => Http::response(['result' => 'received'])]);
         $bag = $this->bag();
 
         $this->actingAs($bag->user)->post(route('logout'))->assertRedirect(route('login'));
 
         $this->assertGuest();
         $this->assertGreaterThan(0, (int) $bag->fresh()->merkez_cikis_ms, 'bu paneldeki öteki oturumlar da kapanır');
-        Http::assertSent(fn ($istek): bool => $istek->url() === 'https://merkez.ornek.test/api/oturum-kapandi'
+        Http::assertSent(fn ($istek): bool => $istek->url() === 'https://merkez.ornek.test/api/session-closed'
             && $istek['subject'] === $bag->subject && $istek['client_id'] === 'istemci');
     }
 
     #[Test]
     public function merkez_yanit_vermese_de_cikis_olur(): void
     {
-        Http::fake(['*/api/oturum-kapandi' => Http::response('', 503)]);
+        Http::fake(['*/api/session-closed' => Http::response('', 503)]);
         $bag = $this->bag();
 
         $this->actingAs($bag->user)->post(route('logout'))->assertRedirect(route('login'));
@@ -143,12 +143,12 @@ final class SharedLogoutTest extends TestCase
     public function durum_sorgusundaki_son_cikis_uygulanir(): void
     {
         $bag = $this->bag();
-        Http::fake(['*/api/kimlik-durumu' => Http::response(['kimlikler' => [$bag->subject => [
-            'durum' => 'etkin', 'girebilir' => true, 'rol' => null, 'son_cikis' => 7_000,
+        Http::fake(['*/api/identity-status' => Http::response(['identities' => [$bag->subject => [
+            'status' => 'etkin', 'can_enter' => true, 'role' => null, 'last_logout' => 7_000,
         ]]])]);
 
-        $this->withHeaders(['X-Kimlik-Imza' => hash_hmac('sha256', $bag->subject, self::SIR)])
-            ->postJson(route('api.kimlik.tazele'), ['subject' => $bag->subject])->assertOk();
+        $this->withHeaders(['X-Identity-Signature' => hash_hmac('sha256', $bag->subject, self::SIR)])
+            ->postJson(route('api.identity.refresh'), ['subject' => $bag->subject])->assertOk();
 
         $this->assertSame(7_000, $bag->fresh()->merkez_cikis_ms);
     }
@@ -165,6 +165,6 @@ final class SharedLogoutTest extends TestCase
 
         $this->assertGuest();
         $this->assertNull($bag->fresh()->merkez_cikis_ms);
-        Http::assertNotSent(fn ($istek): bool => str_ends_with($istek->url(), '/api/oturum-kapandi'));
+        Http::assertNotSent(fn ($istek): bool => str_ends_with($istek->url(), '/api/session-closed'));
     }
 }

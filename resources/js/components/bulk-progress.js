@@ -1,5 +1,5 @@
 import { $ } from '../lib/dom.js';
-import { tazele } from './navigation.js';
+import { refresh } from './navigation.js';
 
 /**
  * Toplu turun TEK göstergesi.
@@ -15,32 +15,32 @@ import { tazele } from './navigation.js';
  */
 
 /* Yoklama aralığı (ms). Tek tur birkaç saniye sürüyor. */
-const ARALIK = 2000;
+const INTERVAL = 2000;
 
 /*
  * Üst sınır: ~20 dakika. Kuyruk durmuşsa sayfa sonsuza dek sormasın;
  * sunucu zaten süre dolunca başlamamış kayıtları "başlamadı" sayıyor.
  */
-const AZAMI = 600;
+const MAX = 600;
 
 /* Lejant sırası ve adları — BulkRound::ETIKETLER ile aynı. */
-const ETIKETLER = [
-    ['basarili', 'başarılı'],
-    ['suruyor', 'sürüyor'],
-    ['bekliyor', 'sırada'],
-    ['dogrulanamadi', 'doğrulanamadı'],
-    ['basarisiz', 'başarısız'],
-    ['baslamadi', 'başlamadı'],
+const LABELS = [
+    ['success', 'başarılı'],
+    ['running', 'sürüyor'],
+    ['waiting', 'sırada'],
+    ['unverified', 'doğrulanamadı'],
+    ['failed', 'başarısız'],
+    ['unstarted', 'başlamadı'],
 ];
 
-const ADLAR = Object.fromEntries(ETIKETLER.map(([k, ad]) => [k, ad.charAt(0).toLocaleUpperCase('tr') + ad.slice(1)]));
+const NAMES = Object.fromEntries(LABELS.map(([k, name]) => [k, name.charAt(0).toLocaleUpperCase('tr') + name.slice(1)]));
 
-let zamanlayici = null;
+let timer = null;
 
-function durdur() {
-    if (zamanlayici !== null) {
-        clearTimeout(zamanlayici);
-        zamanlayici = null;
+function stop() {
+    if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
     }
 }
 
@@ -49,134 +49,134 @@ function durdur() {
  * takılıyor; CSSOM üzerinden yazılan değer takılmaz (bkz.
  * rotation-progress.js baslangiclariUygula).
  */
-function yuzdeYaz(kok, yuzde) {
-    kok.style.setProperty('--toplu-yuzde', String(yuzde));
+function writePercent(root, percent) {
+    root.style.setProperty('--bulk-round-percent', String(percent));
 }
 
-function ciz(kok, veri) {
-    yuzdeYaz(kok, veri.yuzde);
+function render(root, data) {
+    writePercent(root, data.percent);
 
-    const yuzdeMetin = kok.querySelector('[data-toplu-yuzde-metin]');
-    if (yuzdeMetin) {
-        yuzdeMetin.textContent = `%${veri.yuzde}`;
+    const percentText = root.querySelector('[data-bulk-round-percent-text]');
+    if (percentText) {
+        percentText.textContent = `%${data.percent}`;
     }
 
-    const biten = kok.querySelector('[data-toplu-biten]');
-    if (biten) {
-        biten.textContent = String(veri.biten);
+    const done = root.querySelector('[data-bulk-round-done]');
+    if (done) {
+        done.textContent = String(data.done);
     }
 
-    const simdi = kok.querySelector('[data-toplu-simdi]');
-    const suren = kok.querySelector('[data-toplu-suren]');
-    if (simdi && suren) {
-        simdi.hidden = !veri.suren;
-        suren.textContent = veri.suren ?? '';
+    const nowEl = root.querySelector('[data-bulk-round-now]');
+    const currentEl = root.querySelector('[data-bulk-round-current]');
+    if (nowEl && currentEl) {
+        nowEl.hidden = !data.current;
+        currentEl.textContent = data.current ?? '';
     }
 
     /* Parçalar: her makine bir <li>; yalnızca sınıfı ve başlığı değişir. */
-    const iz = kok.querySelector('[data-toplu-iz]');
-    if (iz && Array.isArray(veri.kayitlar)) {
-        while (iz.children.length < veri.kayitlar.length) {
-            iz.appendChild(document.createElement('li'));
+    const trace = root.querySelector('[data-bulk-round-trace]');
+    if (trace && Array.isArray(data.records)) {
+        while (trace.children.length < data.records.length) {
+            trace.appendChild(document.createElement('li'));
         }
 
-        veri.kayitlar.forEach((kayit, i) => {
-            const parca = iz.children[i];
-            parca.className = `toplu__parca toplu__parca--${kayit.durum}`;
-            parca.title = `${kayit.ad} · ${ADLAR[kayit.durum] ?? kayit.durum}`;
+        data.records.forEach((record, i) => {
+            const segment = trace.children[i];
+            segment.className = `bulk-round__segment bulk-round__segment--${record.status}`;
+            segment.title = `${record.name} · ${NAMES[record.status] ?? record.status}`;
         });
     }
 
     /* Lejant: yalnızca sıfır olmayan durumlar. */
-    const lejant = kok.querySelector('[data-toplu-lejant]');
-    if (lejant && Array.isArray(veri.kayitlar)) {
-        const sayilar = {};
-        veri.kayitlar.forEach(({ durum }) => { sayilar[durum] = (sayilar[durum] ?? 0) + 1; });
+    const legend = root.querySelector('[data-bulk-round-legend]');
+    if (legend && Array.isArray(data.records)) {
+        const counts = {};
+        data.records.forEach(({ status }) => { counts[status] = (counts[status] ?? 0) + 1; });
 
-        lejant.replaceChildren(...ETIKETLER
-            .filter(([anahtar]) => sayilar[anahtar] > 0)
-            .map(([anahtar, ad]) => {
-                const satir = document.createElement('span');
-                satir.className = 'toplu__lej';
+        legend.replaceChildren(...LABELS
+            .filter(([key]) => counts[key] > 0)
+            .map(([key, name]) => {
+                const row = document.createElement('span');
+                row.className = 'bulk-round__legend-item';
 
-                const renk = document.createElement('i');
-                renk.className = `toplu__renk toplu__parca--${anahtar}`;
+                const color = document.createElement('i');
+                color.className = `bulk-round__color bulk-round__segment--${key}`;
 
-                satir.append(renk, `${sayilar[anahtar]} ${ad}`);
+                row.append(color, `${counts[key]} ${name}`);
 
-                return satir;
+                return row;
             }));
     }
 }
 
-async function yokla(kok, kalan) {
-    const adres = kok.dataset.topluIlerlemeAdres;
+async function poll(root, remaining) {
+    const url = root.dataset.bulkRoundProgressUrl;
 
-    if (!adres || kalan <= 0) {
-        durdur();
+    if (!url || remaining <= 0) {
+        stop();
 
         return;
     }
 
-    let veri;
+    let data;
 
     try {
-        const yanit = await fetch(adres, {
+        const response = await fetch(url, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
 
-        if (yanit.status === 404) {
+        if (response.status === 404) {
             /* Parti düştü (süresi doldu ya da kapatıldı): soracak bir şey yok. */
-            durdur();
+            stop();
 
             return;
         }
 
-        if (!yanit.ok) {
-            throw new Error(String(yanit.status));
+        if (!response.ok) {
+            throw new Error(String(response.status));
         }
 
-        veri = await yanit.json();
+        data = await response.json();
     } catch {
         /* Tek başarısız yoklama turu durdurmaz; sayaç işliyor. */
-        zamanlayici = setTimeout(() => yokla(kok, kalan - 1), ARALIK);
+        timer = setTimeout(() => poll(root, remaining - 1), INTERVAL);
 
         return;
     }
 
-    ciz(kok, veri);
+    render(root, data);
 
-    if (veri.calisiyor === false) {
+    if (data.running === false) {
         /*
          * Parti bitti: sonuç kartı, sorunlu makinelerin adları ve satırların
          * son hâli sunucuda çiziliyor — sayfa YERİNDE tazelenir, açık olan
          * sağ panel kapanmaz.
          */
-        durdur();
-        tazele();
+        stop();
+        refresh();
 
         return;
     }
 
-    zamanlayici = setTimeout(() => yokla(kok, kalan - 1), ARALIK);
+    timer = setTimeout(() => poll(root, remaining - 1), INTERVAL);
 }
 
 export function init() {
-    durdur();
+    stop();
 
     /* Bitmiş kartın halkası da dolu çizilsin: ilk değer sunucudan. */
-    const kart = $('[data-toplu-kok]');
-    if (kart) {
-        yuzdeYaz(kart, Number(kart.dataset.topluYuzde) || 0);
+    const card = $('[data-bulk-round-root]');
+    if (card) {
+        writePercent(card, Number(card.dataset.bulkRoundPercent) || 0);
     }
 
-    const kok = $('[data-toplu-ilerleme]');
+    const root = $('[data-bulk-round-progress]');
 
-    if (!kok) {
+    if (!root) {
         return;
     }
 
     /* İlk yoklama HEMEN: sayfa açıldığında iki saniye eski görüntü kalmasın. */
-    yokla(kok, AZAMI);
+    poll(root, MAX);
 }

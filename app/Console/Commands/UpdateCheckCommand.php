@@ -14,11 +14,11 @@ use Illuminate\Console\Command;
  * Zamanlayıcı her sabah çağırır; sonuç Ayarlar → Güncelleme'de ve yeni
  * sürüm varsa yöneticinin uyarı şeridinde görünür. Elle de çalıştırılabilir:
  *
- *     php artisan guncelleme:denetle
+ *     php artisan update:check
  */
 class UpdateCheckCommand extends Command
 {
-    protected $signature = 'guncelleme:denetle';
+    protected $signature = 'update:check';
 
     protected $description = 'Yeni sürüm var mı: GitHub\'daki son başarılı imaj derlemesiyle karşılaştırır (yalnızca bakar)';
 

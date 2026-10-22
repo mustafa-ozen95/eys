@@ -55,7 +55,7 @@ final class SpiderInterfaceTest extends TestCase
     #[Test]
     public function giris_adresinden_taninir(): void
     {
-        config(['remote.arayuz.turler' => ['spider']]);
+        config(['remote.interface.types' => ['spider']]);
 
         $this->assertSame(InterfaceType::Spider, InterfaceType::icin($this->kayit()));
     }
@@ -64,7 +64,7 @@ final class SpiderInterfaceTest extends TestCase
     #[Test]
     public function baska_giris_adresi_taninmaz(): void
     {
-        config(['remote.arayuz.turler' => ['spider']]);
+        config(['remote.interface.types' => ['spider']]);
 
         $this->assertNull(InterfaceType::icin($this->kayit(['login_url' => 'https://kvm.ornek.test/giris.php'])));
     }
@@ -79,7 +79,7 @@ final class SpiderInterfaceTest extends TestCase
     #[Test]
     public function vekil_acikken_form_yolu_devre_disi(): void
     {
-        config(['remote.arayuz.turler' => ['spider']]);
+        config(['remote.interface.types' => ['spider']]);
 
         $this->assertFalse(PortalLogin::hazirMi($this->kayit([
             'login_username_field' => 'login',

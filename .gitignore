@@ -43,4 +43,4 @@ Thumbs.db
 .pw-env.config.js
 docker-compose.override.yml
 # İmajda derlemede yazılır (docker/Dockerfile); depoya girmez.
-/SURUM
+/VERSION

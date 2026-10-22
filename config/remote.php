@@ -40,8 +40,8 @@ return [
     | yollar InterfaceType::kokYollari() içinde yazılı; nginx'teki konumlar da
     | onlarla eşleşir.
     */
-    'arayuz' => [
-        'prefix' => InterfaceSession::ONEK,
+    'interface' => [
+        'prefix' => InterfaceSession::PREFIX,
 
         /*
         | Vekilin ALAN ADI.
@@ -57,12 +57,12 @@ return [
         | bunun yerine ANLIK bir devir jetonuyla taşınır ve devamı yalnızca
         | o kökende yaşayan bir çerezle sürer.
         |
-        |     ARAYUZ_ALANI=cihaz.eys.ornek.test
+        |     INTERFACE_DOMAIN=cihaz.eys.ornek.test
         |
         | Alan adı panelle aynı sunucuyu göstermeli (aynı ters vekil, aynı
         | konteyner); yalnızca KÖKEN ayrılıyor.
         */
-        'alan' => env('ARAYUZ_ALANI'),
+        'domain' => env('INTERFACE_DOMAIN'),
 
         /*
          * OTURUM BAŞINA PORT.
@@ -80,8 +80,8 @@ return [
          * olmalı (docker/interface-proxy.Caddyfile ve docker-compose.yml; sunucuda
          * başka bir vekil karşılıyorsa onun kuralı).
          */
-        'port_ilk' => (int) env('ARAYUZ_PORT_ILK', 9450),
-        'port_son' => (int) env('ARAYUZ_PORT_SON', 9479),
+        'port_start' => (int) env('INTERFACE_PORT_START', 9450),
+        'port_end' => (int) env('INTERFACE_PORT_END', 9479),
 
         /*
         | VEKİLLENEN TÜRLER.
@@ -94,13 +94,13 @@ return [
         | arayüzleri vekil arkasında henüz açılmıyor (mutlak adresler, kendi
         | kökenine dönen yönlendirmeler). Doğrulanınca listeye eklenecekler.
         */
-        'turler' => array_filter(explode(',', (string) env('ARAYUZ_TURLERI', 'esxi,vami'))),
+        'types' => array_filter(explode(',', (string) env('INTERFACE_TYPES', 'esxi,vami'))),
 
         /*
         | Devir jetonunun ömrü. Tek kullanımlıktır ve ilk açılışta yanar;
         | süre yalnızca tarayıcının yönlendirmeyi izlemesine yeter kadar.
         */
-        'devir_omru' => 60,
+        'handoff_ttl' => 60,
     ],
 
     'ttyd' => [

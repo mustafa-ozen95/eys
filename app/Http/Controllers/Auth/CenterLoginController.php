@@ -38,7 +38,7 @@ class CenterLoginController extends Controller
 
     private const DOGRULAYICI = 'kimlik_dogrulayici';
 
-    public function baslat(Request $request, CenterClient $merkez): RedirectResponse
+    public function start(Request $request, CenterClient $merkez): RedirectResponse
     {
         abort_unless($merkez->acikMi(), 404);
 
@@ -52,7 +52,7 @@ class CenterLoginController extends Controller
         return redirect()->away($merkez->girisAdresi($durum, $merkez->meydanOkuma($dogrulayici)));
     }
 
-    public function geri(
+    public function callback(
         Request $request,
         CenterClient $merkez,
         AccountMatcher $eslestirici,
@@ -72,11 +72,11 @@ class CenterLoginController extends Controller
          * bağlayabilirdi.
          */
         if (blank($beklenen) || ! hash_equals((string) $beklenen, (string) $request->query('state'))) {
-            return $this->hata('Giriş akışı doğrulanamadı; lütfen yeniden deneyin.');
+            return $this->fail('Giriş akışı doğrulanamadı; lütfen yeniden deneyin.');
         }
 
         if (blank($request->query('code')) || blank($dogrulayici)) {
-            return $this->hata('Merkezden kod gelmedi.');
+            return $this->fail('Merkezden kod gelmedi.');
         }
 
         try {
@@ -94,11 +94,11 @@ class CenterLoginController extends Controller
              */
             $activity->record(ActivityAction::LoginFailed, 'Merkez erişimi reddetti: '.$e->getMessage());
 
-            return $this->hata($e->getMessage());
+            return $this->fail($e->getMessage());
         } catch (Throwable $e) {
             report($e);
 
-            return $this->hata('Merkezle bağlantı kurulamadı; lütfen parolanızla girin.');
+            return $this->fail('Merkezle bağlantı kurulamadı; lütfen parolanızla girin.');
         }
 
         $kullanici = $eslestirici->bul($kimlik);
@@ -129,11 +129,11 @@ class CenterLoginController extends Controller
         if ($kullanici === null) {
             $activity->record(ActivityAction::LoginFailed, 'Merkez kimliği eşleşmedi: '.$kimlik['email']);
 
-            return $this->hata('Bu kimlikle eşleşen bir hesap yok. Hesap açma isteği için sistem yöneticinize başvurun.');
+            return $this->fail('Bu kimlikle eşleşen bir hesap yok. Hesap açma isteği için sistem yöneticinize başvurun.');
         }
 
         if (! $kullanici->isActive()) {
-            return $this->hata('Hesabınız etkin değil. Sistem yöneticinize başvurun.');
+            return $this->fail('Hesabınız etkin değil. Sistem yöneticinize başvurun.');
         }
 
         $ilkBag = $eslestirici->bagla($kullanici, $kimlik);
@@ -162,7 +162,7 @@ class CenterLoginController extends Controller
         return redirect()->intended(route('credentials.index'));
     }
 
-    private function hata(string $mesaj): RedirectResponse
+    private function fail(string $mesaj): RedirectResponse
     {
         return redirect()->route('login')->withErrors(['email' => $mesaj]);
     }

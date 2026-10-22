@@ -43,6 +43,6 @@ class LoginScriptSecretLeakproofTest extends TestCase
     {
         $js = (string) file_get_contents(base_path('resources/js/components/portal.js'));
 
-        $this->assertStringContainsString('pencere.opener = null', $js);
+        $this->assertStringContainsString('popup.opener = null', $js);
     }
 }

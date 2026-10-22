@@ -26,7 +26,7 @@ return [
     |
     */
 
-    'aciklama' => env('APP_ACIKLAMA', 'Erişim Yönetim Sistemi'),
+    'description' => env('APP_DESCRIPTION', 'Erişim Yönetim Sistemi'),
 
     /*
     |--------------------------------------------------------------------------
@@ -178,7 +178,7 @@ return [
     | yapısını yazmak yanlış olurdu.
     */
 
-    'ornek_veri' => filter_var(env('ORNEK_VERI', true), FILTER_VALIDATE_BOOLEAN),
+    'sample_data' => filter_var(env('SAMPLE_DATA', true), FILTER_VALIDATE_BOOLEAN),
 
     'admin_name' => env('ADMIN_NAME', 'Sistem Yöneticisi'),
 

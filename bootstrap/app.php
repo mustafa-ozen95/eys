@@ -66,7 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * Bu uçların oturuma ihtiyacı yok: kimliği kendi çerezleri taşıyor.
          * Geriye yalnızca çerezin çözülmesi ve yanıta eklenmesi kalıyor.
          */
-        $middleware->group('cihaz-arayuzu', [
+        $middleware->group('device-interface', [
             EncryptCookies::class,
             AddQueuedCookiesToResponse::class,
         ]);
@@ -91,7 +91,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * bile kazanç, kendi oturumunu erken kapatmaktır.
          */
         $middleware->validateCsrfTokens(except: [
-            ltrim(InterfaceSession::ONEK, '/').'/ayril',
+            ltrim(InterfaceSession::PREFIX, '/').'/leave',
         ]);
 
         $middleware->trustProxies(
@@ -160,7 +160,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * Gruba eklendiğinde en içte kalıyor: kimlik doğrulaması düştüğünde
          * fırlatılan istisna oradan yukarı geçip yanıtı istisna işleyicisi
          * kuruyor ve o yanıt bir daha ara katmandan geçmiyor — giriş
-         * yönlendirmesi ve hata sayfaları başlıksız kalırdı (ör. /erisim'in
+         * yönlendirmesi ve hata sayfaları başlıksız kalırdı (ör. /access'in
          * girişe yönlendiren 302'si).
          */
         $middleware->append(SecurityHeaders::class);

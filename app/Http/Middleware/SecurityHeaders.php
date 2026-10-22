@@ -35,13 +35,13 @@ use Symfony\Component\HttpFoundation\Response;
  * PortalSessionTest).
  *
  * Ayrım ROTANIN KENDİSİNDEN okunur, elle tutulan bir yol listesinden değil:
- * o uçlar zaten `cihaz-arayuzu` grubunda duruyor. (Grup `web`in YERİNE
+ * o uçlar zaten `device-interface` grubunda duruyor. (Grup `web`in YERİNE
  * geçmiyor, ona EKLENİYOR — route:list ikisini de gösteriyor — bu yüzden ayrımı ara katmanın kendisi yapmak zorunda.)
  */
 class SecurityHeaders
 {
     /** Çerçeve kilidinden muaf olan rota grubu. */
-    public const SERBEST_GRUP = 'cihaz-arayuzu';
+    public const SERBEST_GRUP = 'device-interface';
 
     /** Yalnızca çerçevelemeyi ilgilendiren başlıklar. */
     private const CERCEVE = ['X-Frame-Options', 'Content-Security-Policy'];

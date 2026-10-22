@@ -104,8 +104,8 @@ class SubGroupTest extends TestCase
             ->assertOk()
             ->assertDontSee('row-item--alt', false)
             /* Başlık tıklanmaz: bağlantı değil, düz başlık. */
-            ->assertSee('<div class="credential-bolum">', false)
-            ->assertDontSee('<a href="http://localhost/erisim?grup='.$grup->uuid.'&amp;alt=', false);
+            ->assertSee('<div class="credential-section">', false)
+            ->assertDontSee('<a href="http://localhost/access?grup='.$grup->uuid.'&amp;alt=', false);
     }
 
     /**
@@ -176,7 +176,7 @@ class SubGroupTest extends TestCase
         $yonetici = $this->yonetici();
 
         $this->actingAs($yonetici)
-            ->post(route('groups.alt.store', $grup), ['alt_ad' => 'Konsol 1'])
+            ->post(route('groups.sub.store', $grup), ['alt_ad' => 'Konsol 1'])
             ->assertRedirect(route('groups.index', ['acik' => $grup->uuid]))
             ->assertSessionHasNoErrors();
 
@@ -185,18 +185,18 @@ class SubGroupTest extends TestCase
 
         /* Aynı grupta aynı ad iki kez olmaz. */
         $this->actingAs($yonetici)
-            ->post(route('groups.alt.store', $grup), ['alt_ad' => 'Konsol 1'])
+            ->post(route('groups.sub.store', $grup), ['alt_ad' => 'Konsol 1'])
             ->assertSessionHasErrors('alt_ad');
 
         $this->actingAs($yonetici)
-            ->put(route('groups.alt.update', [$grup, $alt]), ['alt_ad' => 'Konsol Bir'])
+            ->put(route('groups.sub.update', [$grup, $alt]), ['alt_ad' => 'Konsol Bir'])
             ->assertSessionHasNoErrors();
         $this->assertSame('Konsol Bir', $alt->fresh()->name);
 
         $kayit = Credential::factory()->for($grup, 'group')->create(['alt_grup_id' => $alt->getKey()]);
 
         $this->actingAs($yonetici)
-            ->delete(route('groups.alt.destroy', [$grup, $alt]))
+            ->delete(route('groups.sub.destroy', [$grup, $alt]))
             ->assertRedirect(route('groups.index', ['acik' => $grup->uuid]));
 
         $this->assertDatabaseMissing('alt_gruplar', ['id' => $alt->getKey()]);
@@ -219,29 +219,29 @@ class SubGroupTest extends TestCase
             ->assertOk()
             ->assertSee('Yedek 1')
             ->assertSee('Yedek 2')
-            ->assertSee('data-sira-kimlik="'.$grup->uuid.'"', false)
-            ->assertSee('data-sira-kimlik="'.$bir->uuid.'"', false)
-            ->assertSee(route('groups.alt.destroy', [$grup, $iki]), false)
-            ->assertDontSee('id="alt-grup-penceresi"', false);
+            ->assertSee('data-order-id="'.$grup->uuid.'"', false)
+            ->assertSee('data-order-id="'.$bir->uuid.'"', false)
+            ->assertSee(route('groups.sub.destroy', [$grup, $iki]), false)
+            ->assertDontSee('id="sub-group-window"', false);
 
         /* Ekleme penceresi sunucudan açık gelir. */
         $this->actingAs($yonetici)
             ->get(route('groups.index', ['acik' => $grup->uuid, 'pencere' => 'ekle', 'grup' => $grup->uuid]))
             ->assertOk()
-            ->assertSee('id="alt-grup-penceresi"', false)
-            ->assertSee(route('groups.alt.store', $grup), false);
+            ->assertSee('id="sub-group-window"', false)
+            ->assertSee(route('groups.sub.store', $grup), false);
 
         /* Düzenleme penceresi kaydın adıyla gelir. */
         $this->actingAs($yonetici)
             ->get(route('groups.index', ['acik' => $grup->uuid, 'pencere' => 'duzenle', 'alt' => $bir->uuid]))
             ->assertOk()
-            ->assertSee(route('groups.alt.update', [$grup, $bir]), false)
+            ->assertSee(route('groups.sub.update', [$grup, $bir]), false)
             ->assertSee('value="Yedek 1"', false);
 
         $this->actingAs($yonetici)
             ->get(route('groups.edit', $grup))
             ->assertOk()
-            ->assertDontSee(route('groups.alt.store', $grup), false);
+            ->assertDontSee(route('groups.sub.store', $grup), false);
     }
 
     /**
@@ -255,25 +255,25 @@ class SubGroupTest extends TestCase
         $yabanci = SubGroup::factory()->for($baska, 'group')->create(['name' => 'Yabancı', 'position' => 1]);
 
         $this->actingAs($this->yonetici())
-            ->put(route('groups.sirala'), ['sira' => [$grup->uuid, $baska->uuid]])
+            ->put(route('groups.reorder'), ['sira' => [$grup->uuid, $baska->uuid]])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(['Yedekleme', 'Başka'], CredentialGroup::query()->where('is_personal', false)->ordered()->pluck('name')->all());
 
         /* Başka grubun bölmesi listeye karışsa bile yok sayılır. */
         $this->actingAs($this->yonetici())
-            ->put(route('groups.alt.sirala', $grup), ['sira' => [$iki->uuid, $yabanci->uuid, $bir->uuid]])
+            ->put(route('groups.sub.reorder', $grup), ['sira' => [$iki->uuid, $yabanci->uuid, $bir->uuid]])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(['Yedek 2', 'Yedek 1'], $grup->altGruplar()->pluck('name')->all());
         $this->assertSame(1, $yabanci->fresh()->position);
 
         /* Yeni bölme listenin sonuna girer. */
-        $this->actingAs($this->yonetici())->post(route('groups.alt.store', $grup), ['alt_ad' => 'Yedek 3']);
+        $this->actingAs($this->yonetici())->post(route('groups.sub.store', $grup), ['alt_ad' => 'Yedek 3']);
         $this->assertSame(['Yedek 2', 'Yedek 1', 'Yedek 3'], $grup->altGruplar()->pluck('name')->all());
 
         $this->actingAs(User::factory()->create())
-            ->put(route('groups.sirala'), ['sira' => [$grup->uuid]])
+            ->put(route('groups.reorder'), ['sira' => [$grup->uuid]])
             ->assertForbidden();
     }
 
@@ -284,7 +284,7 @@ class SubGroupTest extends TestCase
         $baska = CredentialGroup::factory()->create(['name' => 'Başka']);
 
         $this->actingAs($this->yonetici())
-            ->put(route('groups.alt.update', [$baska, $bir]), ['alt_ad' => 'Çalındı'])
+            ->put(route('groups.sub.update', [$baska, $bir]), ['alt_ad' => 'Çalındı'])
             ->assertNotFound();
 
         $this->assertSame('Yedek 1', $bir->fresh()->name);
@@ -298,11 +298,11 @@ class SubGroupTest extends TestCase
         $this->yetkilendir($kullanici, $grup, ['view', 'update']);
 
         $this->actingAs($kullanici)
-            ->post(route('groups.alt.store', $grup), ['alt_ad' => 'X'])
+            ->post(route('groups.sub.store', $grup), ['alt_ad' => 'X'])
             ->assertForbidden();
 
         $this->actingAs($kullanici)
-            ->delete(route('groups.alt.destroy', [$grup, $bir]))
+            ->delete(route('groups.sub.destroy', [$grup, $bir]))
             ->assertForbidden();
     }
 
@@ -370,7 +370,7 @@ class SubGroupTest extends TestCase
         ]);
 
         $this->withHeader('Authorization', 'Bearer '.$yeni['plain'])
-            ->getJson('/api/v1/kayitlar?grup='.$grup->uuid)
+            ->getJson('/api/v1/records?grup='.$grup->uuid)
             ->assertOk()
             ->assertJsonFragment(['ad' => 'Kayit-Bir'])
             ->assertJsonPath('data.0.alt_grup.ad', fn (?string $ad): bool => in_array($ad, ['Yedek 1', 'Yedek 2', null], true));

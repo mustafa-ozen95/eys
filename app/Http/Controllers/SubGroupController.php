@@ -52,7 +52,7 @@ class SubGroupController extends Controller implements HasMiddleware
 
     public function update(SubGroupRequest $request, CredentialGroup $group, SubGroup $altGrup): RedirectResponse
     {
-        $this->grubunOlmali($group, $altGrup);
+        $this->mustBelongToGroup($group, $altGrup);
 
         $altGrup->update($request->payload());
 
@@ -62,7 +62,7 @@ class SubGroupController extends Controller implements HasMiddleware
     }
 
     /** Bölmeleri sürükleyerek sıralar (bkz. sorting.js). */
-    public function sirala(Request $request, CredentialGroup $group): RedirectResponse
+    public function reorder(Request $request, CredentialGroup $group): RedirectResponse
     {
         $veri = $request->validate([
             'sira' => ['required', 'array'],
@@ -94,7 +94,7 @@ class SubGroupController extends Controller implements HasMiddleware
 
     public function destroy(Request $request, CredentialGroup $group, SubGroup $altGrup): RedirectResponse
     {
-        $this->grubunOlmali($group, $altGrup);
+        $this->mustBelongToGroup($group, $altGrup);
 
         $name = $altGrup->name;
         $count = $altGrup->credentials()->count();
@@ -117,7 +117,7 @@ class SubGroupController extends Controller implements HasMiddleware
      * İki uuid ayrı ayrı çözülüyor; başka grubun bölmesi bu grubun adresiyle
      * düzenlenebilseydi yetki kontrolü yanlış gruba sorulmuş olurdu.
      */
-    private function grubunOlmali(CredentialGroup $group, SubGroup $altGrup): void
+    private function mustBelongToGroup(CredentialGroup $group, SubGroup $altGrup): void
     {
         if ($altGrup->credential_group_id !== $group->getKey()) {
             throw new NotFoundHttpException;

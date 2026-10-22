@@ -5,7 +5,7 @@
 
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('groups.update', $group) }}">
+            <form method="POST" data-inline action="{{ route('groups.update', $group) }}">
                 @csrf
                 @method('PUT')
 

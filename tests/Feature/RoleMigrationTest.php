@@ -13,7 +13,7 @@ use Tests\TestCase;
 /**
  * Rollerin veriye taşındığı göç, ÖRNEK VERİ KAPALIYKEN.
  *
- * Öbür sınamalar örnek veri açık koşuyor (ORNEK_VERI'nin varsayılanı true),
+ * Öbür sınamalar örnek veri açık koşuyor (SAMPLE_DATA'nin varsayılanı true),
  * üretim kurulumunda ise kapalı tutulur. Göçün kapalı hâli sınanmazsa
  * sıfırdan kurulum o hâlde "Undefined array key network" gibi bir hatayla
  * çökebilir.
@@ -28,7 +28,7 @@ class RoleMigrationTest extends TestCase
     #[Test]
     public function ornek_verisiz_sifirdan_kurulum_tamamlanir(): void
     {
-        config(['app.ornek_veri' => false]);
+        config(['app.sample_data' => false]);
 
         $this->assertSame(0, Artisan::call('migrate', ['--force' => true]));
 
@@ -39,7 +39,7 @@ class RoleMigrationTest extends TestCase
     #[Test]
     public function kullanicili_kurulum_yukseltilirken_kimse_yonetici_yapilmaz(): void
     {
-        config(['app.ornek_veri' => false]);
+        config(['app.sample_data' => false]);
 
         $oncekiler = collect(glob(database_path('migrations/*.php')))
             ->filter(fn (string $dosya): bool => strcmp(basename($dosya, '.php'), self::GOC) < 0)

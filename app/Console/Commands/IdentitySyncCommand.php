@@ -20,7 +20,7 @@ use Illuminate\Console\Command;
  */
 class IdentitySyncCommand extends Command
 {
-    protected $signature = 'erisim:kimlik-esitle';
+    protected $signature = 'identity:sync';
 
     protected $description = 'Merkezdeki rol ve durum değişikliklerini yerel hesaplara uygular';
 

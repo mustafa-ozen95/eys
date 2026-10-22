@@ -51,7 +51,7 @@ final class IdentityMirrorTest extends TestCase
         $kullanici = $this->merkezliKullanici();
 
         app(IdentitySyncer::class)->uygula($kullanici, [
-            'durum' => 'askida', 'girebilir' => false, 'rol' => null,
+            'status' => 'askida', 'can_enter' => false, 'role' => null,
         ]);
 
         $this->assertSame(UserStatus::Passive, $kullanici->fresh()->status);
@@ -66,7 +66,7 @@ final class IdentityMirrorTest extends TestCase
         $kullanici = $this->merkezliKullanici(UserStatus::Passive);
 
         app(IdentitySyncer::class)->uygula($kullanici, [
-            'durum' => 'etkin', 'girebilir' => true, 'rol' => null,
+            'status' => 'etkin', 'can_enter' => true, 'role' => null,
         ]);
 
         $this->assertSame(UserStatus::Active, $kullanici->fresh()->status);
@@ -84,7 +84,7 @@ final class IdentityMirrorTest extends TestCase
         $hedef = Role::query()->where('is_admin', false)->first() ?? Role::query()->first();
 
         app(IdentitySyncer::class)->uygula($kullanici, [
-            'durum' => 'askida', 'girebilir' => false, 'rol' => $hedef->slug,
+            'status' => 'askida', 'can_enter' => false, 'role' => $hedef->slug,
         ]);
 
         $this->assertSame($hedef->id, $kullanici->fresh()->role_id);

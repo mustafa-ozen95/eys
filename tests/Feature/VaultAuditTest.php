@@ -51,7 +51,7 @@ class VaultAuditTest extends TestCase
     {
         $this->kayit(['name' => 'Saglam kayit']);
 
-        $this->artisan('erisim:kasa-denetle')
+        $this->artisan('access:vault-check')
             ->expectsOutputToContain('GEÇERLİ')
             ->assertSuccessful();
     }
@@ -71,7 +71,7 @@ class VaultAuditTest extends TestCase
             'rotation_password' => 'ESKI-KIMLIK',
         ]);
 
-        $this->artisan('erisim:kasa-denetle')
+        $this->artisan('access:vault-check')
             ->expectsOutputToContain('GEÇERSİZ')
             ->assertFailed();
     }
@@ -82,7 +82,7 @@ class VaultAuditTest extends TestCase
     {
         $this->kayit(['name' => 'Bayat parolali kayit', 'password' => 'ARTIK-GECMEYEN']);
 
-        $this->artisan('erisim:kasa-denetle')->assertFailed();
+        $this->artisan('access:vault-check')->assertFailed();
     }
 
     /** Komut hiçbir şeyi DEĞİŞTİRMEZ: denetim, işlem değil. */
@@ -93,7 +93,7 @@ class VaultAuditTest extends TestCase
 
         $oncesi = $this->device->accounts;
 
-        $this->artisan('erisim:kasa-denetle')->assertSuccessful();
+        $this->artisan('access:vault-check')->assertSuccessful();
 
         $this->assertSame($oncesi, $this->device->accounts, 'Denetim hesapları değiştirmemeli.');
     }

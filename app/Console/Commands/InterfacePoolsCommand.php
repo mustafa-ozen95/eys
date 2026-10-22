@@ -32,8 +32,8 @@ use Illuminate\Console\Command;
  */
 class InterfacePoolsCommand extends Command
 {
-    protected $signature = 'erisim:interface-pools
-        {--yaz= : Üretilen yapılandırmanın yazılacağı dosya}
+    protected $signature = 'access:interface-pools
+        {--write= : Üretilen yapılandırmanın yazılacağı dosya}
         {--resolv=/etc/resolv.conf : Çözücülerin okunacağı dosya}';
 
     protected $description = 'Vekillenen cihazlar için nginx bağlantı havuzu yapılandırmasını üretir';
@@ -51,7 +51,7 @@ class InterfacePoolsCommand extends Command
     {
         $satirlar = [
             '# ÜRETİLEN DOSYA — elle düzenlenmez.',
-            '# Kaynağı kasadır; üreten: php artisan erisim:interface-pools',
+            '# Kaynağı kasadır; üreten: php artisan access:interface-pools',
             '# Gerekçesi: app/Console/Commands/InterfacePoolsCommand.php',
             '',
         ];
@@ -112,11 +112,11 @@ class InterfacePoolsCommand extends Command
 
         /*
          * Eşleme her hâlükârda yazılır, liste boş olsa bile: vekil
-         * $arayuz_havuz değişkenini kullanıyor ve tanımsız bir değişkenle
+         * $interface_pool değişkenini kullanıyor ve tanımsız bir değişkenle
          * nginx hiç açılmaz.
          */
-        $satirlar[] = 'map $arayuz_hedef $arayuz_havuz {';
-        $satirlar[] = '    default $arayuz_hedef;';
+        $satirlar[] = 'map $interface_target $interface_pool {';
+        $satirlar[] = '    default $interface_target;';
 
         foreach ($hedefler as $ad => $hedef) {
             $satirlar[] = '    "'.$hedef.'" '.$ad.';';
@@ -125,7 +125,7 @@ class InterfacePoolsCommand extends Command
         $satirlar[] = '}';
 
         $metin = implode("\n", $satirlar)."\n";
-        $dosya = (string) $this->option('yaz');
+        $dosya = (string) $this->option('write');
 
         if ($dosya === '') {
             $this->getOutput()->write($metin);
@@ -189,7 +189,7 @@ class InterfacePoolsCommand extends Command
             }
 
             $hedef = $konak.':'.$port;
-            $liste['cihaz_'.preg_replace('/[^a-z0-9]+/i', '_', $hedef)] = $hedef;
+            $liste['device_'.preg_replace('/[^a-z0-9]+/i', '_', $hedef)] = $hedef;
         }
 
         ksort($liste);

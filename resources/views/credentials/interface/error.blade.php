@@ -11,7 +11,7 @@
     hesap, ne yapmalı.
 --}}
 <x-layout.gate title="Arayüz açılamadı">
-    <div class="gate__mark gate__mark--uyari mono">
+    <div class="gate__mark gate__mark--warning mono">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
             <path d="M12 3 3 7v5c0 5 3.8 8.4 9 9 5.2-.6 9-4 9-9V7l-9-4Z" stroke-linejoin="round" />
             <path d="M12 8.5v4.2M12 16.2h.01" stroke-linecap="round" />
@@ -24,7 +24,7 @@
         Panel cihaza bağlandı ama oturum açamadı.
     </p>
 
-    <p class="gate__yol mono">{{ $credential->name }} · {{ $credential->username }}</p>
+    <p class="gate__path mono">{{ $credential->name }} · {{ $credential->username }}</p>
 
     {{--
         SEBEP YAZILIR.
@@ -34,11 +34,11 @@
         404 adres, 5xx cihazın kendi arızası. Cihazın gövdesi basılmaz —
         okunmaz olur ve gereksiz bilgi sızdırır.
     --}}
-    <p class="gate__lead gate__lead--kucuk">{{ $sebep }}</p>
+    <p class="gate__lead gate__lead--small">{{ $sebep }}</p>
 
-    <p class="gate__lead gate__lead--kucuk">
+    <p class="gate__lead gate__lead--small">
         Deneme kayda geçti; panel yöneticisi kayıtlar ekranından görebilir.
     </p>
 
-    <a href="{{ url('/erisim') }}" class="btn btn--primary btn--block">Kayıtlara dön</a>
+    <a href="{{ url('/access') }}" class="btn btn--primary btn--block">Kayıtlara dön</a>
 </x-layout.gate>

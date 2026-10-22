@@ -21,52 +21,52 @@ import { $, $$ } from '../lib/dom.js';
  * yalnızca kullanıcı kutuları değiştirdiğinde günceller. Tersi olsaydı,
  * betik yüklenmediğinde alanlar hiç görünmezdi.
  *
- * HANGİ SÜRÜCÜLERİN İSTEDİĞİ SUNUCUDAN GELİR (`data-makine-hesabi`): burada
+ * HANGİ SÜRÜCÜLERİN İSTEDİĞİ SUNUCUDAN GELİR (`data-machine-account`): burada
  * elle tutulan ikinci bir liste, yeni bir sürücü eklendiğinde sessizce
  * eskirdi.
  */
 
-const GIZLI = 'is-hidden';
+const HIDDEN = 'is-hidden';
 
-function surucuListesi(alan) {
+function driverList(field) {
     try {
-        const liste = JSON.parse(alan.dataset.makineHesabi || '[]');
+        const list = JSON.parse(field.dataset.machineAccount || '[]');
 
-        return Array.isArray(liste) ? liste : [];
+        return Array.isArray(list) ? list : [];
     } catch {
         /* Bozuk öznitelik ekranı kilitlemesin: alan sunucunun bıraktığı gibi kalır. */
         return null;
     }
 }
 
-function kur(alan) {
-    const form = alan.closest('form');
-    const surucu = form ? $('[name="rotation_driver"]', form) : null;
-    const kasa = form ? $('[name="rotation_credential_id"]', form) : null;
-    const elle = form ? $('[data-elle-hesap]', form) : null;
-    const isteyenler = surucuListesi(alan);
+function setUp(field) {
+    const form = field.closest('form');
+    const driver = form ? $('[name="rotation_driver"]', form) : null;
+    const vault = form ? $('[name="rotation_credential_id"]', form) : null;
+    const manual = form ? $('[data-manual-account]', form) : null;
+    const requesters = driverList(field);
 
-    if (!surucu || isteyenler === null) {
+    if (!driver || requesters === null) {
         return;
     }
 
-    const uygula = () => {
-        const makineSsh = isteyenler.includes(surucu.value);
+    const apply = () => {
+        const machineSsh = requesters.includes(driver.value);
 
-        alan.classList.toggle(GIZLI, !makineSsh);
+        field.classList.toggle(HIDDEN, !machineSsh);
 
         /*
          * Kasa kutusu gizliyken seçim de yok sayılır: sürücü değişince
          * görünmeyen bir kutudaki seçim yüzünden elle alanları kapalı
          * kalmasın.
          */
-        if (elle) {
-            elle.classList.toggle(GIZLI, makineSsh && !!kasa?.value);
+        if (manual) {
+            manual.classList.toggle(HIDDEN, machineSsh && !!vault?.value);
         }
     };
 
-    surucu.addEventListener('change', uygula);
-    kasa?.addEventListener('change', uygula);
+    driver.addEventListener('change', apply);
+    vault?.addEventListener('change', apply);
 
     /*
      * PENCERE KAPANINCA FORM SIFIRLANIYOR (bkz. dialog.js) ve sıfırlama
@@ -74,9 +74,9 @@ function kur(alan) {
      * son seçimine göre açık ya da kapalı kalırdı. Sıfırlama olayı değerler
      * geri yüklenmeden önce tetiklendiği için kuyruğun sonuna bırakılır.
      */
-    form.addEventListener('reset', () => setTimeout(uygula, 0));
+    form.addEventListener('reset', () => setTimeout(apply, 0));
 }
 
 export function init() {
-    $$('[data-makine-hesabi]').forEach(kur);
+    $$('[data-machine-account]').forEach(setUp);
 }

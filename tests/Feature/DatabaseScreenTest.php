@@ -107,22 +107,22 @@ class DatabaseScreenTest extends TestCase
         $sahte = $this->sahte();
 
         $this->actingAs(User::factory()->create())
-            ->get(route('veritabani.index'))
+            ->get(route('database.index'))
             ->assertForbidden();
 
         $this->actingAs(User::factory()->create())
-            ->post(route('veritabani.sina'), self::HEDEF)
+            ->post(route('database.test'), self::HEDEF)
             ->assertForbidden();
 
         $this->actingAs(User::factory()->create())
-            ->post(route('veritabani.tasi'))
+            ->post(route('database.migrate'))
             ->assertForbidden();
 
         $this->assertSame(0, $sahte->sinama, 'Yetkisiz istek sınama koşturmamalıydı.');
         $this->assertNull($this->dosya->durum());
 
         $this->actingAs($this->yonetici())
-            ->get(route('veritabani.index'))
+            ->get(route('database.index'))
             ->assertOk()
             ->assertSee('Şu anki veritabanı')
             ->assertSee('Kurulum ayarı')
@@ -136,9 +136,9 @@ class DatabaseScreenTest extends TestCase
         $this->sahte([true]);
 
         $this->actingAs($this->yonetici())
-            ->from(route('veritabani.index'))
+            ->from(route('database.index'))
             ->followingRedirects()
-            ->post(route('veritabani.sina'), self::HEDEF)
+            ->post(route('database.test'), self::HEDEF)
             ->assertOk()
             ->assertSee('Sınamalar geçti')
             ->assertSee('syd@db.ornek.local:3306/syd_uzak hedefine taşı')
@@ -151,9 +151,9 @@ class DatabaseScreenTest extends TestCase
         $this->sahte([false]);
 
         $this->actingAs($this->yonetici())
-            ->from(route('veritabani.index'))
+            ->from(route('database.index'))
             ->followingRedirects()
-            ->post(route('veritabani.sina'), self::HEDEF)
+            ->post(route('database.test'), self::HEDEF)
             ->assertOk()
             ->assertSee('3 tablo var')
             ->assertSee('geçmedi')
@@ -166,8 +166,8 @@ class DatabaseScreenTest extends TestCase
         $sahte = $this->sahte();
 
         $this->actingAs($this->yonetici())
-            ->from(route('veritabani.index'))
-            ->post(route('veritabani.sina'), [...self::HEDEF, 'host' => 'localhost'])
+            ->from(route('database.index'))
+            ->post(route('database.test'), [...self::HEDEF, 'host' => 'localhost'])
             ->assertSessionHasErrors('host');
 
         $this->assertSame(0, $sahte->sinama, 'Sınama koşmamalıydı.');
@@ -179,8 +179,8 @@ class DatabaseScreenTest extends TestCase
         $this->sahte();
 
         $this->actingAs($this->yonetici())
-            ->from(route('veritabani.index'))
-            ->post(route('veritabani.tasi'))
+            ->from(route('database.index'))
+            ->post(route('database.migrate'))
             ->assertSessionHasErrors('veritabani');
 
         $this->assertNull($this->dosya->durum());
@@ -194,12 +194,12 @@ class DatabaseScreenTest extends TestCase
         $yonetici = $this->yonetici();
 
         $this->actingAs($yonetici)
-            ->from(route('veritabani.index'))
-            ->post(route('veritabani.sina'), self::HEDEF);
+            ->from(route('database.index'))
+            ->post(route('database.test'), self::HEDEF);
 
         $this->actingAs($yonetici)
-            ->from(route('veritabani.index'))
-            ->post(route('veritabani.tasi'), ['reason' => 'uzak sunucuya geçiş'])
+            ->from(route('database.index'))
+            ->post(route('database.migrate'), ['reason' => 'uzak sunucuya geçiş'])
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status');
 
@@ -216,7 +216,7 @@ class DatabaseScreenTest extends TestCase
         $this->assertStringNotContainsString('Gizli-Parola-123', $kayit->summary.$kayit->reason);
 
         $this->actingAs($yonetici)
-            ->get(route('veritabani.index'))
+            ->get(route('database.index'))
             ->assertSee('istendi, yeniden başlatma bekleniyor')
             ->assertDontSee('Bağlantıyı sına');
     }
@@ -228,11 +228,11 @@ class DatabaseScreenTest extends TestCase
         $sahte = $this->sahte([true, false]);
         $yonetici = $this->yonetici();
 
-        $this->actingAs($yonetici)->from(route('veritabani.index'))
-            ->post(route('veritabani.sina'), self::HEDEF);
+        $this->actingAs($yonetici)->from(route('database.index'))
+            ->post(route('database.test'), self::HEDEF);
 
-        $this->actingAs($yonetici)->from(route('veritabani.index'))
-            ->post(route('veritabani.tasi'))
+        $this->actingAs($yonetici)->from(route('database.index'))
+            ->post(route('database.migrate'))
             ->assertSessionHasErrors('veritabani');
 
         $this->assertSame(2, $sahte->sinama);
@@ -251,7 +251,7 @@ class DatabaseScreenTest extends TestCase
         $this->dosya->asamaYaz('etkin');
 
         $this->actingAs($this->yonetici())
-            ->get(route('veritabani.index'))
+            ->get(route('database.index'))
             ->assertOk()
             ->assertSee('Uzak (panel ayarı)')
             ->assertSee('tamamlandı')
@@ -267,7 +267,7 @@ class DatabaseScreenTest extends TestCase
         $this->dosya->asamaYaz('basarisiz', 'Uzak veritabanı boş değil (3 tablo); üzerine yazılmaz.');
 
         $this->actingAs($this->yonetici())
-            ->get(route('veritabani.index'))
+            ->get(route('database.index'))
             ->assertOk()
             ->assertSee('yapılmadı')
             ->assertSee('Uzak veritabanı boş değil (3 tablo)')
@@ -280,7 +280,7 @@ class DatabaseScreenTest extends TestCase
         $this->sahte();
 
         $this->actingAs($this->yonetici())
-            ->get(route('sertifika.index'))
-            ->assertSee(route('veritabani.index'));
+            ->get(route('certificate.index'))
+            ->assertSee(route('database.index'));
     }
 }

@@ -32,7 +32,7 @@ final class ErrorPagesTest extends TestCase
         $sayfa = $this->sayfa(403);
 
         $this->assertStringContainsString('Yetkisiz erişim denemesi', $sayfa);
-        $this->assertStringContainsString('gate__mark--uyari', $sayfa);
+        $this->assertStringContainsString('gate__mark--warning', $sayfa);
         $this->assertStringContainsString('Panele dön', $sayfa);
 
         /* 404'ün cümlesi buraya sızmamalı: ikisi ayrı şey söylüyor. */
@@ -45,8 +45,8 @@ final class ErrorPagesTest extends TestCase
     {
         $bicem = file_get_contents(resource_path('css/layout.css'));
 
-        $this->assertStringContainsString('.gate__mark--uyari', $bicem);
-        $this->assertStringContainsString('.gate__yol', $bicem);
+        $this->assertStringContainsString('.gate__mark--warning', $bicem);
+        $this->assertStringContainsString('.gate__path', $bicem);
     }
 
     /** 404 sade kalır: değişiklik yalnızca 403'e ait. */
@@ -56,6 +56,6 @@ final class ErrorPagesTest extends TestCase
         $sayfa = $this->sayfa(404);
 
         $this->assertStringContainsString('Aradığınız sayfa bulunamadı', $sayfa);
-        $this->assertStringNotContainsString('gate__mark--uyari', $sayfa);
+        $this->assertStringNotContainsString('gate__mark--warning', $sayfa);
     }
 }

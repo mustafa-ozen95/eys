@@ -66,7 +66,7 @@ class CredentialVisibilityTest extends TestCase
         $this->actingAs($user)
             ->get(route('credentials.index', ['kayit' => $gizli->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertDontSee('id="kayit-duzenle"', false)
+            ->assertDontSee('id="record-edit"', false)
             ->assertDontSee($gizli->uuid);
 
         $this->actingAs($user)->put(route('credentials.update', $gizli), [])->assertForbidden();
@@ -444,7 +444,7 @@ class CredentialVisibilityTest extends TestCase
             'password' => 'VAMI-PAROLASI',
         ]);
 
-        $this->assertSame(InterfaceType::Vami, $kimlikli->arayuz_turu);
+        $this->assertSame(InterfaceType::Vami, $kimlikli->interface_type);
     }
 
     /**

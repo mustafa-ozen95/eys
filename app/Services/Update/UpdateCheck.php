@@ -14,7 +14,7 @@ use Throwable;
 /**
  * Panelin yeni sürümü var mı?
  *
- * Çalışan sürüm (imaja derlemede yazılan commit, UYGULAMA_SURUMU) GitHub'daki
+ * Çalışan sürüm (imaja derlemede yazılan commit, APP_VERSION) GitHub'daki
  * main dalının SON BAŞARILI İMAJ DERLEMESİYLE karşılaştırılır. Son commit
  * değil: imajı henüz derlenmemiş ya da derlemesi düşmüş bir commit
  * kurulamaz, onu "yeni sürüm" diye göstermek yanıltırdı.
@@ -56,14 +56,14 @@ class UpdateCheck
     /** Çalışan commit (40 haneli); imaj sürüm bilgisi olmadan derlendiyse null. */
     public function surum(): ?string
     {
-        $surum = strtolower(trim((string) config('update.surum')));
+        $surum = strtolower(trim((string) config('update.version')));
 
         return preg_match('/^[0-9a-f]{40}$/', $surum) === 1 ? $surum : null;
     }
 
     public function depo(): string
     {
-        return (string) config('update.depo');
+        return (string) config('update.repo');
     }
 
     /**
@@ -112,7 +112,7 @@ class UpdateCheck
     /** @return array<string, mixed> */
     private function sor(?string $calisan): array
     {
-        $jeton = trim((string) config('update.jeton'));
+        $jeton = trim((string) config('update.token'));
 
         $http = Http::baseUrl(self::API)
             ->acceptJson()
@@ -123,8 +123,8 @@ class UpdateCheck
             $http = $http->withToken($jeton);
         }
 
-        $is = $this->al($http, '/repos/'.$this->depo().'/actions/workflows/'.config('update.is', 'image.yml').'/runs', [
-            'branch' => config('update.dal', 'main'),
+        $is = $this->al($http, '/repos/'.$this->depo().'/actions/workflows/'.config('update.workflow', 'image.yml').'/runs', [
+            'branch' => config('update.branch', 'main'),
             'status' => 'success',
             'event' => 'push',
             'per_page' => 1,
@@ -179,13 +179,13 @@ class UpdateCheck
             throw new RuntimeException('GitHub\'a erişilemedi (ağ kapalı ya da yanıt yok).');
         }
 
-        $jetonsuz = trim((string) config('update.jeton')) === '';
+        $jetonsuz = trim((string) config('update.token')) === '';
 
         return match (true) {
             $yanit->successful() => (array) $yanit->json(),
             $yanit->status() === 401 => throw new RuntimeException('GitHub jetonu reddetti (401): süresi dolmuş ya da silinmiş olabilir.'),
-            $jetonsuz && $yanit->status() === 403 && $yanit->header('X-RateLimit-Remaining') === '0' => throw new RuntimeException('GitHub jetonsuz istek sınırı doldu (403, saatte 60): bir saat sonra yeniden deneyin ya da GUNCELLEME_JETONU tanımlayın.'),
-            $jetonsuz && in_array($yanit->status(), [403, 404], true) => throw new RuntimeException('Depo bulunamadı ya da özel ('.$yanit->status().'): '.$this->depo().' özelse GUNCELLEME_JETONU gerekir.'),
+            $jetonsuz && $yanit->status() === 403 && $yanit->header('X-RateLimit-Remaining') === '0' => throw new RuntimeException('GitHub jetonsuz istek sınırı doldu (403, saatte 60): bir saat sonra yeniden deneyin ya da UPDATE_TOKEN tanımlayın.'),
+            $jetonsuz && in_array($yanit->status(), [403, 404], true) => throw new RuntimeException('Depo bulunamadı ya da özel ('.$yanit->status().'): '.$this->depo().' özelse UPDATE_TOKEN gerekir.'),
             in_array($yanit->status(), [403, 404], true) => throw new RuntimeException('Jeton bu depoyu görmüyor ('.$yanit->status().'): '.$this->depo().' için Contents ve Actions okuma yetkisi gerekir.'),
             default => throw new RuntimeException('GitHub yanıtı: '.$yanit->status().' '.$this->mesaj($yanit)),
         };
@@ -199,7 +199,7 @@ class UpdateCheck
     /** Jeton hiçbir iletide geçmez. */
     private function temiz(string $ileti): string
     {
-        $jeton = trim((string) config('update.jeton'));
+        $jeton = trim((string) config('update.token'));
 
         return mb_substr($jeton !== '' ? str_replace($jeton, '***', $ileti) : $ileti, 0, 300);
     }

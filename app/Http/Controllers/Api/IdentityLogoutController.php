@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 /**
  * MERKEZDEN "bu kişi çıkış yaptı" bildirimi (bkz. SharedLogout).
  *
- * İmza anı da kapsar (`cikis|<subject>|<an>`); tutarsa an doğrudan
+ * İmza anı da kapsar (`logout|<subject>|<time>`); tutarsa zaman doğrudan
  * uygulanır, merkeze yeniden sorulmaz. Kimlik bildiriminden ayrı uç: o uç
  * kişi başına kısılıyor, çıkış kısılmamalı. Yanıt her durumda aynı.
  */
@@ -24,12 +24,12 @@ class IdentityLogoutController extends Controller
     public function __invoke(Request $request, CenterClient $merkez): JsonResponse
     {
         $subject = trim((string) $request->input('subject'));
-        $an = filter_var($request->input('an'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        $sir = (string) config('identity.bildirim_sirri');
+        $an = filter_var($request->input('time'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $sir = (string) config('identity.notify_secret');
 
         $imzali = $sir !== '' && $subject !== '' && $an !== false && hash_equals(
-            hash_hmac('sha256', 'cikis|'.$subject.'|'.$an, $sir),
-            (string) $request->header('X-Kimlik-Imza'),
+            hash_hmac('sha256', 'logout|'.$subject.'|'.$an, $sir),
+            (string) $request->header('X-Identity-Signature'),
         );
 
         if ($imzali && $merkez->acikMi()) {
@@ -43,6 +43,6 @@ class IdentityLogoutController extends Controller
             }
         }
 
-        return response()->json(['sonuc' => 'alındı']);
+        return response()->json(['result' => 'received']);
     }
 }

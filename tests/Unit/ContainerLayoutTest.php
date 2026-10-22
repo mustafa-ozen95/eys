@@ -77,7 +77,7 @@ class ContainerLayoutTest extends TestCase
     {
         $c = self::oku('docker-compose.yml');
 
-        foreach (["\n  panel:\n", "\n  db:\n", "\n  redis:\n", 'image: mariadb:', 'replicas: ${VT_KOPYA:-1}', 'expose: ["80", "9080"]', 'internal: ${AG_YALITIMI:-false}'] as $var) {
+        foreach (["\n  panel:\n", "\n  db:\n", "\n  redis:\n", 'image: mariadb:', 'replicas: ${DB_REPLICAS:-1}', 'expose: ["80", "9080"]', 'internal: ${NETWORK_ISOLATED:-false}'] as $var) {
             $this->assertStringContainsString($var, $c, $var);
         }
         $this->assertStringNotContainsString('env_file', $c);
@@ -94,10 +94,10 @@ class ContainerLayoutTest extends TestCase
         $caddy = self::oku('docker/interface-proxy.Caddyfile');
         $config = self::oku('config/remote.php');
 
-        $this->assertStringContainsString('replicas: ${ARAYUZ_VEKILI_KOPYA:-0}', $c);
+        $this->assertStringContainsString('replicas: ${INTERFACE_PROXY_REPLICAS:-0}', $c);
         $this->assertStringContainsString('"9450-9479:9450-9479"', $c);
-        $this->assertStringContainsString("env('ARAYUZ_PORT_ILK', 9450)", $config);
-        $this->assertStringContainsString("env('ARAYUZ_PORT_SON', 9479)", $config);
+        $this->assertStringContainsString("env('INTERFACE_PORT_START', 9450)", $config);
+        $this->assertStringContainsString("env('INTERFACE_PORT_END', 9479)", $config);
         // Caddy port aralığı kabul etmiyor; adresler tek tek yazılı, hiçbiri eksik olmasın.
         foreach (range(9450, 9479) as $port) {
             $this->assertStringContainsString(':'.$port, $caddy, (string) $port);

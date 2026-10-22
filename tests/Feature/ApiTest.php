@@ -84,14 +84,14 @@ class ApiTest extends TestCase
     #[Test]
     public function jetonsuz_istek_reddedilir(): void
     {
-        $this->getJson('/api/v1/kayitlar')->assertUnauthorized();
+        $this->getJson('/api/v1/records')->assertUnauthorized();
     }
 
     #[Test]
     public function gecersiz_jeton_reddedilir(): void
     {
         $this->withHeader('Authorization', 'Bearer uydurma')
-            ->getJson('/api/v1/kayitlar')
+            ->getJson('/api/v1/records')
             ->assertUnauthorized();
     }
 
@@ -106,7 +106,7 @@ class ApiTest extends TestCase
         $kayit = $this->kayit();
 
         $this->actingAs($this->kullanici($kayit->group, ['view']))
-            ->getJson('/api/v1/kayitlar')
+            ->getJson('/api/v1/records')
             ->assertUnauthorized();
     }
 
@@ -120,7 +120,7 @@ class ApiTest extends TestCase
 
         $jeton->revoke();
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertUnauthorized();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertUnauthorized();
     }
 
     #[Test]
@@ -133,7 +133,7 @@ class ApiTest extends TestCase
 
         $jeton->forceFill(['expires_at' => now()->subMinute()])->save();
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertUnauthorized();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertUnauthorized();
     }
 
     /** Sahibi askıya alınmışsa jetonu da çalışmaz. */
@@ -147,7 +147,7 @@ class ApiTest extends TestCase
 
         $sahip->forceFill(['status' => 'passive'])->save();
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertUnauthorized();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertUnauthorized();
     }
 
     /* ── Liste ── */
@@ -162,7 +162,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')
+        $this->withToken($duz)->getJson('/api/v1/records')
             ->assertOk()
             ->assertJsonPath('data.0.kimlik', $gorunen->uuid)
             ->assertJsonCount(1, 'data')
@@ -229,7 +229,7 @@ class ApiTest extends TestCase
         [, $duz] = $this->jeton($kullanici, [CredentialPolicy::RESOURCE => ['view', 'field.host', 'field.password']]);
 
         $yanit = $this->withToken($duz)
-            ->getJson("/api/v1/kayitlar/{$kayit->uuid}")
+            ->getJson("/api/v1/records/{$kayit->uuid}")
             ->assertOk();
 
         /* Adres ve kullanıcı yetkisi BU grupta yok: alanlar gelmemeli. */
@@ -246,7 +246,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view', 'field.password'],
         ]);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')
+        $this->withToken($duz)->getJson('/api/v1/records')
             ->assertOk()
             ->assertDontSee('gizli-parola');
     }
@@ -266,7 +266,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')
+        $this->withToken($duz)->getJson('/api/v1/records')
             ->assertOk()
             ->assertJsonMissingPath('data.0.id')
             ->assertJsonPath('data.0.kimlik', $kayit->uuid);
@@ -284,7 +284,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar?host=10.0.0.5&kullanici=root')
+        $this->withToken($duz)->getJson('/api/v1/records?host=10.0.0.5&kullanici=root')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.kimlik', $aranan->uuid)
@@ -308,8 +308,8 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$gizli->uuid}")->assertNotFound();
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$gizli->uuid}/parola")->assertNotFound();
+        $this->withToken($duz)->getJson("/api/v1/records/{$gizli->uuid}")->assertNotFound();
+        $this->withToken($duz)->getJson("/api/v1/records/{$gizli->uuid}/password")->assertNotFound();
     }
 
     /** Sıralı anahtarla adreslenemez: rota kalıbı uuid şart koşuyor. */
@@ -322,7 +322,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->id}")->assertNotFound();
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->id}")->assertNotFound();
     }
 
     /* ── Parola ── */
@@ -336,7 +336,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view', 'field.password'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->uuid}/parola")
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->uuid}/password")
             ->assertOk()
             ->assertJsonPath('parola', 'gizli-parola')
             ->assertJsonPath('kullanici', 'root');
@@ -356,7 +356,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view', 'field.password'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->uuid}/parola")->assertForbidden();
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->uuid}/password")->assertForbidden();
     }
 
     /**
@@ -374,7 +374,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->uuid}/parola")->assertForbidden();
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->uuid}/password")->assertForbidden();
     }
 
     /** Yöneticinin jetonu da listesini aşamaz; yoksa dar liste anlamsız olurdu. */
@@ -386,8 +386,8 @@ class ApiTest extends TestCase
 
         [, $duz] = $this->jeton($yonetici, [CredentialPolicy::RESOURCE => ['view']]);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertOk();
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->uuid}/parola")->assertForbidden();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertOk();
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->uuid}/password")->assertForbidden();
     }
 
     /** Her parola okuması kayda geçer; kasanın en sessiz kapısı açık kalmamalı. */
@@ -400,7 +400,7 @@ class ApiTest extends TestCase
             CredentialPolicy::RESOURCE => ['view', 'field.password'],
         ]);
 
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$kayit->uuid}/parola")->assertOk();
+        $this->withToken($duz)->getJson("/api/v1/records/{$kayit->uuid}/password")->assertOk();
 
         $this->assertDatabaseHas('activity_logs', ['action' => 'revealed']);
     }
@@ -417,6 +417,6 @@ class ApiTest extends TestCase
 
         $jeton->forceFill(['allowed_ips' => ['10.9.9.9']])->save();
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertUnauthorized();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertUnauthorized();
     }
 }

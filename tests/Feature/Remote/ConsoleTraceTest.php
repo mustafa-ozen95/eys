@@ -104,7 +104,7 @@ final class ConsoleTraceTest extends TestCase
         /* Canlı tutma kesileli çok oldu: tarayıcı gitmiş. */
         ConsoleSession::query()->where('token', $jeton)->update(['last_seen_at' => now()->subMinutes(30)]);
 
-        $this->artisan('erisim:konsol-temizle')->assertSuccessful();
+        $this->artisan('console:prune')->assertSuccessful();
 
         $iz = ConsoleSession::query()->where('token', $jeton)->firstOrFail();
 
@@ -124,7 +124,7 @@ final class ConsoleTraceTest extends TestCase
         [$user, $credential] = $this->hazirla();
         $jeton = $this->ac($user, $credential);
 
-        $this->artisan('erisim:konsol-temizle')->assertSuccessful();
+        $this->artisan('console:prune')->assertSuccessful();
 
         $this->assertNull(ConsoleSession::query()->where('token', $jeton)->value('closed_at'));
     }

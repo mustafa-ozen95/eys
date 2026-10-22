@@ -69,7 +69,7 @@ class PasswordRotator
      *                              "kim yaptı" sorusunu doğru yanıtlamalı.
      */
     /** Kayıt başına döndürme kilidi. */
-    private const LOCK = 'erisim:dondurme:';
+    private const LOCK = 'access:rotation:';
 
     public function rotate(
         Credential $credential,

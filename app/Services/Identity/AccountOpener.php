@@ -40,7 +40,7 @@ class AccountOpener
      *
      * KARARI MERKEZ VERİR: hangi uygulamada
      * hesabın kendiliğinden açılacağını merkezdeki İstemciler ekranı söyler
-     * ve kimlik yanıtında `hesap_acilabilir` olarak gelir. Panel kendi
+     * ve kimlik yanıtında `can_create_account` olarak gelir. Panel kendi
      * kopyasını TUTMAZ — aynı karar iki yerde durursa biri değişince öbürü
      * sessizce eski kalır ve hangisinin geçerli olduğu belirsizleşir.
      *
@@ -53,13 +53,13 @@ class AccountOpener
      * kaydolan herkes bu panele varsayılan rolle düşerdi — oysa rol atamak,
      * o kişiye bakılmış olmasının kendisidir.
      *
-     * @param  array{email_verified: bool, rol?: ?string, hesap_acilabilir?: bool}  $kimlik
+     * @param  array{email_verified: bool, role?: ?string, can_create_account?: bool}  $kimlik
      */
     public function acilabilirMi(array $kimlik): bool
     {
-        return ($kimlik['hesap_acilabilir'] ?? false)
+        return ($kimlik['can_create_account'] ?? false)
             && ($kimlik['email_verified'] ?? false)
-            && filled($kimlik['rol'] ?? null);
+            && filled($kimlik['role'] ?? null);
     }
 
     /**
@@ -67,7 +67,7 @@ class AccountOpener
      */
     public function ac(array $kimlik): User
     {
-        $rol = $this->rol($kimlik['rol'] ?? null);
+        $rol = $this->rol($kimlik['role'] ?? null);
 
         $kullanici = User::create([
             'name' => $kimlik['name'] !== '' ? $kimlik['name'] : $kimlik['email'],
@@ -118,7 +118,7 @@ class AccountOpener
      */
     public function aciklama(User $kullanici, array $kimlik): string
     {
-        $gelen = $kimlik['rol'] ?? null;
+        $gelen = $kimlik['role'] ?? null;
         $verilen = $kullanici->role?->slug ?? 'rolsüz';
 
         if (blank($gelen)) {

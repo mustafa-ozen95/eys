@@ -31,7 +31,7 @@ class LoginController extends Controller
     {
         return view('auth.login', [
             'merkezAcik' => $merkez->acikMi(),
-            'merkezAd' => config('identity.ad'),
+            'merkezAd' => config('identity.name'),
         ]);
     }
 

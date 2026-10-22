@@ -34,7 +34,7 @@ use Illuminate\Support\Facades\Schedule;
  * kalkan biri en fazla ne kadar daha içeride kalabilir" sorusunun yanıtı ve
  * ara katmanın önbellek süresiyle aynı.
  */
-Schedule::command('erisim:kimlik-esitle')
+Schedule::command('identity:sync')
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->runInBackground();
@@ -43,10 +43,10 @@ Schedule::command('erisim:kimlik-esitle')
  * KASA DENETİMİ ZAMANLANMIYOR — bilinçli: panel hiçbir cihaza kendiliğinden
  * bağlanmasın.
  *
- * Komut yerinde duruyor ve elle çalışır: `php artisan erisim:kasa-denetle`
+ * Komut yerinde duruyor ve elle çalışır: `php artisan access:vault-check`
  * (yalnızca okur; hesap açmaz, parola değiştirmez). Zamanlandığında her gece
  * kasadaki her hazır kaydın parolasını cihazda dener. Açmak için burada yalnızca şu bloğu eklemek
- * yeter: Schedule::command('erisim:kasa-denetle')->dailyAt('03:30')
+ * yeter: Schedule::command('access:vault-check')->dailyAt('03:30')
  * ->withoutOverlapping(30)->runInBackground();
  */
 
@@ -56,7 +56,7 @@ Schedule::command('erisim:kimlik-esitle')
  * Tarayıcı kapanışı haber veremediğinde (çökme, uyku, kopan ağ) kapanış
  * kaydı bu tur sayesinde yazılır. Dakikada bir koşar; iş yoksa tek sorgu.
  */
-Schedule::command('erisim:konsol-temizle')
+Schedule::command('console:prune')
     ->everyMinute()
     ->withoutOverlapping();
 
@@ -67,4 +67,4 @@ Schedule::command('erisim:konsol-temizle')
  * uyarı görür. Güncellemenin kendisi sunucudan yapılır. Ayarlar →
  * Güncelleme'deki düğme aynı kontrolü hemen yapar.
  */
-Schedule::command('guncelleme:denetle')->dailyAt('06:50');
+Schedule::command('update:check')->dailyAt('06:50');

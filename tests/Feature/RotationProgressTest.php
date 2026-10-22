@@ -114,11 +114,11 @@ class RotationProgressTest extends TestCase
             ->getJson(route('credentials.rotate.progress', $credential))
             ->assertOk()
             ->assertJson([
-                'calisiyor' => true,
-                'adim' => 3,
-                'toplam' => 6,
-                'yuzde' => 50,
-                'asama' => 'recovery_verified',
+                'running' => true,
+                'step' => 3,
+                'total' => 6,
+                'percent' => 50,
+                'stage' => 'recovery_verified',
             ]);
     }
 
@@ -171,7 +171,7 @@ class RotationProgressTest extends TestCase
         $this->actingAs($user)
             ->getJson(route('credentials.rotate.progress', $credential))
             ->assertOk()
-            ->assertJson(['calisiyor' => true, 'durum' => 'queued']);
+            ->assertJson(['running' => true, 'status' => 'queued']);
     }
 
     /**
@@ -197,12 +197,12 @@ class RotationProgressTest extends TestCase
             $this->actingAs($user)
                 ->getJson(route('credentials.rotate.progress', $credential))
                 ->assertOk()
-                ->assertJson(['durum' => 'queued', 'adim' => 0, 'toplam' => $adim]);
+                ->assertJson(['status' => 'queued', 'step' => 0, 'total' => $adim]);
 
             $this->actingAs($user)
                 ->get(route('credentials.index', ['kayit' => $credential->uuid]))
                 ->assertOk()
-                ->assertSee('data-ilerleme-adim>0/'.$adim.'<', false);
+                ->assertSee('data-progress-step>0/'.$adim.'<', false);
         }
     }
 

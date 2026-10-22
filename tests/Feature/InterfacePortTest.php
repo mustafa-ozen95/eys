@@ -42,10 +42,10 @@ final class InterfacePortTest extends TestCase
         parent::setUp();
 
         config([
-            'remote.arayuz.alan' => 'eys.ornek.test:9443',
-            'remote.arayuz.turler' => ['plesk'],
-            'remote.arayuz.port_ilk' => 9450,
-            'remote.arayuz.port_son' => 9452,
+            'remote.interface.domain' => 'eys.ornek.test:9443',
+            'remote.interface.types' => ['plesk'],
+            'remote.interface.port_start' => 9450,
+            'remote.interface.port_end' => 9452,
         ]);
 
         Http::fake(['*' => Http::response('', 303, ['Set-Cookie' => 'PLESKSESSID=abc; path=/'])]);
@@ -114,7 +114,7 @@ final class InterfacePortTest extends TestCase
 
         $this->assertSame(
             'https://eys.ornek.test:'.$port.'/',
-            InterfaceSession::sayfaAdresi($oturum['token'], InterfaceType::Plesk, $kayit, $port),
+            InterfaceSession::pageUrl($oturum['token'], InterfaceType::Plesk, $kayit, $port),
         );
     }
 
@@ -139,9 +139,9 @@ final class InterfacePortTest extends TestCase
         $this->withCookies([InterfaceSession::COOKIE => $sonuncu['token']])
             ->withHeader('X-Original-Uri', '/admin/domain/list?context=domains')
             /* Port adresin parçası: istek o portta yapılmış gibi kurulur. */
-            ->get('http://eys.ornek.test:'.$port.route('ajax.arayuz.guard', [], false))
+            ->get('http://eys.ornek.test:'.$port.route('ajax.interface.guard', [], false))
             ->assertNoContent()
-            ->assertHeader('X-Eys-Hedef', '10.0.0.1:8443');
+            ->assertHeader('X-Eys-Target', '10.0.0.1:8443');
     }
 
     /**
@@ -166,7 +166,7 @@ final class InterfacePortTest extends TestCase
         $this->assertSame(0, (int) $oturumlar->bul($tasan['token'])['port']);
         $this->assertSame(
             'https://eys.ornek.test:9443/',
-            InterfaceSession::sayfaAdresi($tasan['token'], InterfaceType::Plesk, null, 0),
+            InterfaceSession::pageUrl($tasan['token'], InterfaceType::Plesk, null, 0),
         );
     }
 
@@ -192,7 +192,7 @@ final class InterfacePortTest extends TestCase
         $onunki = $oturumlar->ac($this->plesk('10.0.0.2'), $baskasi->id);
         $port = (int) $oturumlar->bul($oturum['token'])['port'];
 
-        $adres = 'http://eys.ornek.test:'.$port.route('ajax.arayuz.guard', [], false);
+        $adres = 'http://eys.ornek.test:'.$port.route('ajax.interface.guard', [], false);
 
         /* Çerezsiz: giriş yapmamış biri. */
         $this->withHeader('X-Original-Uri', '/admin/home')->get($adres)->assertForbidden();
@@ -210,7 +210,7 @@ final class InterfacePortTest extends TestCase
             ->withHeader('X-Original-Uri', '/admin/home')
             ->get($adres)
             ->assertNoContent()
-            ->assertHeader('X-Eys-Hedef', '10.0.0.1:8443');
+            ->assertHeader('X-Eys-Target', '10.0.0.1:8443');
     }
 
     /**
@@ -232,12 +232,12 @@ final class InterfacePortTest extends TestCase
         $yeni = $oturumlar->ac($this->plesk('10.0.0.2'), $sahibi->id);
 
         $this->withCookies([InterfaceSession::COOKIE => $yeni['token']])
-            ->get('/cihaz-oturum/'.$eski['token'].'/acilis.js')
+            ->get('/device-session/'.$eski['token'].'/boot.js')
             ->assertOk();
 
         $this->flushHeaders();
         $this->withCookies([InterfaceSession::COOKIE => $oturumlar->ac($this->plesk('10.0.0.3'), $baskasi->id)['token']])
-            ->get('/cihaz-oturum/'.$eski['token'].'/acilis.js')
+            ->get('/device-session/'.$eski['token'].'/boot.js')
             ->assertForbidden();
     }
 }

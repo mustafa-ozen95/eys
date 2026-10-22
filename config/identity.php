@@ -15,13 +15,13 @@ declare(strict_types=1);
 
 return [
     /*
-     * Yöneticinin KARARI. Ayar ekranından değiştirilir (ayarlar/kimlik).
+     * Yöneticinin KARARI. Ayar ekranından değiştirilir (settings/identity).
      *
      * Tek başına yetmez: istemci bilgileri yoksa akış zaten çalışamaz. İkisini
      * `CenterClient::acikMi()` birleştirir — ayar, eksik yapılandırmayı
      * geçersiz kılamasın diye kural tek yerde durur.
      */
-    'acik' => env('KIMLIK_ACIK', false),
+    'acik' => env('IDENTITY_ENABLED', false),
 
     /*
      * YETENEK: istemci bilgileri elimizde mi?
@@ -29,11 +29,11 @@ return [
      * Ayardan bindirilmez ve bindirilmemeli; yoksa yapılandırılmamış bir
      * kurulumda düğme açılabilir ve kullanıcı çalışmayan bir yola gönderilirdi.
      */
-    'yapilandirildi' => filled(env('KIMLIK_ISTEMCI')) && filled(env('KIMLIK_ISTEMCI_SIR')),
+    'configured' => filled(env('IDENTITY_CLIENT_ID')) && filled(env('IDENTITY_CLIENT_SECRET')),
 
-    'adres' => rtrim((string) env('KIMLIK_ADRES', 'https://kimlik.ornek.test'), '/'),
-    'istemci' => env('KIMLIK_ISTEMCI'),
-    'sir' => env('KIMLIK_ISTEMCI_SIR'),
+    'url' => rtrim((string) env('IDENTITY_URL', 'https://kimlik.ornek.test'), '/'),
+    'client_id' => env('IDENTITY_CLIENT_ID'),
+    'client_secret' => env('IDENTITY_CLIENT_SECRET'),
 
     /*
      * Merkezin "bu kimlik değişti" bildirimini imzaladığı sır.
@@ -46,12 +46,12 @@ return [
      * Boş bırakılırsa bildirim kabul edilmez ve panel değişikliği beş
      * dakikalık eşitleme turunda öğrenir.
      */
-    'bildirim_sirri' => env('KIMLIK_BILDIRIM_SIR'),
+    'notify_secret' => env('IDENTITY_NOTIFY_SECRET'),
 
     /* Merkezde kayıtlı olan adresle BİREBİR aynı olmalı. */
-    'donus' => env('KIMLIK_DONUS', 'https://eys.ornek.test/giris/merkez/geri'),
+    'redirect_uri' => env('IDENTITY_REDIRECT_URI', 'https://eys.ornek.test/login/center/callback'),
 
-    'ad' => env('KIMLIK_AD', 'Kimlik Yönetim Merkezi'),
+    'name' => env('IDENTITY_NAME', 'Kimlik Yönetim Merkezi'),
 
     /*
      * TANINMAYAN KİŞİ İÇİN HESAP AÇILSIN MI — BURADA DEĞİL, MERKEZDE.
@@ -59,7 +59,7 @@ return [
      * Karar iki ayrı yerde (panelde ve merkezde) tutulursa biri değişince
      * öbürü sessizce eski kalır. Bu yüzden tek yerdedir: merkezdeki
      * İstemciler ekranında uygulama başına verilir, kimlik yanıtında
-     * `hesap_acilabilir` olarak gelir (bkz. AccountOpener::acilabilirMi).
+     * `can_create_account` olarak gelir (bkz. AccountOpener::acilabilirMi).
      *
      * Panelin kendi koşulları YERİNDE DURUYOR: adres doğrulanmış olmalı ve
      * kişiye merkezde bir rol atanmış olmalı. Merkez kapıyı açar, içerideki
@@ -77,7 +77,7 @@ return [
      * Açıkken merkezdeki yönetici burada da yönetici doğar. Kapalıyken
      * varsayılan rolle doğar; yöneticiliği yerel bir yönetici verir.
      */
-    'yonetici_devri' => env('KIMLIK_YONETICI_DEVRI', false),
+    'yonetici_devri' => env('IDENTITY_ADMIN_TAKEOVER', false),
 
     /*
      * Merkezdeki durum kaç dakikada bir yeniden sorulsun?
@@ -90,7 +90,7 @@ return [
      * Bu sayı, "erişimi kalkan biri en fazla ne kadar daha içeride kalabilir"
      * sorusunun yanıtıdır (bkz. VerifyIdentityStatus).
      */
-    'dogrulama_dakika' => (int) env('KIMLIK_DOGRULAMA_DAKIKA', 5),
+    'verify_minutes' => (int) env('IDENTITY_VERIFY_MINUTES', 5),
 
     /*
      * Merkezin sertifikasını doğrulamak için kullanılacak kök.
@@ -105,5 +105,5 @@ return [
      *
      * Boşsa normal doğrulama yapılır. Kapatma seçeneği YOKTUR.
      */
-    'kok' => env('KIMLIK_KOK'),
+    'ca_cert' => env('IDENTITY_CA_CERT'),
 ];

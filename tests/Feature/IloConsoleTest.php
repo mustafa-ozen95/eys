@@ -27,8 +27,8 @@ final class IloConsoleTest extends TestCase
     private function betik(): string
     {
         return view('credentials.interface.page-leave', [
-            'ayrilisAdresi' => '/cihaz-oturum/ayril',
-            'iloKonsolu' => true,
+            'leaveUrl' => '/device-session/leave',
+            'iloConsole' => true,
         ])->render();
     }
 
@@ -36,7 +36,7 @@ final class IloConsoleTest extends TestCase
      * BETİK ORTAK AÇILIŞ BETİĞİNE EKLENİR, AYRI BİR AÇILIŞ GÖRÜNÜMÜ OLARAK DEĞİL.
      *
      * acilisGorunumu() dolu olsaydı arayüzün sayfasını PANEL verirdi; o kipte
-     * sayfa /cihaz-oturum/sayfa adresinde durur ve iLO'nun göreli istekleri
+     * sayfa /device-session/page adresinde durur ve iLO'nun göreli istekleri
      * panele düşer ("html/application.html" → panelin 404 sayfası, arayüz
      * hiç açılmaz).
      */

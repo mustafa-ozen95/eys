@@ -99,7 +99,7 @@ fi
 # hesap hiç açılmaz (aşağıya bakın).
 # Konteyner kurulumunda ÖRNEK VERİ KAPALI: admin dışındaki yerleşik roller
 # yazılmaz. Kurulumu yapan kendi rollerini panelden açar.
-: "${ORNEK_VERI:=false}"
+: "${SAMPLE_DATA:=false}"
 
 : "${ADMIN_NAME:=Sistem Yöneticisi}"
 
@@ -111,7 +111,7 @@ export APP_NAME APP_ENV APP_DEBUG APP_LOCALE APP_TIMEZONE LOG_CHANNEL \
        DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD DB_TIMEZONE \
        CACHE_STORE SESSION_DRIVER QUEUE_CONNECTION FILESYSTEM_DISK \
        REDIS_CLIENT REDIS_HOST REDIS_PORT REDIS_PASSWORD \
-       SESSION_SECURE_COOKIE ADMIN_EMAIL ADMIN_NAME ORNEK_VERI TEMA_ALANI
+       SESSION_SECURE_COOKIE ADMIN_EMAIL ADMIN_NAME SAMPLE_DATA THEME_COOKIE_DOMAIN
 
 # -----------------------------------------------------------------------------
 #  3. APP_KEY
@@ -473,7 +473,7 @@ if [[ "$(gosu eys "${PHP}" artisan tinker --execute='echo App\Models\User::query
         ADMIN_EMAIL="admin@eys.local"
         export ADMIN_EMAIL
         uyari "ADMIN_EMAIL verilmedi; admin@eys.local kullanılıyor."
-        uyari "Değiştirmek: panelde Hesap → Profil, ya da erisim:yonetici-ekle"
+        uyari "Değiştirmek: panelde Hesap → Profil, ya da admin:add"
     fi
 
     URETILDI=0

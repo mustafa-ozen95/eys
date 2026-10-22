@@ -58,7 +58,7 @@
 
                 <span class="spacer"></span>
 
-                <form method="POST" data-yerinde action="{{ route('logs.verify') }}">
+                <form method="POST" data-inline action="{{ route('logs.verify') }}">
                     @csrf
                     <button type="submit" class="btn btn--sm" @disabled($verifying)>
                         {{ $verifying ? 'Doğrulanıyor…' : 'Zinciri doğrula' }}
@@ -72,7 +72,7 @@
                 listeye bakıp "kayıtlar kayboldu" sanır.
             --}}
             @if ($subject)
-                <div class="filter-note" data-kayit-suzgeci>
+                <div class="filter-note" data-record-filter>
                     <span>Yalnızca <strong>{{ $subject->name }}</strong> kaydının geçmişi gösteriliyor.</span>
                     <span class="spacer"></span>
                     <a href="{{ route('logs.index', ['islem' => $action ?: null]) }}"
@@ -112,11 +112,11 @@
                                 <td data-label="Kişi">{{ $log->actor_name }}</td>
                                 <td data-label="İşlem"><x-ui.badge :variant="$log->action->badge()">{{ $log->action->label() }}</x-ui.badge></td>
                                 <td data-label="Özet">
-                                    <span class="log-ozet">
+                                    <span class="log-summary">
                                     <span>{{ $log->summary }}</span>
                                     {{-- Toplu parola çıktısı: dosyaya giren kayıtlar pencerede (bkz. parola_ciktisi_satirlari). --}}
                                     @if ($log->ciktiSatirlari->isNotEmpty())
-                                        <button type="button" class="btn btn--ghost btn--icon btn--sm log-ayrinti"
+                                        <button type="button" class="btn btn--ghost btn--icon btn--sm log-detail"
                                                 data-modal-open="cikti-{{ $loop->index }}" title="Çıkarılan kayıtlar"
                                                 aria-label="Çıkarılan {{ $log->ciktiSatirlari->count() }} kaydı göster">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">

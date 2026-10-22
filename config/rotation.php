@@ -230,14 +230,14 @@ return [
         'timeout' => (int) env('ROTATION_JUNOS_TIMEOUT', 60),
 
         /* Kurtarma hesabının sabit adı ve yetkisi. */
-        'kurtarma_adi' => env('ROTATION_JUNOS_KURTARMA_ADI', 'eys-kurtarma'),
-        'kurtarma_sinifi' => 'super-user',
+        'recovery_name' => env('ROTATION_JUNOS_RECOVERY_NAME', 'eys-kurtarma'),
+        'recovery_class' => 'super-user',
 
         /*
          * Geri alınabilir commit'in süresi (dakika). Onay verilmezse cihaz bu
          * süre sonunda kendini eski parolaya döndürür; sıfır yapılmamalı.
          */
-        'onay_dakikasi' => (int) env('ROTATION_JUNOS_ONAY_DAKIKASI', 2),
+        'confirm_minutes' => (int) env('ROTATION_JUNOS_CONFIRM_MINUTES', 2),
     ],
 
 ];

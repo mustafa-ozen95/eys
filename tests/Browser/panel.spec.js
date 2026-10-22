@@ -17,26 +17,26 @@ const PAROLA = process.env.E2E_PASSWORD;
  * sunucudan geliyorsa (merkez kapalı kurulum) hiç dokunulmaz.
  */
 async function parolaFormunuAc(page) {
-    const katlanir = page.locator('details.gate__katlanir');
+    const katlanir = page.locator('details.gate__collapsible');
 
     if (await katlanir.count() && await katlanir.getAttribute('open') === null) {
-        await page.locator('summary.gate__katlanir-baslik').click();
+        await page.locator('summary.gate__collapsible-title').click();
     }
 }
 
 async function girisYap(page) {
-    await page.goto('/giris');
+    await page.goto('/login');
 
     await parolaFormunuAc(page);
 
     await page.fill('#email', EPOSTA);
     await page.fill('#password', PAROLA);
     await page.click('form button[type="submit"]');
-    await expect(page).toHaveURL(/erisim/);
+    await expect(page).toHaveURL(/access/);
 }
 
 test('giris ekrani cizilir ve tema token\'lari uygulanir', async ({ page }) => {
-    await page.goto('/giris');
+    await page.goto('/login');
 
     await expect(page.locator('.gate__mark')).toHaveText('EYS');
 
@@ -49,8 +49,8 @@ test('giris ekrani cizilir ve tema token\'lari uygulanir', async ({ page }) => {
 });
 
 test('oturumsuz erisim listesi girise yonlenir', async ({ page }) => {
-    await page.goto('/erisim');
-    await expect(page).toHaveURL(/giris/);
+    await page.goto('/access');
+    await expect(page).toHaveURL(/login/);
 });
 
 test('liste uc sutun olarak cizilir', async ({ page }, testInfo) => {
@@ -88,19 +88,19 @@ test('parola once gizli, gostere basinca aciliyor', async ({ page }) => {
      * yani kapsam, kimse fark etmeden düşer.
      */
     await page.getByRole('link', { name: /^Hepsi/ }).click();
-    await page.locator('.credential-row__ad', { hasText: 'srv-a SSH' }).click();
+    await page.locator('.credential-row__name', { hasText: 'srv-a SSH' }).click();
 
-    const kutu = page.locator('[data-sir]');
+    const kutu = page.locator('[data-secret]');
 
     await expect(kutu).toBeVisible();
 
-    await expect(kutu.locator('[data-sir-deger]')).toHaveText('••••••••');
-    await expect(kutu.locator('[data-sir-kopyala]')).toBeHidden();
+    await expect(kutu.locator('[data-secret-value]')).toHaveText('••••••••');
+    await expect(kutu.locator('[data-secret-copy]')).toBeHidden();
 
-    await kutu.locator('[data-sir-goster]').click();
+    await kutu.locator('[data-secret-show]').click();
 
-    await expect(kutu.locator('[data-sir-deger]')).not.toHaveText('••••••••');
-    await expect(kutu.locator('[data-sir-kopyala]')).toBeVisible();
+    await expect(kutu.locator('[data-secret-value]')).not.toHaveText('••••••••');
+    await expect(kutu.locator('[data-secret-copy]')).toBeVisible();
 });
 
 test('tema degistirilebilir', async ({ page }) => {

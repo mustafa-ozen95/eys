@@ -163,7 +163,7 @@ class Credential extends Model
      *
      * @return Attribute<?InterfaceType, never>
      */
-    protected function arayuzTuru(): Attribute
+    protected function interfaceType(): Attribute
     {
         return Attribute::get(function (): ?InterfaceType {
             if (! $this->has_password || (blank($this->host) && blank($this->url))) {

@@ -35,7 +35,7 @@
                         @endif
 
                         @if (! $error->isResolved() || $error->isReopened())
-                            <form method="POST" data-yerinde action="{{ route('errors.resolve', $error) }}"
+                            <form method="POST" data-inline action="{{ route('errors.resolve', $error) }}"
                                   data-confirm="Bu hata çözüldü olarak işaretlenecek."
                                   data-confirm-title="Çözüldü işaretle"
                                   data-confirm-reasonless>

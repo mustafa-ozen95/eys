@@ -17,7 +17,7 @@ use Tests\TestCase;
  * ekran beyaza düşüyor, tema ve betikler baştan yükleniyor, açık olan sağ
  * panel ile kaydırma konumu kayboluyordu.
  *
- * Panelde bunun karşılığı zaten vardı: `data-yerinde` formu fetch ile
+ * Panelde bunun karşılığı zaten vardı: `data-inline` formu fetch ile
  * gönderip dönen sayfayı gövdede değiştiriyor (bkz. navigation.js). Burada
  * kilitlenen şey, kayıt penceresinin o yolu kullandığı — işaret düşerse
  * davranış sessizce eskisine döner.
@@ -33,8 +33,8 @@ class RecordWindowSavesInlineTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('credentials.index', ['grup' => $grup->uuid, 'pencere' => 'ekle']))
             ->assertOk()
-            ->assertSee('id="kayit-ekle"', false)
-            ->assertSee('data-yerinde', false);
+            ->assertSee('id="record-add"', false)
+            ->assertSee('data-inline', false);
     }
 
     public function test_duzenleme_penceresi_yerinde_gonderir(): void
@@ -51,9 +51,9 @@ class RecordWindowSavesInlineTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $konum = strpos($html, 'id="kayit-duzenle"');
+        $konum = strpos($html, 'id="record-edit"');
 
         $this->assertNotFalse($konum);
-        $this->assertStringContainsString('data-yerinde', substr($html, $konum, 900));
+        $this->assertStringContainsString('data-inline', substr($html, $konum, 900));
     }
 }

@@ -22,17 +22,17 @@
                 Bölüm `?acik=` ile açık gelir: alt grup ekleyince/değiştirince
                 sayfa yerinde yenileniyor ve çalışılan bölüm kapanmamalı.
             --}}
-            <div data-sira="{{ route('groups.sirala') }}" data-sira-alan="sira">
+            <div data-order="{{ route('groups.reorder') }}" data-order-field="sira">
                 @forelse ($groups as $group)
                     <x-ui.collapsible :title="$group->name"
                                    :subtitle="$group->kind->label().' · '.$group->credentials_count.' kayıt · '.($viewerCounts[$group->uuid] ?? 0).' görebilen'"
                                    :open="$acikGrup === $group->uuid"
                                    draggable="true"
-                                   :data-sira-kimlik="$group->uuid">
-                        <x-slot:onek>
+                                   :data-order-id="$group->uuid">
+                        <x-slot:prefix>
                             {{-- Tutamak ayrı bir hedef değil, "buradan sürüklenir" ipucu. --}}
-                            <span class="tutamak" aria-hidden="true">⣿</span>
-                        </x-slot:onek>
+                            <span class="handle" aria-hidden="true">⣿</span>
+                        </x-slot:prefix>
 
                         {{--
                             Eylemler başlıkta DEĞİL, gövdede: başlık <summary>
@@ -61,11 +61,11 @@
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody data-sira="{{ route('groups.alt.sirala', $group) }}" data-sira-alan="sira">
+                            <tbody data-order="{{ route('groups.sub.reorder', $group) }}" data-order-field="sira">
                                 @forelse ($group->altGruplar as $altGrup)
-                                    <tr draggable="true" data-sira-kimlik="{{ $altGrup->uuid }}">
+                                    <tr draggable="true" data-order-id="{{ $altGrup->uuid }}">
                                         <td data-label="Alt grup">
-                                            <span class="tutamak" aria-hidden="true">⣿</span>{{ $altGrup->name }}
+                                            <span class="handle" aria-hidden="true">⣿</span>{{ $altGrup->name }}
                                         </td>
                                         <td data-label="Kayıt" class="mono text-right">{{ $altGrup->credentials_count }}</td>
                                         <td>
@@ -73,7 +73,7 @@
                                                 <a href="{{ route('groups.index', ['acik' => $group->uuid, 'pencere' => 'duzenle', 'alt' => $altGrup->uuid]) }}"
                                                    class="btn btn--sm">Düzenle</a>
 
-                                                <x-ui.delete-form :action="route('groups.alt.destroy', [$group, $altGrup])"
+                                                <x-ui.delete-form :action="route('groups.sub.destroy', [$group, $altGrup])"
                                                                   confirm="{{ $altGrup->name }} alt grubu kaldırılacak. İçindeki {{ $altGrup->credentials_count }} kayıt silinmez; grupta başlıksız kalır."
                                                                   title="Alt grubu kaldır"
                                                                   label="Kaldır"

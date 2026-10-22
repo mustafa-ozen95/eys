@@ -22,7 +22,7 @@ ARG GUACAMOLE_VERSION=1.5.5
 # -----------------------------------------------------------------------------
 #  1. Arayüz varlıkları
 # -----------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS varliklar
+FROM node:22-bookworm-slim AS assets
 
 WORKDIR /uygulama
 
@@ -43,7 +43,7 @@ RUN npm run build
 #
 #  Java tarafı (guacamole.war, auth-json eklentisi) taşınabilir olduğu için
 #  resmi imajdan doğrudan kopyalanır.
-FROM debian:bookworm-slim AS guacd-derleme
+FROM debian:bookworm-slim AS guacd-build
 
 ARG GUACAMOLE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
@@ -84,12 +84,12 @@ RUN curl -fsSL "https://archive.apache.org/dist/guacamole/${GUACAMOLE_VERSION}/s
 # -----------------------------------------------------------------------------
 #  3. PHP tabanı — hem bağımlılık çözümü hem çalışma zamanı bunu paylaşır
 # -----------------------------------------------------------------------------
-FROM debian:bookworm-slim AS php-taban
+FROM debian:bookworm-slim AS php-base
 
 ARG PHP_VERSION
 # Güvenlik sürümü çıkınca artır: değeri değişen katman önbellekten gelmez, Debian ve PHP
 # paketleri yeniden çekilir; depodaki PHP bundan eskiyse derleme durur.
-ARG PHP_EN_AZ=8.5.12
+ARG PHP_MIN_VERSION=8.5.12
 ENV DEBIAN_FRONTEND=noninteractive
 
 # PHP 8.5 Debian'da yok; Sury deposu eklenir.
@@ -114,8 +114,8 @@ RUN apt-get update \
       php${PHP_VERSION}-xml \
       php${PHP_VERSION}-zip \
  && rm -rf /var/lib/apt/lists/* \
- && php${PHP_VERSION} -r 'exit(version_compare(PHP_VERSION, getenv("PHP_EN_AZ"), ">=") ? 0 : 1);' \
-    || { echo "PHP en az $PHP_EN_AZ olmalı" >&2; exit 1; }
+ && php${PHP_VERSION} -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_VERSION"), ">=") ? 0 : 1);' \
+    || { echo "PHP en az $PHP_MIN_VERSION olmalı" >&2; exit 1; }
 # NOT: php8.5-opcache diye ayrı bir paket YOK; 8.5'te opcache php-common
 # içinde geliyor. 8.3 ve öncesinde ayrıydı, alışkanlıkla eklenirse derleme
 # "Unable to locate package" ile düşer.
@@ -127,7 +127,7 @@ RUN update-alternatives --set php /usr/bin/php${PHP_VERSION}
 # -----------------------------------------------------------------------------
 #  4. PHP bağımlılıkları
 # -----------------------------------------------------------------------------
-FROM php-taban AS saticilar
+FROM php-base AS vendors
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -144,7 +144,7 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 # -----------------------------------------------------------------------------
 #  5. Çalışma zamanı
 # -----------------------------------------------------------------------------
-FROM php-taban AS calisma
+FROM php-base AS runtime
 
 ARG PHP_VERSION
 ARG TTYD_VERSION
@@ -194,7 +194,7 @@ RUN curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION
 # --- Guacamole ---------------------------------------------------------------
 # guacd kendi derlediğimiz, Java tarafı resmi imajdan: sürümler birbirine
 # uymak zorunda ve ikisi de 1.5.5.
-COPY --from=guacd-derleme /opt/guacamole /opt/guacamole
+COPY --from=guacd-build /opt/guacamole /opt/guacamole
 
 # FreeRDP KANAL EKLENTİLERİ (guac-common-svc, guacsnd, guacdr…).
 #
@@ -210,7 +210,7 @@ COPY --from=guacd-derleme /opt/guacamole /opt/guacamole
 # güvenlik kipini işaret ettiği için parola ya da NLA sanılır. Aynı makineye
 # aynı kimlikle doğrudan xfreerdp ile hem /sec:nla hem /sec:any çalışır;
 # fark yalnızca eksik eklentilerdir.
-COPY --from=guacd-derleme /usr/lib/x86_64-linux-gnu/freerdp2 /usr/lib/x86_64-linux-gnu/freerdp2
+COPY --from=guacd-build /usr/lib/x86_64-linux-gnu/freerdp2 /usr/lib/x86_64-linux-gnu/freerdp2
 COPY --from=guacamole/guacamole:1.5.5 /opt/java/openjdk /opt/java/openjdk
 COPY --from=guacamole/guacamole:1.5.5 /usr/local/tomcat /usr/local/tomcat
 COPY --from=guacamole/guacamole:1.5.5 /opt/guacamole/guacamole.war /usr/local/tomcat/webapps/guacamole.war
@@ -266,8 +266,8 @@ RUN mkdir -p /usr/local/tomcat/webapps/guacamole /usr/local/tomcat/conf/Catalina
 WORKDIR /uygulama
 
 COPY --chown=eys:eys . .
-COPY --from=saticilar --chown=eys:eys /uygulama/vendor ./vendor
-COPY --from=varliklar --chown=eys:eys /uygulama/public/build ./public/build
+COPY --from=vendors --chown=eys:eys /uygulama/vendor ./vendor
+COPY --from=assets --chown=eys:eys /uygulama/public/build ./public/build
 
 # Yapılandırmalar ve başlatıcı
 COPY docker/rootfs/ /
@@ -295,12 +295,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
 
 # Hangi commit'ten derlendiği: panel kendi sürümünü buradan bilir (Ayarlar →
 # Güncelleme). Son katmanda: değeri her derlemede değişir, önbelleği bozmasın.
-ARG SURUM=""
-ENV UYGULAMA_SURUMU=${SURUM}
-# SURUM verilmezse (NineDeploy gibi platformlar derlemeye commit vermez)
-# bağlamdaki .git'ten okunur ve /uygulama/SURUM'a yazılır; config önce
+ARG APP_VERSION=""
+ENV APP_VERSION=${APP_VERSION}
+# APP_VERSION verilmezse (NineDeploy gibi platformlar derlemeye commit vermez)
+# bağlamdaki .git'ten okunur ve /uygulama/VERSION'a yazılır; config önce
 # ortama, sonra bu dosyaya bakar. .git yoksa (zip) dosya boş kalır.
-RUN --mount=type=bind,target=/tmp/baglam sh /tmp/baglam/docker/version-read.sh > /uygulama/SURUM
+RUN --mount=type=bind,target=/tmp/baglam sh /tmp/baglam/docker/version-read.sh > /uygulama/VERSION
 
 ENTRYPOINT ["/usr/local/bin/eys-entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

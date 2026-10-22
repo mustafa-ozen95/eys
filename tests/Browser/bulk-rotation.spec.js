@@ -17,22 +17,22 @@ const PAROLA = process.env.E2E_PASSWORD;
  * sunucudan geliyorsa (merkez kapalı kurulum) hiç dokunulmaz.
  */
 async function parolaFormunuAc(page) {
-    const katlanir = page.locator('details.gate__katlanir');
+    const katlanir = page.locator('details.gate__collapsible');
 
     if (await katlanir.count() && await katlanir.getAttribute('open') === null) {
-        await page.locator('summary.gate__katlanir-baslik').click();
+        await page.locator('summary.gate__collapsible-title').click();
     }
 }
 
 async function girisYap(page) {
-    await page.goto('/giris');
+    await page.goto('/login');
 
     await parolaFormunuAc(page);
 
     await page.fill('#email', EPOSTA);
     await page.fill('#password', PAROLA);
     await page.click('form button[type="submit"]');
-    await expect(page).toHaveURL(/erisim/);
+    await expect(page).toHaveURL(/access/);
 }
 
 test('secim sayaci ve dugme durumu', async ({ page }) => {

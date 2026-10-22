@@ -4,7 +4,7 @@
             <x-ui.page-head :title="$role->label" :subtitle="$role->description" />
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('roles.update', $role) }}">
+            <form method="POST" data-inline action="{{ route('roles.update', $role) }}">
                 @csrf
                 @method('PUT')
 

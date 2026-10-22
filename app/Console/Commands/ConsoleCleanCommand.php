@@ -29,7 +29,7 @@ use Illuminate\Console\Command;
  */
 class ConsoleCleanCommand extends Command
 {
-    protected $signature = 'erisim:konsol-temizle';
+    protected $signature = 'console:prune';
 
     protected $description = 'Sesi kesilen konsol oturumlarını kapatır ve kayda geçirir';
 

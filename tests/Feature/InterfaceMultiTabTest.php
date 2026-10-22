@@ -75,7 +75,7 @@ final class InterfaceMultiTabTest extends TestCase
     #[Test]
     public function apigw_istegi_vsphere_oturumuna_gider(): void
     {
-        config(['remote.arayuz.turler' => ['esxi', 'plesk']]);
+        config(['remote.interface.types' => ['esxi', 'plesk']]);
 
         Http::fake([
             '*' => Http::response('', 303, ['Set-Cookie' => 'PLESKSESSID=abc; path=/']),
@@ -106,7 +106,7 @@ final class InterfaceMultiTabTest extends TestCase
     #[Test]
     public function baska_kullanicinin_oturumu_bulunmaz(): void
     {
-        config(['remote.arayuz.turler' => ['esxi']]);
+        config(['remote.interface.types' => ['esxi']]);
 
         Http::fake(['*' => Http::response('', 303, ['Set-Cookie' => 'x=1; path=/'])]);
 
@@ -184,7 +184,7 @@ final class InterfaceMultiTabTest extends TestCase
     #[Test]
     public function ilo_konsolu_kendi_oturumuna_gider(): void
     {
-        config(['remote.arayuz.turler' => ['ilo', 'plesk']]);
+        config(['remote.interface.types' => ['ilo', 'plesk']]);
 
         Http::fake([
             '10.0.0.7/*' => Http::response('', 200, ['Set-Cookie' => 'sessionKey=ABC; path=/']),

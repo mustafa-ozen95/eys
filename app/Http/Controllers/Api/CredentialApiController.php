@@ -84,10 +84,10 @@ class CredentialApiController extends Controller implements HasMiddleware
      */
     public function show(Request $request, string $credential): CredentialApiResource
     {
-        return new CredentialApiResource($this->bul($request, $credential));
+        return new CredentialApiResource($this->find($request, $credential));
     }
 
-    private function bul(Request $request, string $uuid): Credential
+    private function find(Request $request, string $uuid): Credential
     {
         return Credential::with(['group', 'altGrup'])
             ->visibleTo($request->user())

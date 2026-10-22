@@ -61,7 +61,7 @@ class JunosPasswordDriver implements NamesRecoveryAccount, PasswordDriver
 
     public function recoveryName(): string
     {
-        return (string) config('rotation.junos.kurtarma_adi', 'eys-kurtarma');
+        return (string) config('rotation.junos.recovery_name', 'eys-kurtarma');
     }
 
     public function unsupportedReason(Credential $credential): ?string
@@ -108,7 +108,7 @@ class JunosPasswordDriver implements NamesRecoveryAccount, PasswordDriver
 
         $this->yaz(
             $session,
-            $this->userElement($username, (string) config('rotation.junos.kurtarma_sinifi', 'super-user'), $password),
+            $this->userElement($username, (string) config('rotation.junos.recovery_class', 'super-user'), $password),
             'EYS kurtarma hesabi olusturuldu',
             false,
             'Kurtarma hesabı açılamadı.',
@@ -200,7 +200,7 @@ class JunosPasswordDriver implements NamesRecoveryAccount, PasswordDriver
         $oturum = $session->handle;
 
         try {
-            (new ConfigurationWriter($this->client(), (int) config('rotation.junos.onay_dakikasi', 2)))
+            (new ConfigurationWriter($this->client(), (int) config('rotation.junos.confirm_minutes', 2)))
                 ->apply($oturum->netconf, $oturum->target, $belge, $ozet, $geriAlinabilir);
         } catch (NetconfException $e) {
             throw $this->cevir($e, $failure, $gizli);

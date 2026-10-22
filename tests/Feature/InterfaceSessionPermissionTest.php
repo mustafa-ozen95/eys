@@ -43,7 +43,7 @@ class InterfaceSessionPermissionTest extends TestCase
          * varsayılan kapalı. Sınanan şey yetki; hangi türlerin açık olduğu
          * ayrı bir karar, o yüzden burada açıkça kuruluyor.
          */
-        config(['remote.arayuz.turler' => ['plesk', 'esxi', 'vami', 'ilo']]);
+        config(['remote.interface.types' => ['plesk', 'esxi', 'vami', 'ilo']]);
     }
 
     /** Plesk: vekilden açılabilen bir kayıt (login_up.php'den tanınır). */
@@ -88,8 +88,8 @@ class InterfaceSessionPermissionTest extends TestCase
         /* Parolayı görme yetkisi YOK; oturum açma yetkisi var. */
         $kullanici = $this->kullanici($grup, ['view', 'session']);
 
-        $this->assertNotNull($kayit->arayuz_turu, 'Kayıt vekilden açılabilir olmalı.');
-        $this->assertTrue($kullanici->can('arayuz', $kayit), 'Parolayı görmeden arayüz açılabilmeli.');
+        $this->assertNotNull($kayit->interface_type, 'Kayıt vekilden açılabilir olmalı.');
+        $this->assertTrue($kullanici->can('deviceInterface', $kayit), 'Parolayı görmeden arayüz açılabilmeli.');
 
         /* Portal fırlatma AYRI ve hâlâ parola yetkisi istiyor. */
         $this->assertFalse($kullanici->can('session', $kayit));
@@ -104,7 +104,7 @@ class InterfaceSessionPermissionTest extends TestCase
         /* Oturum yetkisi var ama kaydı göremiyor. */
         $kullanici = $this->kullanici($grup, ['session']);
 
-        $this->assertFalse($kullanici->can('arayuz', $kayit), 'Göremediğiniz cihazın arayüzü açılamaz.');
+        $this->assertFalse($kullanici->can('deviceInterface', $kayit), 'Göremediğiniz cihazın arayüzü açılamaz.');
     }
 
     #[Test]
@@ -115,7 +115,7 @@ class InterfaceSessionPermissionTest extends TestCase
 
         $kullanici = $this->kullanici($grup, ['view', 'field.password']);
 
-        $this->assertFalse($kullanici->can('arayuz', $kayit));
+        $this->assertFalse($kullanici->can('deviceInterface', $kayit));
     }
 
     /** Uç de aynı yeteneği sorar: ekranı gizlemek yetmez. */
@@ -126,7 +126,7 @@ class InterfaceSessionPermissionTest extends TestCase
         $kayit = $this->pleskKaydi($grup);
 
         $this->actingAs($this->kullanici($grup, ['view', 'field.password']))
-            ->post(route('credentials.arayuz', $kayit), ['reason' => 'sınama'])
+            ->post(route('credentials.interface', $kayit), ['reason' => 'sınama'])
             ->assertForbidden();
     }
 
@@ -154,7 +154,7 @@ class InterfaceSessionPermissionTest extends TestCase
 
         /* 403 DÖNMEMELİ; yetki kapısı açık olmalı. */
         $this->actingAs($kullanici)
-            ->post(route('credentials.arayuz', $kayit), ['reason' => 'sınama'])
+            ->post(route('credentials.interface', $kayit), ['reason' => 'sınama'])
             ->assertStatus(302);
     }
 }

@@ -40,7 +40,7 @@ class UnauthorizedAccessTest extends TestCase
             .'Ekip kayıtları listede çıkmaz — süzme sorguda (Credential::scopeVisibleTo), '
             .'yetkisi olmayan boş bir liste görür.',
         'profil' => 'Kendi hesabı: herkes kendi adını ve e-postasını görür.',
-        'hesap.profil' => 'Kendi hesabı.',
+        'account.profile' => 'Kendi hesabı.',
         'dashboard' => 'Karşılama ekranı; veri taşımaz.',
         'home' => 'Karşılama ekranı.',
         'login' => 'Giriş ekranı.',
@@ -49,7 +49,7 @@ class UnauthorizedAccessTest extends TestCase
     ];
 
     /** Kimliğini kendi çerezi taşıyan, panelin oturumuna bakmayan uçlar. */
-    private const CIHAZ_ARAYUZU_GRUBU = 'cihaz-arayuzu';
+    private const CIHAZ_ARAYUZU_GRUBU = 'device-interface';
 
     #[Test]
     public function izinsiz_kullanici_parametresiz_hicbir_get_ucunu_acamaz(): void

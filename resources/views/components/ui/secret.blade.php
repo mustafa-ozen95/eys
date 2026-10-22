@@ -6,16 +6,16 @@
 
     $source: değeri döndüren POST adresi.
 --}}
-<span {{ $attributes->class('secret') }} data-sir data-sir-acik="false" data-sir-kaynak="{{ $source }}">
+<span {{ $attributes->class('secret') }} data-secret data-secret-open="false" data-secret-source="{{ $source }}">
     @if ($username)
         <span class="mono text-muted">{{ $username }}</span>
         <span class="text-muted">·</span>
     @endif
 
-    <span class="mono secret__value" data-sir-deger>••••••••</span>
+    <span class="mono secret__value" data-secret-value>••••••••</span>
 
     <button type="button" class="btn btn--icon secret__toggle"
-            data-sir-goster aria-label="Parolayı göster">👁</button>
+            data-secret-show aria-label="Parolayı göster">👁</button>
 
     {{--
         Kopyalama yalnızca değer açıkken görünür: kapalıyken kopyalanacak bir
@@ -23,5 +23,5 @@
         izlenimi verirdi.
     --}}
     <button type="button" class="btn btn--icon secret__copy"
-            data-sir-kopyala aria-label="Parolayı kopyala" hidden>⧉</button>
+            data-secret-copy aria-label="Parolayı kopyala" hidden>⧉</button>
 </span>

@@ -69,7 +69,7 @@ class RotationLauncher
      * İz kısa ömürlüdür ve yalnızca ekran içindir; turun kendisi için hiçbir
      * karar buna dayanmaz.
      */
-    private const BEKLEYEN = 'erisim:dondurme-bekleyen:';
+    private const BEKLEYEN = 'access:rotation-pending:';
 
     /** İzin ömrü: kuyruk tıkalıysa çubuk sonsuza dek dönmemeli. */
     private const BEKLEME_OMRU = 300;

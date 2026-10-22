@@ -57,9 +57,9 @@ class LimitsTest extends TestCase
     public function sinirlar_uclara_uygulanir(): void
     {
         $beklenen = [
-            'erisim/toplu-dondur' => 'throttle:3,1',
-            'erisim/{credential}/oturum' => 'throttle:10,1',
-            'erisim/{credential}/parola' => 'throttle:20,1',
+            'access/bulk-rotate' => 'throttle:3,1',
+            'access/{credential}/session' => 'throttle:10,1',
+            'access/{credential}/password' => 'throttle:20,1',
         ];
 
         foreach ($beklenen as $uri => $sinir) {
@@ -85,7 +85,7 @@ class LimitsTest extends TestCase
         $this->assertSame(0, (int) config('limits.rotate'));
 
         $rota = collect(Route::getRoutes()->getRoutes())
-            ->first(fn ($r): bool => $r->uri() === 'erisim/{credential}/dondur'
+            ->first(fn ($r): bool => $r->uri() === 'access/{credential}/rotate'
                 && in_array('POST', $r->methods(), true));
 
         $this->assertNotNull($rota);
@@ -106,7 +106,7 @@ class LimitsTest extends TestCase
     public function giris_siniri_sifirken_ara_katman_eklenmez(): void
     {
         $rota = collect(Route::getRoutes()->getRoutes())
-            ->first(fn ($r): bool => $r->uri() === 'giris' && in_array('POST', $r->methods(), true));
+            ->first(fn ($r): bool => $r->uri() === 'login' && in_array('POST', $r->methods(), true));
 
         $this->assertNotNull($rota, 'Giriş rotası bulunamadı.');
 
@@ -139,7 +139,7 @@ class LimitsTest extends TestCase
 
         try {
             $rota = collect(Route::getRoutes()->getRoutes())
-                ->first(fn ($r): bool => $r->uri() === 'giris' && in_array('POST', $r->methods(), true));
+                ->first(fn ($r): bool => $r->uri() === 'login' && in_array('POST', $r->methods(), true));
 
             $this->assertNotNull($rota, 'Giriş rotası bulunamadı.');
             $this->assertContains('throttle:7,1', $rota->gatherMiddleware());

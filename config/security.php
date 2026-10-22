@@ -71,7 +71,7 @@ return [
 
         /*
         | Adres başka kökene taşınmaz. Cihaz oturumunun kimliği adreste
-        | duruyor (/cihaz-oturum/<jeton>/); dışarı çıkarken yol gitmemeli.
+        | duruyor (/device-session/<jeton>/); dışarı çıkarken yol gitmemeli.
         */
         'Referrer-Policy' => 'same-origin',
 

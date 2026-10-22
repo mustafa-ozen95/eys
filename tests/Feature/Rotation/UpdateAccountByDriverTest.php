@@ -50,10 +50,10 @@ class UpdateAccountByDriverTest extends TestCase
         $html = $this->actingAs(User::factory()->admin()->create())
             ->get(route('credentials.index', ['kayit' => $kayit->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertSee('data-makine-hesabi', false)
+            ->assertSee('data-machine-account', false)
             ->getContent();
 
-        $konum = strpos((string) $html, 'data-makine-hesabi');
+        $konum = strpos((string) $html, 'data-machine-account');
 
         /* Alanın kendi etiketindeki sınıf: aynı düğümün öznitelikleri arasında. */
         $etiket = substr((string) $html, max(0, $konum - 400), 600);
@@ -67,10 +67,10 @@ class UpdateAccountByDriverTest extends TestCase
         $html = (string) $this->actingAs(User::factory()->admin()->create())
             ->get(route('credentials.index', ['kayit' => $kayit->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertSee('data-elle-hesap', false)
+            ->assertSee('data-manual-account', false)
             ->getContent();
 
-        $konum = strpos($html, 'data-elle-hesap');
+        $konum = strpos($html, 'data-manual-account');
 
         return str_contains(substr($html, max(0, $konum - 200), 220), 'is-hidden');
     }

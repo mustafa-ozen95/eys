@@ -11,7 +11,7 @@
         Tema çerezinin alan adı. Merkez ve paneller ayrı köklerdir; üst alan
         adı verilince seçim hepsinde paylaşılır (bkz. config/theme.php).
     --}}
-    <meta name="tema-alan" content="{{ config('theme.cerez_alani') }}">
+    <meta name="theme-domain" content="{{ config('theme.cookie_domain') }}">
 
     {{-- Giriş ekranı arama motorlarına ait değil. --}}
     <meta name="robots" content="noindex, nofollow">
@@ -36,7 +36,7 @@
     seçimi ancak içeri girdikten sonra yapılabiliyordu. Oysa ekranı en uzun
     süre bakılan hâliyle gören ilk yer burası.
 --}}
-<button type="button" class="btn btn--ghost btn--icon btn--sm gate__tema"
+<button type="button" class="btn btn--ghost btn--icon btn--sm gate__theme"
         data-theme-toggle aria-label="Temayı değiştir">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
         <circle cx="12" cy="12" r="4" />

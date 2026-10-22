@@ -90,19 +90,19 @@ class BulkRoundTest extends TestCase
 
         /* Hiçbiri başlamadı: üçü de sırada. */
         $this->actingAs($user)->getJson($adres)->assertOk()
-            ->assertJson(['calisiyor' => true, 'toplam' => 3, 'biten' => 0, 'bekleyen' => 3, 'yuzde' => 0]);
+            ->assertJson(['running' => true, 'total' => 3, 'done' => 0, 'pending' => 3, 'percent' => 0]);
 
         /* Biri bitti, biri sürüyor. */
         $this->tur($kayitlar[0], $user, RotationStatus::Succeeded);
         $this->tur($kayitlar[1], $user, RotationStatus::Running);
 
         $this->actingAs($user)->getJson($adres)->assertOk()
-            ->assertJson(['calisiyor' => true, 'biten' => 1, 'basarili' => 1, 'bekleyen' => 1, 'suren' => 'Makine 2', 'yuzde' => 33])
+            ->assertJson(['running' => true, 'done' => 1, 'success' => 1, 'pending' => 1, 'current' => 'Makine 2', 'percent' => 33])
             /* Her makine bir parça, partideki sırayla. */
-            ->assertJsonPath('kayitlar', [
-                ['ad' => 'Makine 1', 'durum' => 'basarili'],
-                ['ad' => 'Makine 2', 'durum' => 'suruyor'],
-                ['ad' => 'Makine 3', 'durum' => 'bekliyor'],
+            ->assertJsonPath('records', [
+                ['name' => 'Makine 1', 'status' => 'success'],
+                ['name' => 'Makine 2', 'status' => 'running'],
+                ['name' => 'Makine 3', 'status' => 'waiting'],
             ]);
 
         /* Hepsi bitti; biri doğrulanamadı ve ADIYLA bildirilir. */
@@ -111,8 +111,8 @@ class BulkRoundTest extends TestCase
 
         $this->actingAs($user)->getJson($adres)->assertOk()
             ->assertJson([
-                'calisiyor' => false, 'biten' => 3, 'basarili' => 2, 'dogrulanamadi' => 1, 'yuzde' => 100,
-                'sorunlu' => [['ad' => 'Makine 3', 'durum' => 'Doğrulanamadı']],
+                'running' => false, 'done' => 3, 'success' => 2, 'unverified' => 1, 'percent' => 100,
+                'problems' => [['name' => 'Makine 3', 'status' => 'Doğrulanamadı']],
             ]);
     }
 
@@ -131,22 +131,22 @@ class BulkRoundTest extends TestCase
         $parti = $this->parti($user);
 
         $this->actingAs($user)->get(route('credentials.index'))->assertOk()
-            ->assertSee('data-toplu-kok', false)
-            ->assertSee('data-toplu-ilerleme-adres', false)
-            ->assertSee('toplu__parca--bekliyor', false);
+            ->assertSee('data-bulk-round-root', false)
+            ->assertSee('data-bulk-round-progress-url', false)
+            ->assertSee('bulk-round__segment--waiting', false);
 
         /* Bittikten sonra şerit sonucu gösterir ve yoklamaz. */
         $kayitlar->each(fn ($c) => $this->tur($c, $user, RotationStatus::Succeeded));
 
         $this->actingAs($user)->get(route('credentials.index'))->assertOk()
             ->assertSee('Tamamlandı, hepsi başarılı.')
-            ->assertDontSee('data-toplu-ilerleme-adres', false);
+            ->assertDontSee('data-bulk-round-progress-url', false);
 
         $this->actingAs($user)->delete(route('credentials.rotate.bulk.dismiss', $parti))->assertRedirect();
 
         /* "Toplu parola güncelleme" metni onay penceresinde de geçiyor; şeridin kendi sınıfına bakılır. */
         $this->actingAs($user)->get(route('credentials.index'))->assertOk()
-            ->assertDontSee('data-toplu-kok', false);
+            ->assertDontSee('data-bulk-round-root', false);
     }
 
     /** Parti kimliği yetki değildir: başkasının partisi "yok"tur. */
@@ -186,8 +186,8 @@ class BulkRoundTest extends TestCase
         $this->travel(10)->minutes();
 
         $this->actingAs($user)->getJson(route('credentials.rotate.bulk.progress', $parti))->assertOk()
-            ->assertJson(['calisiyor' => false, 'basarili' => 1, 'baslamadi' => 1,
-                'sorunlu' => [['ad' => 'Makine 2', 'durum' => 'Başlamadı']]]);
+            ->assertJson(['running' => false, 'success' => 1, 'unstarted' => 1,
+                'problems' => [['name' => 'Makine 2', 'status' => 'Başlamadı']]]);
     }
 
     /**

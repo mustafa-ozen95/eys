@@ -44,8 +44,8 @@ Route::middleware(['auth:api', 'throttle:api'])
     ->prefix('v1')
     ->name('api.v1.')
     ->group(function (): void {
-        Route::get('kayitlar', [CredentialApiController::class, 'index'])->name('credentials.index');
-        Route::get('kayitlar/{credential}', [CredentialApiController::class, 'show'])
+        Route::get('records', [CredentialApiController::class, 'index'])->name('credentials.index');
+        Route::get('records/{credential}', [CredentialApiController::class, 'show'])
             ->whereUuid('credential')
             ->name('credentials.show');
 
@@ -57,7 +57,7 @@ Route::middleware(['auth:api', 'throttle:api'])
          * ayrı denetim satırı: kimin hangi parolayı ne zaman okuduğu kayıtta
          * tek tek durur.
          */
-        Route::get('kayitlar/{credential}/parola', CredentialSecretApiController::class)
+        Route::get('records/{credential}/password', CredentialSecretApiController::class)
             ->whereUuid('credential')
             ->name('credentials.secret');
     });
@@ -71,11 +71,11 @@ Route::middleware(['auth:api', 'throttle:api'])
  *
  * Hız sınırı var: imza tutmasa bile bu uç merkeze bir istek attırabilir.
  */
-Route::post('kimlik/tazele', IdentityRefreshController::class)
+Route::post('identity/refresh', IdentityRefreshController::class)
     ->middleware('throttle:60,1')
-    ->name('api.kimlik.tazele');
+    ->name('api.identity.refresh');
 
 /* MERKEZDEN "bu kişi çıkış yaptı" — ortak çıkış (bkz. IdentityLogoutController). */
-Route::post('kimlik/cikis', IdentityLogoutController::class)
+Route::post('identity/logout', IdentityLogoutController::class)
     ->middleware('throttle:60,1')
-    ->name('api.kimlik.cikis');
+    ->name('api.identity.logout');

@@ -125,7 +125,7 @@ final class InterfaceWatcher
          * Aynı çağrı arka arkaya birkaç kez gelebiliyor (arayüz yeniden
          * deniyor). Kısa bir pencerede tekrarı yazmak kaydı şişirirdi.
          */
-        $anahtar = 'eys:arayuz-son:'.$oturum['token'].':'.$yontem;
+        $anahtar = 'eys:interface-last:'.$oturum['token'].':'.$yontem;
 
         if (Cache::has($anahtar)) {
             return;
@@ -174,7 +174,7 @@ final class InterfaceWatcher
             return;
         }
 
-        $anahtar = 'eys:arayuz-son:'.$oturum['token'].':'.$istekYontemi.':'.$kisa;
+        $anahtar = 'eys:interface-last:'.$oturum['token'].':'.$istekYontemi.':'.$kisa;
 
         if (Cache::has($anahtar)) {
             return;
@@ -229,7 +229,7 @@ final class InterfaceWatcher
     /** @param  array<string, mixed>  $oturum */
     private function girisiYaz(array $oturum, ?Credential $credential, ?User $user): void
     {
-        $anahtar = 'eys:arayuz-giris:'.$oturum['token'];
+        $anahtar = 'eys:interface-login:'.$oturum['token'];
 
         /* Giriş bir kez yazılır: arayüz başarısızlıkta yeniden deniyor. */
         if (Cache::has($anahtar)) {

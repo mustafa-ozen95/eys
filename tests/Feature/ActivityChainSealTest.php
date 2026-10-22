@@ -43,7 +43,7 @@ class ActivityChainSealTest extends TestCase
         $this->yaz('yeni bir');
         $this->yaz('yeni iki');
 
-        $this->artisan('erisim:kayit-buda', ['--gun' => '365', '--force' => true])->assertSuccessful();
+        $this->artisan('activity:prune', ['--days' => '365', '--force' => true])->assertSuccessful();
         $this->assertTrue(app(ActivityChain::class)->verify()['ok']);
 
         /* Gömülü redis yeniden başladı: önbellek BOŞ. */

@@ -19,7 +19,7 @@
                 </div>
             @endif
 
-            <form method="POST" data-yerinde action="{{ route('users.permissions.update', $user) }}"
+            <form method="POST" data-inline action="{{ route('users.permissions.update', $user) }}"
                   data-confirm="{{ $user->name }} kullanıcısının yetkileri değişecek."
                   data-confirm-title="Yetkileri kaydet"
                   data-confirm-verify="{{ $user->name }}">

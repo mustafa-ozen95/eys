@@ -25,7 +25,7 @@
 --}}
 {{-- Yerinde gönderilir: silme sayfayı yenileyip kaydırmayı ve açık paneli kaybettirmesin. --}}
 <form method="POST" action="{{ $action }}"
-      data-yerinde
+      data-inline
       data-confirm="{{ $confirm }}"
       data-confirm-title="{{ $title }}"
       data-confirm-variant="danger"

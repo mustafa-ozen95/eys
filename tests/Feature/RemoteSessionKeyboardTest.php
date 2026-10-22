@@ -28,7 +28,7 @@ class RemoteSessionKeyboardTest extends TestCase
     {
         $kaynak = file_get_contents(resource_path('views/remote/session.blade.php'));
 
-        $this->assertStringContainsString('data-oturum-cercevesi', (string) $kaynak);
+        $this->assertStringContainsString('data-session-frame', (string) $kaynak);
     }
 
     /**
@@ -48,7 +48,7 @@ class RemoteSessionKeyboardTest extends TestCase
     {
         $betik = (string) file_get_contents(resource_path('js/components/remote-session.js'));
 
-        $this->assertStringContainsString('window.open(oturum.url, `oturum-${oturum.token}`)', $betik);
+        $this->assertStringContainsString('window.open(session.url, `session-${session.token}`)', $betik);
 
         $this->assertStringNotContainsString('width=', $betik);
         $this->assertStringNotContainsString('pencereOlculeri', $betik);
@@ -59,7 +59,7 @@ class RemoteSessionKeyboardTest extends TestCase
     {
         $betik = (string) file_get_contents(resource_path('js/components/remote-session.js'));
 
-        $this->assertStringContainsString('[data-oturum-cercevesi]', $betik);
+        $this->assertStringContainsString('[data-session-frame]', $betik);
         $this->assertStringContainsString('contentWindow?.focus()', $betik);
 
         /* Fare ekrana dönünce de odak gelmeli. */
@@ -84,13 +84,13 @@ class RemoteSessionKeyboardTest extends TestCase
         $betik = (string) file_get_contents(resource_path('js/components/remote-session.js'));
 
         $this->assertStringContainsString("addEventListener('pagehide'", $betik);
-        $this->assertStringContainsString('kapatBeacon', $betik);
-        $this->assertStringContainsString('pencere?.closed', $betik);
+        $this->assertStringContainsString('closeBeacon', $betik);
+        $this->assertStringContainsString('popup?.closed', $betik);
 
         /* Artık olmayan düğmenin dinleyicisi de kalmamalı. */
-        $this->assertStringNotContainsString('data-oturum-kapat', $betik);
+        $this->assertStringNotContainsString('data-session-close', $betik);
 
         $sayfa = (string) file_get_contents(resource_path('views/remote/session.blade.php'));
-        $this->assertStringNotContainsString('data-oturum-kapat', $sayfa);
+        $this->assertStringNotContainsString('data-session-close', $sayfa);
     }
 }

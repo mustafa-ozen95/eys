@@ -25,7 +25,7 @@
     yazmıyor, yalnızca kırık olan adımı atlıyoruz.
 */
 (() => {
-    const bagla = () => {
+    const attach = () => {
         const ilo = window.iLO;
 
         /*
@@ -33,11 +33,11 @@
          * dolu; düğme hangi çerçevedeyse bağlanma orada olmalı. İşlevi
          * tanımayan çerçevede yapacak bir şey yok.
          */
-        if (!ilo || typeof ilo.startHtml5Irc !== 'function' || ilo.eysKonsolBagli) {
+        if (!ilo || typeof ilo.startHtml5Irc !== 'function' || ilo.eysConsoleAttached) {
             return true;
         }
 
-        ilo.eysKonsolBagli = true;
+        ilo.eysConsoleAttached = true;
 
         ilo.startHtml5Irc = function () {
             /* Cihazın kendi davranışı: son kullanılan konsolu hatırlıyor. */
@@ -47,12 +47,12 @@
                 /* Çerez yazılamadıysa konsol yine açılır; hatırlanmaz. */
             }
 
-            const anahtar = typeof ilo.getSessionKey === 'function'
+            const key = typeof ilo.getSessionKey === 'function'
                 ? (ilo.getSessionKey() || '')
                 : '';
 
             window.open(
-                '/irc.html' + (anahtar === '' ? '' : '?token=' + encodeURIComponent(anahtar)),
+                '/irc.html' + (key === '' ? '' : '?token=' + encodeURIComponent(key)),
                 '_blank',
             );
         };
@@ -66,10 +66,10 @@
      * denenir.
      */
     if (!window.iLO) {
-        addEventListener('DOMContentLoaded', bagla);
+        addEventListener('DOMContentLoaded', attach);
 
         return;
     }
 
-    bagla();
+    attach();
 })();

@@ -79,19 +79,19 @@
                     görünmez (display: contents). Betik yok: onay kutusu
                     tutuyor, CSS açıp kapıyor (bkz. bulk.css).
                 --}}
-                <input type="checkbox" id="toplu-araclar-ac" class="toplu-araclar__kutu" hidden>
-                <label for="toplu-araclar-ac" class="btn btn--sm toplu-araclar__dugme">Toplu işlemler</label>
+                <input type="checkbox" id="bulk-tools-toggle" class="bulk-tools__box" hidden>
+                <label for="bulk-tools-toggle" class="btn btn--sm bulk-tools__button">Toplu işlemler</label>
 
-                <div class="toplu-araclar">
+                <div class="bulk-tools">
                 @can('rotateAny', App\Models\Credential::class)
                     {{--
                         Toplu döndürme. Onay penceresi gerekçeyi sorar ve forma
                         ekler; sunucu gerekçesiz isteği zaten reddeder.
                         Düğme seçim boşken kapalı durur.
                     --}}
-                    <form method="POST" action="{{ route('credentials.rotate.bulk') }}" id="toplu-dondur"
+                    <form method="POST" action="{{ route('credentials.rotate.bulk') }}" id="bulk-rotate-form"
                           class="bulk" data-bulk-form
-                          data-yerinde
+                          data-inline
                           data-confirm="Seçili kayıtların parolası UZAKTAKİ MAKİNELERDE değiştirilecek."
                           data-confirm-title="Toplu parola güncelleme"
                           data-confirm-variant="danger">
@@ -198,7 +198,7 @@
                         (bkz. CredentialListing · 'eklenebilir').
                     --}}
                     <a href="{{ route('credentials.index', ['grup' => $selectedGroup?->uuid, 'pencere' => 'ekle']) }}"
-                       class="btn btn--primary btn--sm" data-modal-open="kayit-ekle">Yeni kayıt</a>
+                       class="btn btn--primary btn--sm" data-modal-open="record-add">Yeni kayıt</a>
                 @endif
             </div>
 
@@ -208,8 +208,8 @@
                 yapışık, sağda boşluklu duruyordu.
                 Dışarıda iki yanı eşit durur ve liste kaysa da görünür kalır.
             --}}
-            @if ($topluTur)
-                @include('credentials.partials.bulk-progress', ['tur' => $topluTur])
+            @if ($bulkRound)
+                @include('credentials.partials.bulk-progress', ['tur' => $bulkRound])
             @endif
 
             <div class="column__body">
@@ -218,18 +218,18 @@
                     iki kolon, adres ve platformun daralmasından başka bir
                     işe yaramazdı.
                 --}}
-                <div @class(['grid-row__head', 'credential-row', 'credential-row__head', 'credential-row--kimliksiz' => ! $kimlikSutunlari, 'credential-row--uplink' => $uplinkSutunu])>
-                    <span class="credential-row__sec"></span>
-                    <span class="credential-row__ad">Kayıt</span>
-                    <span class="credential-row__tur">Tür</span>
+                <div @class(['grid-row__head', 'credential-row', 'credential-row__head', 'credential-row--no-identity' => ! $kimlikSutunlari, 'credential-row--uplink' => $uplinkSutunu])>
+                    <span class="credential-row__select"></span>
+                    <span class="credential-row__name">Kayıt</span>
+                    <span class="credential-row__type">Tür</span>
                     <span class="credential-row__platform">Platform</span>
-                    <span class="credential-row__adres">Adres</span>
+                    <span class="credential-row__address">Adres</span>
                     @if ($uplinkSutunu)
                         <span class="credential-row__uplink">Uplink</span>
                     @endif
                     @if ($kimlikSutunlari)
-                        <span class="credential-row__kullanici">Kullanıcı</span>
-                        <span class="credential-row__parola">Parola</span>
+                        <span class="credential-row__user">Kullanıcı</span>
+                        <span class="credential-row__password">Parola</span>
                     @endif
                 </div>
 
@@ -245,10 +245,10 @@
                     Yalnızca yönetici; her bırakış onay penceresi açar
                     (bkz. sorting.js). "Alt grupsuz" en sonda sabit durur.
                 --}}
-                <div class="credential-bolumler" @if ($bolumSirasi) data-sira="{{ $bolumSirasi }}" data-sira-alan="sira" @endif>
+                <div class="credential-sections" @if ($bolumSirasi) data-order="{{ $bolumSirasi }}" data-order-field="sira" @endif>
                     @foreach ($bolumler as $bolum)
                         @if ($bolum['uuid'] !== null)
-                            <div class="credential-bolum-kap" @if ($bolumSirasi) draggable="true" data-sira-kimlik="{{ $bolum['uuid'] }}" @endif>
+                            <div class="credential-section-wrap" @if ($bolumSirasi) draggable="true" data-order-id="{{ $bolum['uuid'] }}" @endif>
                                 @include('credentials.partials.section')
                             </div>
                         @endif
@@ -284,21 +284,21 @@
                             İlk doluluk sunucudan gelir; gerisini yoklama
                             devralır (bkz. rotation-progress.js).
                         --}}
-                        <div class="ilerleme detail__ilerleme"
-                             data-ilerleme
-                             data-ilerleme-adres="{{ route('credentials.rotate.progress', $selected['model']) }}">
-                            <div class="ilerleme__ust">
-                                <span class="ilerleme__metin" data-ilerleme-metin>{{ $selected['runningRotation']?->stage->running() ?? 'Sıraya alındı, işçi bekleniyor…' }}</span>
-                                <span class="ilerleme__adim" data-ilerleme-adim>{{ $selected['runningRotation'] ? $selected['runningRotation']->completedSteps().'/'.$selected['runningRotation']->totalSteps() : '0/'.$selected['pendingSteps'] }}</span>
+                        <div class="progress detail__progress"
+                             data-progress
+                             data-progress-url="{{ route('credentials.rotate.progress', $selected['model']) }}">
+                            <div class="progress__top">
+                                <span class="progress__text" data-progress-text>{{ $selected['runningRotation']?->stage->running() ?? 'Sıraya alındı, işçi bekleniyor…' }}</span>
+                                <span class="progress__step" data-progress-step>{{ $selected['runningRotation'] ? $selected['runningRotation']->completedSteps().'/'.$selected['runningRotation']->totalSteps() : '0/'.$selected['pendingSteps'] }}</span>
                             </div>
 
-                            <div class="ilerleme__yol"
+                            <div class="progress__track"
                                  role="progressbar"
                                  aria-label="Parola güncelleme ilerlemesi"
                                  aria-valuemin="0"
                                  aria-valuemax="100"
                                  aria-valuenow="{{ $selected['runningRotation']?->progress() ?? 4 }}">
-                                <div class="ilerleme__cubuk" data-ilerleme-cubuk data-baslangic="{{ $selected['runningRotation']?->progress() ?? 4 }}"></div>
+                                <div class="progress__bar" data-progress-bar data-start="{{ $selected['runningRotation']?->progress() ?? 4 }}"></div>
                             </div>
                         </div>
                     @endif
@@ -384,8 +384,8 @@
                             </p>
 
                             <button type="button" class="btn btn--sm detail__block"
-                                    data-uzak-baglan="{{ route('ajax.remote.connect') }}"
-                                    data-uzak-kimlik="{{ $selected['uuid'] }}"
+                                    data-remote-connect="{{ route('ajax.remote.connect') }}"
+                                    data-remote-id="{{ $selected['uuid'] }}"
                                     {{--
                                         Onay penceresi YALNIZCA gerekçe sorulacaksa açılır.
                                         Soracak bir şeyi olmayan pencere, "Tamam"a basmaktan
@@ -419,9 +419,9 @@
 
                     Gerekçe: CredentialPolicy::arayuz.
                 --}}
-                @if ($selected['arayuzTuru'] ? $selected['canArayuz'] : $selected['canSession'])
+                @if ($selected['interfaceType'] ? $selected['canInterface'] : $selected['canSession'])
                     <div class="detail__section">
-                        <span class="eyebrow">{{ $selected['arayuzTuru'] ? 'Arayüz oturumu' : 'Portal oturumu' }}</span>
+                        <span class="eyebrow">{{ $selected['interfaceType'] ? 'Arayüz oturumu' : 'Portal oturumu' }}</span>
 
                         <x-ui.hint baslik="Bu bağlantı nasıl kuruluyor?">
                             {{--
@@ -430,7 +430,7 @@
                                 bilmesi gereken tek şey parolayı yazıp yazmayacağı ve işlemin kayda
                                 geçtiği.
                             --}}
-                            @if ($selected['arayuzTuru'])
+                            @if ($selected['interfaceType'])
                                 Oturumu panel sizin için açar; parola size hiç gösterilmez ve
                                 girmeniz gerekmez. Giriş, çıkış ve yapılan işlemler kayda geçer.
                             @else
@@ -440,7 +440,7 @@
                             @endif
                         </x-ui.hint>
 
-                        @if ($selected['arayuzTuru'])
+                        @if ($selected['interfaceType'])
                             {{--
                                 Bu arayüzler forma gönderilebilen bir giriş
                                 kabul etmiyor (ESXi CSRF jetonunu istemcide
@@ -456,11 +456,11 @@
                                 @if ($selected['gerekceIster']) Bu kayıt kritik işaretli: açmadan önce gerekçe sorulur. @endif
                             </p>
 
-                            <form method="POST" action="{{ route('credentials.arayuz', $selected['model']) }}"
+                            <form method="POST" action="{{ route('credentials.interface', $selected['model']) }}"
                                   target="_blank" rel="noopener" class="detail__block"
-                                  data-yeni-pencere data-pencere-adi="{{ $selected['model']->uuid }}"
+                                  data-new-window data-window-name="{{ $selected['model']->uuid }}"
                                   @if ($selected['gerekceIster'])
-                                      data-confirm="{{ $selected['name'] }} için {{ $selected['arayuzTuru']->etiket() }} açılacak."
+                                      data-confirm="{{ $selected['name'] }} için {{ $selected['interfaceType']->etiket() }} açılacak."
                                       data-confirm-title="Oturum aç"
                                   @endif
                                   >
@@ -485,10 +485,10 @@
                             --}}
                             <form method="POST" action="{{ route('credentials.session', $selected['model']) }}"
                                   target="_blank" rel="noopener" class="detail__block"
-                                  data-yeni-pencere data-pencere-adi="{{ $selected['model']->uuid }}"
+                                  data-new-window data-window-name="{{ $selected['model']->uuid }}"
                                   @if ($selected['portalLanding']) data-portal-landing="{{ $selected['portalLanding'] }}" @endif
-                                  @if ($selected['portalLandingBekle'] ?? null) data-portal-landing-bekle="{{ $selected['portalLandingBekle'] }}" @endif
-                                  @if ($selected['portalOnceki']) data-portal-onceki="{{ $selected['portalOnceki'] }}" @endif
+                                  @if ($selected['portalLandingBekle'] ?? null) data-portal-landing-wait="{{ $selected['portalLandingBekle'] }}" @endif
+                                  @if ($selected['portalOnceki']) data-portal-previous="{{ $selected['portalOnceki'] }}" @endif
                                   @if ($selected['gerekceIster'])
                                       data-confirm="{{ $selected['name'] }} için portal oturumu açılacak."
                                       data-confirm-title="Portal oturumu aç"
@@ -590,7 +590,7 @@
                             <form method="POST"
                                   action="{{ route('credentials.rotate.repair', [$selected['model'], $selected['stuckRotation']]) }}"
                                   class="detail__block"
-                                  data-yerinde
+                                  data-inline
                                   data-confirm="Kurtarma hesabı makineden silinecek ve kasadaki parola makinedekine hizalanacak."
                                   data-confirm-title="Turu kapat"
                                   data-confirm-verify="{{ $selected['confirmVerify'] }}"
@@ -624,7 +624,7 @@
 
                             <form method="POST" action="{{ route('credentials.rotate', $selected['model']) }}"
                                   class="detail__block"
-                                  data-yerinde
+                                  data-inline
                                   data-confirm="{{ $selected['name'] }} kaydının parolası UZAKTAKİ MAKİNEDE değiştirilecek."
                                   data-confirm-title="Parolayı güncelle"
                                   data-confirm-verify="{{ $selected['confirmVerify'] }}"
@@ -663,7 +663,7 @@
                     @if ($selected['canUpdate'])
                         {{-- Süzgeç adreste taşınır: betiksiz gidilen yol da aynı listeye dönmeli. --}}
                         <a href="{{ route('credentials.index', ['grup' => $selectedGroup?->uuid, 'q' => $query ?: null, 'platform' => $platform ?: null, 'kayit' => $selected['uuid'], 'pencere' => 'duzenle']) }}"
-                           class="btn btn--sm" data-modal-open="kayit-duzenle">Düzenle</a>
+                           class="btn btn--sm" data-modal-open="record-edit">Düzenle</a>
                     @endif
 
                     @if ($selected['canDelete'])
@@ -689,7 +689,7 @@
     --}}
     @if ($eklenebilir)
         @if ($window !== 'duzenle')
-            <x-credentials.modal id="kayit-ekle"
+            <x-credentials.modal id="record-add"
                                  window="ekle"
                                  title="Yeni erişim kaydı"
                                  :action="route('credentials.store')"
@@ -709,7 +709,7 @@
     @endif
 
     @if ($selected && $selected['canUpdate'] && $window !== 'ekle')
-        <x-credentials.modal id="kayit-duzenle"
+        <x-credentials.modal id="record-edit"
                              window="duzenle"
                              :title="$selected['name']"
                              :action="route('credentials.update', $selected['model'])"

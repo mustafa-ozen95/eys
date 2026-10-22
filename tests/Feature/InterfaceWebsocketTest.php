@@ -43,7 +43,7 @@ final class InterfaceWebsocketTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'proxy_set_header Connection $arayuz_baglanti;',
+            'proxy_set_header Connection $interface_connection;',
             $ayar,
             '"Connection" değeri eşlemeden gelmeli; sabit değer yükseltmeyi siler.',
         );
@@ -77,7 +77,7 @@ final class InterfaceWebsocketTest extends TestCase
         $nginx = file_get_contents(base_path('docker/rootfs/etc/nginx/nginx.conf'));
 
         $this->assertMatchesRegularExpression(
-            '/map \$http_upgrade \$arayuz_baglanti \{\s*default Upgrade;\s*""\s*"";\s*\}/',
+            '/map \$http_upgrade \$interface_connection \{\s*default Upgrade;\s*""\s*"";\s*\}/',
             $nginx,
             'Eşleme yok, kuralı ters ya da değeri küçük harfli: iLO 4 küçük harfte 400 döndürüyor.',
         );

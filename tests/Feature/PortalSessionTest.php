@@ -187,7 +187,7 @@ class PortalSessionTest extends TestCase
 
         /* Adres çubuğuna yazılabilseydi tarayıcı geçmişine ve erişim kaydına düşerdi. */
         $this->actingAs($user)
-            ->get('/erisim/'.$credential->uuid.'/oturum')
+            ->get('/access/'.$credential->uuid.'/session')
             ->assertMethodNotAllowed();
     }
 
@@ -237,7 +237,7 @@ class PortalSessionTest extends TestCase
          * Oturum yine de açılıyor — ama form gönderimiyle değil, arayüzün
          * panelin kökeninden VEKİLLENMESİYLE (bkz. InterfaceSessionTest).
          */
-        $this->assertSame(InterfaceType::Esxi, $credential->arayuz_turu);
+        $this->assertSame(InterfaceType::Esxi, $credential->interface_type);
     }
 
     /**

@@ -23,23 +23,23 @@ function refresh() {
         return;
     }
 
-    const secili = selected();
-    const sayac = form.querySelector('[data-bulk-count]');
+    const chosen = selected();
+    const counter = form.querySelector('[data-bulk-count]');
     const submit = form.querySelector('[data-bulk-submit]');
-    const hepsi = $('[data-bulk-all]');
+    const everything = $('[data-bulk-all]');
 
-    if (sayac) {
-        sayac.textContent = String(secili.length);
+    if (counter) {
+        counter.textContent = String(chosen.length);
     }
 
     if (submit) {
-        submit.disabled = secili.length === 0;
+        submit.disabled = chosen.length === 0;
     }
 
-    if (hepsi && !hepsi.disabled) {
-        const tumu = items();
-        hepsi.checked = secili.length === tumu.length;
-        hepsi.indeterminate = secili.length > 0 && secili.length < tumu.length;
+    if (everything && !everything.disabled) {
+        const all = items();
+        everything.checked = chosen.length === all.length;
+        everything.indeterminate = chosen.length > 0 && chosen.length < all.length;
     }
 
     /*
@@ -47,9 +47,9 @@ function refresh() {
      * kayıtlar" diye sorulan bir onay, kullanıcının neyi onayladığını
      * bilmediği bir onaydır.
      */
-    form.dataset.confirm = secili.length === 1
-        ? `1 kaydın parolası UZAKTAKİ MAKİNEDE değiştirilecek: ${secili[0].getAttribute('aria-label') ?? ''}`
-        : `Seçili ${secili.length} kaydın parolası UZAKTAKİ MAKİNELERDE değiştirilecek.`;
+    form.dataset.confirm = chosen.length === 1
+        ? `1 kaydın parolası UZAKTAKİ MAKİNEDE değiştirilecek: ${chosen[0].getAttribute('aria-label') ?? ''}`
+        : `Seçili ${chosen.length} kaydın parolası UZAKTAKİ MAKİNELERDE değiştirilecek.`;
 }
 
 export function init() {

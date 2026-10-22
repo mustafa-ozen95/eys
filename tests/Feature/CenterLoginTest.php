@@ -38,12 +38,12 @@ final class CenterLoginTest extends TestCase
 
         config([
             'identity.acik' => true,
-            'identity.yapilandirildi' => true,
-            'identity.adres' => 'https://merkez.test',
-            'identity.istemci' => 'istemci-1',
-            'identity.sir' => 'sir-1',
-            'identity.donus' => 'https://kasa.test/giris/merkez/geri',
-            'identity.ad' => 'Kimlik Yönetim Merkezi',
+            'identity.configured' => true,
+            'identity.url' => 'https://merkez.test',
+            'identity.client_id' => 'istemci-1',
+            'identity.client_secret' => 'sir-1',
+            'identity.redirect_uri' => 'https://kasa.test/login/center/callback',
+            'identity.name' => 'Kimlik Yönetim Merkezi',
         ]);
     }
 
@@ -52,7 +52,7 @@ final class CenterLoginTest extends TestCase
     {
         Http::fake([
             'merkez.test/oauth/token' => Http::response(['access_token' => 'jeton-1']),
-            'merkez.test/oauth/kullanici' => Http::response($kimlik),
+            'merkez.test/oauth/userinfo' => Http::response($kimlik),
         ]);
     }
 
@@ -75,7 +75,7 @@ final class CenterLoginTest extends TestCase
     private function donus(array $ustune = []): TestResponse
     {
         return $this->withSession(['kimlik_durum' => 'durum-1', 'kimlik_dogrulayici' => 'dogrulayici-1'])
-            ->get(route('kimlik.donus', ['code' => 'kod-1', 'state' => 'durum-1', ...$ustune]));
+            ->get(route('identity.callback', ['code' => 'kod-1', 'state' => 'durum-1', ...$ustune]));
     }
 
     /**
@@ -113,11 +113,11 @@ final class CenterLoginTest extends TestCase
      */
     public function test_yapilandirilmamis_kurulumda_ayar_acik_olsa_da_uc_yoktur(): void
     {
-        config(['identity.acik' => true, 'identity.yapilandirildi' => false]);
+        config(['identity.acik' => true, 'identity.configured' => false]);
 
         $this->get(route('login'))->assertOk()->assertDontSee('Kimlik Yönetim Merkezi ile giriş');
-        $this->get(route('kimlik.giris'))->assertNotFound();
-        $this->get(route('kimlik.donus'))->assertNotFound();
+        $this->get(route('identity.login'))->assertNotFound();
+        $this->get(route('identity.callback'))->assertNotFound();
     }
 
     /** Ayar kapatıldığında uçlar da kapanır: düğmesiz ama açık bir kapı kalmaz. */
@@ -125,13 +125,13 @@ final class CenterLoginTest extends TestCase
     {
         config(['identity.acik' => false]);
 
-        $this->get(route('kimlik.giris'))->assertNotFound();
-        $this->get(route('kimlik.donus'))->assertNotFound();
+        $this->get(route('identity.login'))->assertNotFound();
+        $this->get(route('identity.callback'))->assertNotFound();
     }
 
     public function test_baslangic_merkeze_pkce_ile_yonlendirir(): void
     {
-        $yanit = $this->get(route('kimlik.giris'))->assertRedirect();
+        $yanit = $this->get(route('identity.login'))->assertRedirect();
 
         $adres = $yanit->headers->get('Location');
         parse_str((string) parse_url($adres, PHP_URL_QUERY), $sorgu);
@@ -139,7 +139,7 @@ final class CenterLoginTest extends TestCase
         $this->assertStringStartsWith('https://merkez.test/oauth/authorize', $adres);
         $this->assertSame('code', $sorgu['response_type']);
         $this->assertSame('istemci-1', $sorgu['client_id']);
-        $this->assertSame('https://kasa.test/giris/merkez/geri', $sorgu['redirect_uri']);
+        $this->assertSame('https://kasa.test/login/center/callback', $sorgu['redirect_uri']);
 
         /*
          * S256 ŞART: "plain" kipinde doğrulayıcı adres çubuğunda açıkça
@@ -179,7 +179,7 @@ final class CenterLoginTest extends TestCase
     {
         Http::fake();
 
-        $this->get(route('kimlik.donus', ['code' => 'kod-1', 'state' => 'durum-1']))
+        $this->get(route('identity.callback', ['code' => 'kod-1', 'state' => 'durum-1']))
             ->assertRedirect(route('login'));
 
         $this->assertGuest();
@@ -256,7 +256,7 @@ final class CenterLoginTest extends TestCase
      * MERKEZ KAPIYI KAPATTIYSA KAPI KAPALIDIR.
      *
      * Hangi rolün buraya girebileceğine merkez karar veriyor ve rolü izinli
-     * olmayana `/oauth/kullanici` ucunda 403 dönüyor. Panel bunu "merkez
+     * olmayana `/oauth/userinfo` ucunda 403 dönüyor. Panel bunu "merkez
      * cevap vermedi"den AYIRMALI: orada kullanıcı parolasıyla girişe düşer,
      * burada kapı kapalıdır ve hesabı varsa bile merkezden giremez.
      */
@@ -266,8 +266,8 @@ final class CenterLoginTest extends TestCase
 
         Http::fake([
             'merkez.test/oauth/token' => Http::response(['access_token' => 'jeton-1']),
-            'merkez.test/oauth/kullanici' => Http::response(
-                ['hata' => 'Bu uygulamaya erişim yetkiniz yok.', 'kod' => 'rol_yetkisiz'],
+            'merkez.test/oauth/userinfo' => Http::response(
+                ['error' => 'Bu uygulamaya erişim yetkiniz yok.', 'code' => 'role_forbidden'],
                 403,
             ),
         ]);
@@ -282,7 +282,7 @@ final class CenterLoginTest extends TestCase
     /**
      * MERKEZ İZİN VERMEDİYSE HESAP AÇILMAZ.
      *
-     * Kararı merkez veriyor ve yanıtında söylüyor (`hesap_acilabilir`).
+     * Kararı merkez veriyor ve yanıtında söylüyor (`can_create_account`).
      * Söylemiyorsa yanıt HAYIR sayılır: eksik bilgi yetki üretmemeli.
      */
     public function test_merkez_izin_vermediyse_hesap_acilmaz(): void
@@ -307,8 +307,8 @@ final class CenterLoginTest extends TestCase
         $this->merkez($this->kimlik([
             'email' => 'deniz@example.test',
             'name' => 'Deniz Kaya',
-            'rol' => 'network',
-            'hesap_acilabilir' => true,
+            'role' => 'network',
+            'can_create_account' => true,
         ]));
 
         $this->donus()->assertRedirect();
@@ -336,8 +336,8 @@ final class CenterLoginTest extends TestCase
 
         $this->merkez($this->kimlik([
             'email' => 'yonetici@example.test',
-            'rol' => 'admin',
-            'hesap_acilabilir' => true,
+            'role' => 'admin',
+            'can_create_account' => true,
         ]));
 
         $this->donus()->assertRedirect();
@@ -355,7 +355,7 @@ final class CenterLoginTest extends TestCase
 
         $this->rol('admin', admin: true);
 
-        $this->merkez($this->kimlik(['email' => 'yonetici@example.test', 'rol' => 'admin', 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'yonetici@example.test', 'role' => 'admin', 'can_create_account' => true]));
 
         $this->donus()->assertRedirect();
 
@@ -368,7 +368,7 @@ final class CenterLoginTest extends TestCase
 
         $this->rol('teknik', varsayilan: true);
 
-        $this->merkez($this->kimlik(['email' => 'yabanci@example.test', 'rol' => 'boyle-bir-rol-yok', 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'yabanci@example.test', 'role' => 'boyle-bir-rol-yok', 'can_create_account' => true]));
 
         $this->donus()->assertRedirect();
 
@@ -401,7 +401,7 @@ final class CenterLoginTest extends TestCase
     public function test_dogrulanmamis_eposta_ile_hesap_acilmaz(): void
     {
 
-        $this->merkez($this->kimlik(['email' => 'sahte@example.test', 'email_verified' => false, 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'sahte@example.test', 'email_verified' => false, 'can_create_account' => true]));
 
         $this->donus()->assertRedirect(route('login'));
 
@@ -415,7 +415,7 @@ final class CenterLoginTest extends TestCase
 
         $this->rol('teknik', varsayilan: true);
 
-        $this->merkez($this->kimlik(['email' => 'deniz@example.test', 'rol' => 'teknik', 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'deniz@example.test', 'role' => 'teknik', 'can_create_account' => true]));
         $this->donus();
 
         $yeni = User::where('email', 'deniz@example.test')->firstOrFail();
@@ -461,7 +461,7 @@ final class CenterLoginTest extends TestCase
     {
         $secenekler = [];
 
-        config(['identity.kok' => '/tmp/merkez.crt']);
+        config(['identity.ca_cert' => '/tmp/merkez.crt']);
 
         Http::fake(function ($istek, $ayar) use (&$secenekler) {
             $secenekler[] = $ayar;
@@ -487,7 +487,7 @@ final class CenterLoginTest extends TestCase
     {
         $secenekler = [];
 
-        config(['identity.kok' => null]);
+        config(['identity.ca_cert' => null]);
 
         Http::fake(function ($istek, $ayar) use (&$secenekler) {
             $secenekler[] = $ayar;
@@ -536,7 +536,7 @@ final class CenterLoginTest extends TestCase
 
         $this->rol('teknik', varsayilan: true);
 
-        $this->merkez($this->kimlik(['email' => 'rolsuz@example.test', 'rol' => null, 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'rolsuz@example.test', 'role' => null, 'can_create_account' => true]));
 
         $this->donus()->assertRedirect(route('login'));
 
@@ -559,7 +559,7 @@ final class CenterLoginTest extends TestCase
             'credential_group' => ['all' => ['view'], 'groups' => []],
         ]);
 
-        $this->merkez($this->kimlik(['email' => 'deniz@example.test', 'rol' => 'network', 'hesap_acilabilir' => true]));
+        $this->merkez($this->kimlik(['email' => 'deniz@example.test', 'role' => 'network', 'can_create_account' => true]));
 
         $this->donus();
 

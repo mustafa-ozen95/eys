@@ -25,23 +25,23 @@
      */
     if (window.top !== window.self) return;
 
-    const ADRES = @json($ayrilisAdresi);
+    const ENDPOINT = @json($leaveUrl);
 
     /*
      * sendBeacon: sayfa kapanırken normal bir istek iptal ediliyor, beacon
      * ise tarayıcı tarafından teslim ediliyor. Yanıtı okunmaz, okunamaz da.
      */
-    const bildir = () => {
+    const report = () => {
         try {
-            navigator.sendBeacon(ADRES);
+            navigator.sendBeacon(ENDPOINT);
         } catch (e) {
             /* Haber verilemedi: oturum yine de sessizlikten kapanacak. */
         }
     };
 
-    addEventListener('pagehide', bildir);
+    addEventListener('pagehide', report);
 })();
-@if ($sekmeyeAc ?? false)
+@if ($openInTab ?? false)
 
 /*
     VM KONSOLU AÇILIR PENCEREDE DEĞİL SEKMEDE.
@@ -59,18 +59,18 @@
     pencereleri var ve onların boyutu işlerine yarıyor.
 */
 (() => {
-    const asilAc = window.open;
+    const originalOpen = window.open;
 
-    window.open = function (adres, ad, ozellikler) {
-        return asilAc.call(window, adres, ad || '_blank');
+    window.open = function (url, name, features) {
+        return originalOpen.call(window, url, name || '_blank');
     };
 })();
 @endif
-@if ($iloKonsolu ?? false)
+@if ($iloConsole ?? false)
 @include('credentials.interface.ilo')
 @endif
 
-@if ($onekYolu ?? null)
+@if ($prefixPath ?? null)
 
 /*
     ADRES ÇUBUĞU ÖNEK DIŞINA DÜŞERSE GERİ YAZILIR.
@@ -91,9 +91,9 @@
 (() => {
     if (window.top !== window.self) return;
 
-    const ONEK = @json($onekYolu, JSON_UNESCAPED_SLASHES);
+    const PREFIX = @json($prefixPath, JSON_UNESCAPED_SLASHES);
 
-    if (location.pathname === ONEK || location.pathname.startsWith(ONEK + '/')) return;
+    if (location.pathname === PREFIX || location.pathname.startsWith(PREFIX + '/')) return;
 
     /*
         SAYFA GEÇİŞLERİ DE ÖNEK ALTINDA KALIR.
@@ -109,23 +109,23 @@
         Sarmalayıcı yalnızca ADRESİ düzeltir; durum nesnesine ve başlığa
         dokunmaz. Zaten önekli olan adres iki kez öneklenmez.
     */
-    const yamala = (ad) => {
-        const asil = history[ad].bind(history);
+    const patch = (name) => {
+        const original = history[name].bind(history);
 
-        history[ad] = function (durum, baslik, adres) {
-            if (typeof adres === 'string' && adres.startsWith('/') && !adres.startsWith(ONEK + '/')) {
-                adres = ONEK + adres;
+        history[name] = function (status, title, url) {
+            if (typeof url === 'string' && url.startsWith('/') && !url.startsWith(PREFIX + '/')) {
+                url = PREFIX + url;
             }
 
-            return asil(durum, baslik, adres);
+            return original(status, title, url);
         };
     };
 
-    yamala('pushState');
-    yamala('replaceState');
+    patch('pushState');
+    patch('replaceState');
 
     try {
-        history.replaceState(history.state, '', ONEK + location.pathname + location.search + location.hash);
+        history.replaceState(history.state, '', PREFIX + location.pathname + location.search + location.hash);
     } catch (e) {
         /* Tarayıcı izin vermediyse sayfa yine çalışır; yalnızca zincir kopar. */
     }

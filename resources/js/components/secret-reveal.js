@@ -10,61 +10,61 @@ import { http } from '../lib/http.js';
  * Gösterilen parola bir süre sonra kendiliğinden gizlenir: omuz üstünden
  * bakılan bir ekranda açık kalmasın.
  */
-const GIZLENME_SURESI = 30000;
+const HIDE_AFTER = 30000;
 
-const zamanlayicilar = new WeakMap();
+const timers = new WeakMap();
 
 /*
  * Açılan değer bellekte tutulur: kopyalama DOM'daki metni değil bu değeri
  * alır. Metin kırpılmış görünse bile (dar ekranda "…") kopyalanan tamdır.
  */
-const degerler = new WeakMap();
+const values = new WeakMap();
 
-function gizle(kutu) {
-    const alan = kutu.querySelector('[data-sir-deger]');
-    const dugme = kutu.querySelector('[data-sir-goster]');
-    const kopyala = kutu.querySelector('[data-sir-kopyala]');
+function hide(box) {
+    const field = box.querySelector('[data-secret-value]');
+    const button = box.querySelector('[data-secret-show]');
+    const copy = box.querySelector('[data-secret-copy]');
 
-    alan.textContent = '••••••••';
-    kutu.dataset.sirAcik = 'false';
-    dugme.setAttribute('aria-label', 'Parolayı göster');
-    dugme.textContent = '👁';
+    field.textContent = '••••••••';
+    box.dataset.secretOpen = 'false';
+    button.setAttribute('aria-label', 'Parolayı göster');
+    button.textContent = '👁';
 
-    if (kopyala) {
-        kopyala.hidden = true;
-        kopyala.textContent = '⧉';
+    if (copy) {
+        copy.hidden = true;
+        copy.textContent = '⧉';
     }
 
-    degerler.delete(kutu);
-    clearTimeout(zamanlayicilar.get(kutu));
+    values.delete(box);
+    clearTimeout(timers.get(box));
 }
 
-async function goster(kutu) {
-    const alan = kutu.querySelector('[data-sir-deger]');
-    const dugme = kutu.querySelector('[data-sir-goster]');
+async function show(box) {
+    const field = box.querySelector('[data-secret-value]');
+    const button = box.querySelector('[data-secret-show]');
 
-    dugme.disabled = true;
+    button.disabled = true;
 
     try {
-        const yanit = await http.post(kutu.dataset.sirKaynak);
+        const response = await http.post(box.dataset.secretSource);
 
-        alan.textContent = yanit.password;
-        degerler.set(kutu, yanit.password);
-        kutu.dataset.sirAcik = 'true';
-        dugme.setAttribute('aria-label', 'Parolayı gizle');
-        dugme.textContent = '🙈';
+        field.textContent = response.password;
+        values.set(box, response.password);
+        box.dataset.secretOpen = 'true';
+        button.setAttribute('aria-label', 'Parolayı gizle');
+        button.textContent = '🙈';
 
-        const kopyala = kutu.querySelector('[data-sir-kopyala]');
+        const copy = box.querySelector('[data-secret-copy]');
 
-        if (kopyala) {
-            kopyala.hidden = false;
+        if (copy) {
+            copy.hidden = false;
         }
 
-        zamanlayicilar.set(kutu, setTimeout(() => gizle(kutu), GIZLENME_SURESI));
+        timers.set(box, setTimeout(() => hide(box), HIDE_AFTER));
     } catch {
         // Hata bildirimini http katmanı gösterir.
     } finally {
-        dugme.disabled = false;
+        button.disabled = false;
     }
 }
 
@@ -73,56 +73,56 @@ async function goster(kutu) {
  * verilmediğinde çalışmaz; o durumda metin seçilir ve kullanıcı kendi
  * kopyalar (bkz. components/copy.js — aynı yaklaşım).
  */
-async function panoyaAl(kutu, dugme) {
-    const deger = degerler.get(kutu);
+async function copyToClipboard(box, button) {
+    const val = values.get(box);
 
-    if (!deger) {
+    if (!val) {
         return;
     }
 
     try {
-        await navigator.clipboard.writeText(deger);
-        dugme.textContent = '✓';
+        await navigator.clipboard.writeText(val);
+        button.textContent = '✓';
     } catch {
-        const secim = window.getSelection();
-        const aralik = document.createRange();
+        const selection = window.getSelection();
+        const interval = document.createRange();
 
-        aralik.selectNodeContents(kutu.querySelector('[data-sir-deger]'));
-        secim.removeAllRanges();
-        secim.addRange(aralik);
-        dugme.textContent = '⌸';
+        interval.selectNodeContents(box.querySelector('[data-secret-value]'));
+        selection.removeAllRanges();
+        selection.addRange(interval);
+        button.textContent = '⌸';
     }
 
     setTimeout(() => {
-        dugme.textContent = '⧉';
+        button.textContent = '⧉';
     }, 2000);
 }
 
 export function init() {
     document.addEventListener('click', (event) => {
-        const kopyala = event.target.closest('[data-sir-kopyala]');
+        const copy = event.target.closest('[data-secret-copy]');
 
-        if (kopyala) {
+        if (copy) {
             event.preventDefault();
-            panoyaAl(kopyala.closest('[data-sir]'), kopyala).catch(() => {});
+            copyToClipboard(copy.closest('[data-secret]'), copy).catch(() => {});
 
             return;
         }
 
-        const dugme = event.target.closest('[data-sir-goster]');
+        const button = event.target.closest('[data-secret-show]');
 
-        if (!dugme) {
+        if (!button) {
             return;
         }
 
         event.preventDefault();
 
-        const kutu = dugme.closest('[data-sir]');
+        const box = button.closest('[data-secret]');
 
-        if (kutu.dataset.sirAcik === 'true') {
-            gizle(kutu);
+        if (box.dataset.secretOpen === 'true') {
+            hide(box);
         } else {
-            goster(kutu);
+            show(box);
         }
     });
 }

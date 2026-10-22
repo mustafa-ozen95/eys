@@ -202,6 +202,6 @@ class ApiTokenScreenTest extends TestCase
             ->get(route('api-tokens.index'))
             ->assertOk()
             ->assertSee($jeton->uuid)
-            ->assertDontSee('/api-jetonlari/'.$jeton->id);
+            ->assertDontSee('/api-tokens/'.$jeton->id);
     }
 }

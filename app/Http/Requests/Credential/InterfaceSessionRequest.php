@@ -18,6 +18,6 @@ class InterfaceSessionRequest extends PortalSessionRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('arayuz', $this->route('credential'));
+        return $this->user()->can('deviceInterface', $this->route('credential'));
     }
 }

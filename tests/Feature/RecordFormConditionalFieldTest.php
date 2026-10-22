@@ -35,7 +35,7 @@ class RecordFormConditionalFieldTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $bas = strpos($govde, 'id="kayit-duzenle"');
+        $bas = strpos($govde, 'id="record-edit"');
         $this->assertNotFalse($bas, 'Düzenleme penceresi çizilmedi.');
 
         return substr($govde, $bas);
@@ -49,13 +49,13 @@ class RecordFormConditionalFieldTest extends TestCase
             'operating_system' => OperatingSystem::Windows,
         ]));
 
-        $this->assertStringContainsString('data-kosullu-form', $html);
-        $this->assertMatchesRegularExpression('/data-goster="access_type:rdp"[^>]*>\s*<label[^>]*for="rdp_security"/', $html);
-        $this->assertMatchesRegularExpression('/data-goster="access_type:!ssh,rdp,vnc"[^>]*>\s*<label[^>]*for="url"/', $html);
-        $this->assertStringContainsString('data-goster="access_type:panel,web"', $html);
+        $this->assertStringContainsString('data-conditional-form', $html);
+        $this->assertMatchesRegularExpression('/data-show="access_type:rdp"[^>]*>\s*<label[^>]*for="rdp_security"/', $html);
+        $this->assertMatchesRegularExpression('/data-show="access_type:!ssh,rdp,vnc"[^>]*>\s*<label[^>]*for="url"/', $html);
+        $this->assertStringContainsString('data-show="access_type:panel,web"', $html);
 
         /* Parola güncelleme bölümü döndürülebilir platformlara ve web/panele açık. */
-        $this->assertStringContainsString('data-goster="operating_system:linux,windows,esxi,vcenter,bmc|access_type:panel,web|rotation_driver:*"', $html);
+        $this->assertStringContainsString('data-show="operating_system:linux,windows,esxi,vcenter,bmc|access_type:panel,web|rotation_driver:*"', $html);
     }
 
     /**
@@ -73,8 +73,8 @@ class RecordFormConditionalFieldTest extends TestCase
             'Platform erişim türünden önce gelmeli.');
 
         preg_match('/<select[^>]*name="access_type"[^>]*>/s', $html, $etiket);
-        $this->assertStringContainsString('data-bagli="operating_system"', $etiket[0] ?? '', 'Erişim türü platforma bağlı olmalı.');
-        preg_match('/data-bagli-secenekler="([^"]+)"/', $html, $m);
+        $this->assertStringContainsString('data-linked="operating_system"', $etiket[0] ?? '', 'Erişim türü platforma bağlı olmalı.');
+        preg_match('/data-linked-options="([^"]+)"/', $html, $m);
         $harita = json_decode(html_entity_decode($m[1] ?? ''), true);
 
         $this->assertSame('rdp', $harita['windows'][0] ?? null, 'Windows\'ta uzak masaüstü başta olmalı.');
@@ -107,16 +107,16 @@ class RecordFormConditionalFieldTest extends TestCase
             'rotation_username' => 'yonetici',
         ]));
 
-        $this->assertMatchesRegularExpression('/data-kosul="portal_acik"\s+checked/', $dolu);
-        $this->assertMatchesRegularExpression('/data-kosul="ayri_hesap"\s+checked/', $dolu);
+        $this->assertMatchesRegularExpression('/data-condition="portal_acik"\s+checked/', $dolu);
+        $this->assertMatchesRegularExpression('/data-condition="ayri_hesap"\s+checked/', $dolu);
 
         $bos = $this->duzenleme(Credential::factory()->create([
             'access_type' => AccessType::Web,
             'operating_system' => OperatingSystem::Application,
         ]));
 
-        $this->assertDoesNotMatchRegularExpression('/data-kosul="portal_acik"\s+checked/', $bos);
-        $this->assertDoesNotMatchRegularExpression('/data-kosul="ayri_hesap"\s+checked/', $bos);
+        $this->assertDoesNotMatchRegularExpression('/data-condition="portal_acik"\s+checked/', $bos);
+        $this->assertDoesNotMatchRegularExpression('/data-condition="ayri_hesap"\s+checked/', $bos);
     }
 
     /** Bir kaydı bir role kapatan ayar katlanmış bölümde gözden kaçmamalı. */
@@ -125,7 +125,7 @@ class RecordFormConditionalFieldTest extends TestCase
     {
         $kayit = Credential::factory()->create();
 
-        $this->assertMatchesRegularExpression('/<details class="kayit-formu__gelismis"\s*>/', $this->duzenleme($kayit));
+        $this->assertMatchesRegularExpression('/<details class="record-form__advanced"\s*>/', $this->duzenleme($kayit));
 
         $rol = Role::create([
             'slug' => 'sinirli',
@@ -136,6 +136,6 @@ class RecordFormConditionalFieldTest extends TestCase
         ]);
         $kayit->restrictedRoles()->attach($rol);
 
-        $this->assertMatchesRegularExpression('/<details class="kayit-formu__gelismis"\s+open\s*>/', $this->duzenleme($kayit));
+        $this->assertMatchesRegularExpression('/<details class="record-form__advanced"\s+open\s*>/', $this->duzenleme($kayit));
     }
 }

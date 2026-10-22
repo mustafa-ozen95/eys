@@ -69,7 +69,7 @@ class RotationConcurrencyTest extends TestCase
     {
         $credential = $this->kayit();
 
-        $lock = Cache::lock('erisim:dondurme:'.$credential->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$credential->getKey(), 60);
         $this->assertTrue($lock->get(), 'Kilit alınamadı.');
 
         $oncesi = $this->device->accounts;
@@ -92,7 +92,7 @@ class RotationConcurrencyTest extends TestCase
     {
         $credential = $this->kayit();
 
-        $lock = Cache::lock('erisim:dondurme:'.$credential->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$credential->getKey(), 60);
         $lock->get();
         app(PasswordRotator::class)->rotate($credential);
         $lock->release();
@@ -111,7 +111,7 @@ class RotationConcurrencyTest extends TestCase
 
         app(PasswordRotator::class)->rotate($credential);
 
-        $lock = Cache::lock('erisim:dondurme:'.$credential->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$credential->getKey(), 60);
 
         $this->assertTrue($lock->get(), 'Tur bittiğinde kilit bırakılmalı.');
 
@@ -128,7 +128,7 @@ class RotationConcurrencyTest extends TestCase
 
         app(PasswordRotator::class)->rotate($credential);
 
-        $lock = Cache::lock('erisim:dondurme:'.$credential->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$credential->getKey(), 60);
 
         $this->assertTrue($lock->get(), 'Düşen tur da kilidi bırakmalı.');
 
@@ -147,7 +147,7 @@ class RotationConcurrencyTest extends TestCase
         $ilk = $this->kayit();
         $ikinci = $this->kayit();
 
-        $lock = Cache::lock('erisim:dondurme:'.$ilk->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$ilk->getKey(), 60);
         $lock->get();
 
         $rotation = app(PasswordRotator::class)->rotate($ikinci);
@@ -195,7 +195,7 @@ class RotationConcurrencyTest extends TestCase
 
         $this->assertTrue($rotation->fresh()->recovery_active, 'Tur yarıda kalmalıydı.');
 
-        $lock = Cache::lock('erisim:dondurme:'.$credential->getKey(), 60);
+        $lock = Cache::lock('access:rotation:'.$credential->getKey(), 60);
         $this->assertTrue($lock->get());
 
         $hesaplar = $this->device->accounts;

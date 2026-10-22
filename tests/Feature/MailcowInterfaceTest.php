@@ -61,7 +61,7 @@ final class MailcowInterfaceTest extends TestCase
     #[Test]
     public function platform_alanindan_taninir(): void
     {
-        config(['remote.arayuz.turler' => ['mailcow']]);
+        config(['remote.interface.types' => ['mailcow']]);
 
         $this->assertSame(InterfaceType::Mailcow, InterfaceType::icin($this->kayit()));
         $this->assertNull(InterfaceType::icin($this->kayit(['platform' => 'Debian 13'])));
@@ -71,7 +71,7 @@ final class MailcowInterfaceTest extends TestCase
     #[Test]
     public function vekil_acikken_form_yolu_devre_disi(): void
     {
-        config(['remote.arayuz.turler' => ['mailcow']]);
+        config(['remote.interface.types' => ['mailcow']]);
 
         $this->assertFalse(PortalLogin::hazirMi($this->kayit([
             'login_url' => 'https://posta.ornek.test/admin/',
@@ -153,7 +153,7 @@ final class MailcowInterfaceTest extends TestCase
         $tarayici = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/149.0.0.0';
 
         /* Oturumu açan istek kullanıcının tarayıcısından gelir. */
-        $this->app['request'] = Request::create('/erisim', 'POST', [], [], [], [
+        $this->app['request'] = Request::create('/access', 'POST', [], [], [], [
             'HTTP_USER_AGENT' => $tarayici,
         ]);
 

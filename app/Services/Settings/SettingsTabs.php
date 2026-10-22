@@ -62,7 +62,7 @@ class SettingsTabs
         if (Gate::allows('viewAny', Setting::class)) {
             $tabs[] = [
                 'label' => 'Sertifika',
-                'url' => route('sertifika.index'),
+                'url' => route('certificate.index'),
                 'active' => $current === 'sertifika',
             ];
         }
@@ -71,12 +71,12 @@ class SettingsTabs
         if (Gate::allows('viewAny', Setting::class)) {
             $tabs[] = [
                 'label' => 'Veritabanı',
-                'url' => route('veritabani.index'),
+                'url' => route('database.index'),
                 'active' => $current === 'veritabani',
             ];
             $tabs[] = [
                 'label' => 'Güncelleme',
-                'url' => route('guncelleme.index'),
+                'url' => route('update.index'),
                 'active' => $current === 'guncelleme',
             ];
         }

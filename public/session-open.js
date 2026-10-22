@@ -10,7 +10,7 @@
  * gönderir (bkz. portal-session.blade.php).
  */
 (() => {
-    const form = document.getElementById('oturum');
+    const form = document.getElementById('session-form');
 
     if (form) {
         form.submit();

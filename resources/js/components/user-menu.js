@@ -7,46 +7,46 @@ import { on } from '../lib/dom.js';
  * kalan içeriği tıklanamaz hâle getiriyor ve kullanıcı neden tepki almadığını
  * anlamıyordu.
  */
-function liste() {
-    return document.querySelector('[data-menu-liste]');
+function list() {
+    return document.querySelector('[data-menu-list]');
 }
 
-function dugme() {
-    return document.querySelector('[data-menu-ac]');
+function button() {
+    return document.querySelector('[data-menu-open]');
 }
 
-function kapat() {
-    const kutu = liste();
+function close() {
+    const box = list();
 
-    if (kutu && !kutu.hidden) {
-        kutu.hidden = true;
-        dugme()?.setAttribute('aria-expanded', 'false');
+    if (box && !box.hidden) {
+        box.hidden = true;
+        button()?.setAttribute('aria-expanded', 'false');
     }
 }
 
 export function init() {
-    on('click', '[data-menu-ac]', (olay, tetik) => {
-        olay.preventDefault();
+    on('click', '[data-menu-open]', (evt, fire) => {
+        evt.preventDefault();
 
-        const kutu = liste();
+        const box = list();
 
-        if (!kutu) {
+        if (!box) {
             return;
         }
 
-        kutu.hidden = !kutu.hidden;
-        tetik.setAttribute('aria-expanded', kutu.hidden ? 'false' : 'true');
+        box.hidden = !box.hidden;
+        fire.setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
     });
 
-    document.addEventListener('click', (olay) => {
-        if (!olay.target.closest('[data-menu]')) {
-            kapat();
+    document.addEventListener('click', (evt) => {
+        if (!evt.target.closest('[data-menu]')) {
+            close();
         }
     });
 
-    document.addEventListener('keydown', (olay) => {
-        if (olay.key === 'Escape') {
-            kapat();
+    document.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Escape') {
+            close();
         }
     });
 }

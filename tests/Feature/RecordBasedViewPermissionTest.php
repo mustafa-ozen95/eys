@@ -116,10 +116,10 @@ class RecordBasedViewPermissionTest extends TestCase
     public function portal_izni_ayri_verilir(): void
     {
         [$kullanici, $izinli] = $this->sahne(portal: false);
-        $this->assertFalse($kullanici->can('arayuz', $izinli), 'portal izni yokken arayüz açılmamalı');
+        $this->assertFalse($kullanici->can('deviceInterface', $izinli), 'portal izni yokken arayüz açılmamalı');
 
         $izinli->grantedRoles()->attach($kullanici->role_id, ['action' => 'session']);
-        $this->assertTrue($kullanici->fresh()->can('arayuz', $izinli->fresh()));
+        $this->assertTrue($kullanici->fresh()->can('deviceInterface', $izinli->fresh()));
     }
 
     #[Test]

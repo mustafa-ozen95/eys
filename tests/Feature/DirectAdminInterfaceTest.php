@@ -53,7 +53,7 @@ final class DirectAdminInterfaceTest extends TestCase
     #[Test]
     public function kayit_adresinden_taninir(): void
     {
-        config(['remote.arayuz.turler' => ['directadmin']]);
+        config(['remote.interface.types' => ['directadmin']]);
 
         $this->assertSame(InterfaceType::DirectAdmin, InterfaceType::icin($this->kayit()));
     }
@@ -62,7 +62,7 @@ final class DirectAdminInterfaceTest extends TestCase
     #[Test]
     public function baska_adres_taninmaz(): void
     {
-        config(['remote.arayuz.turler' => ['directadmin']]);
+        config(['remote.interface.types' => ['directadmin']]);
 
         $this->assertNull(InterfaceType::icin($this->kayit(['url' => 'https://baska.ornek.test/clients/'])));
     }
@@ -76,7 +76,7 @@ final class DirectAdminInterfaceTest extends TestCase
     #[Test]
     public function vekil_acikken_form_yolu_devre_disi(): void
     {
-        config(['remote.arayuz.turler' => ['directadmin']]);
+        config(['remote.interface.types' => ['directadmin']]);
 
         $this->assertFalse(PortalLogin::hazirMi($this->kayit()));
     }

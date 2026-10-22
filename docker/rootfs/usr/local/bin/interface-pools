@@ -18,7 +18,7 @@ set -uo pipefail
 PHP=/usr/bin/php
 UYGULAMA=/uygulama
 HEDEF=/etc/nginx/conf.d/interface-pools.conf
-ARALIK="${ARAYUZ_HAVUZ_ARALIGI:-300}"
+ARALIK="${INTERFACE_POOL_INTERVAL:-300}"
 
 # Yapılandırmayı üretir ve değiştiyse yerine koyar.
 #
@@ -31,8 +31,8 @@ uret() {
     local gecici
     gecici="$(mktemp)"
 
-    if ! (cd "${UYGULAMA}" && gosu eys "${PHP}" artisan erisim:interface-pools) > "${gecici}" 2>/dev/null \
-        || ! grep -q '^map \$arayuz_hedef' "${gecici}"; then
+    if ! (cd "${UYGULAMA}" && gosu eys "${PHP}" artisan access:interface-pools) > "${gecici}" 2>/dev/null \
+        || ! grep -q '^map \$interface_target' "${gecici}"; then
         rm -f "${gecici}"
 
         return 1

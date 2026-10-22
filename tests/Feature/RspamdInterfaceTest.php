@@ -51,7 +51,7 @@ final class RspamdInterfaceTest extends TestCase
     #[Test]
     public function adresinden_taninir(): void
     {
-        config(['remote.arayuz.turler' => ['rspamd']]);
+        config(['remote.interface.types' => ['rspamd']]);
 
         $this->assertSame(InterfaceType::Rspamd, InterfaceType::icin($this->kayit()));
         $this->assertNull(InterfaceType::icin($this->kayit(['url' => 'https://posta.ornek.test/panel'])));
@@ -61,7 +61,7 @@ final class RspamdInterfaceTest extends TestCase
     #[Test]
     public function vekil_acikken_form_yolu_devre_disi(): void
     {
-        config(['remote.arayuz.turler' => ['rspamd']]);
+        config(['remote.interface.types' => ['rspamd']]);
 
         $this->assertFalse(PortalLogin::hazirMi($this->kayit([
             'username' => 'yonetici',
@@ -110,7 +110,7 @@ final class RspamdInterfaceTest extends TestCase
      *     (location.pathname !== "/" ? location.pathname : "")
      *
      * Sayfa kökte değilse bütün API çağrıları o yola yapışıyor:
-     * /cihaz-oturum/sayfa adresinde açılan arayüz "/cihaz-oturum/sayfastat"
+     * /device-session/page adresinde açılan arayüz "/device-session/sayfastat"
      * ister, 404 alır ve ekrana "Cannot get server status: HTTP 404" yazar.
      *
      * Açılış betiği de bu yüzden YOK: betik sayfayı o adrese taşıyor ve
@@ -133,7 +133,7 @@ final class RspamdInterfaceTest extends TestCase
     #[Test]
     public function oturum_kaydina_parola_yazilir(): void
     {
-        config(['remote.arayuz.turler' => ['rspamd']]);
+        config(['remote.interface.types' => ['rspamd']]);
 
         $kayit = $this->kayit();
         $kullanici = User::factory()->admin()->create();
@@ -159,9 +159,9 @@ final class RspamdInterfaceTest extends TestCase
     #[Test]
     public function kullanici_adi_olmadan_da_arayuz_turu_bulunur(): void
     {
-        config(['remote.arayuz.turler' => ['rspamd', 'qnap']]);
+        config(['remote.interface.types' => ['rspamd', 'qnap']]);
 
-        $this->assertSame(InterfaceType::Rspamd, $this->kayit()->arayuz_turu);
+        $this->assertSame(InterfaceType::Rspamd, $this->kayit()->interface_type);
         $this->assertFalse(InterfaceType::Rspamd->kullaniciAdiGerekir());
 
         /* Hesabı olan arayüzlerde şart yerinde: kullanıcı adı yoksa tür yok. */
@@ -175,6 +175,6 @@ final class RspamdInterfaceTest extends TestCase
         ]);
 
         $this->assertTrue(InterfaceType::Qnap->kullaniciAdiGerekir());
-        $this->assertNull($qnap->arayuz_turu);
+        $this->assertNull($qnap->interface_type);
     }
 }

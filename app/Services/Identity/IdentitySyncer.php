@@ -93,18 +93,18 @@ class IdentitySyncer
      * değişiklik bir sonraki eşitlemede geri alınır; tek doğruluk kaynağı
      * merkezdir ve ekran bunu yazar.
      *
-     * @param  array{durum?: string, girebilir?: bool, rol?: ?string}  $durum
+     * @param  array{status?: string, can_enter?: bool, last_logout?: ?int, role?: ?string}  $durum
      * @return array{kapatildi: bool, acildi: bool, rol_degisti: bool}
      */
     public function uygula(User $kullanici, array $durum): array
     {
-        $girebilir = (bool) ($durum['girebilir'] ?? false);
+        $girebilir = (bool) ($durum['can_enter'] ?? false);
 
         $kapatildi = false;
         $acildi = false;
 
         if (! $girebilir && $kullanici->isActive()) {
-            $kapatildi = $this->kapat($kullanici, (string) ($durum['durum'] ?? 'bilinmiyor'));
+            $kapatildi = $this->kapat($kullanici, (string) ($durum['status'] ?? 'bilinmiyor'));
         } elseif ($girebilir && ! $kullanici->isActive()) {
             $acildi = $this->ac($kullanici);
         }
@@ -113,11 +113,11 @@ class IdentitySyncer
          * ROL HER DURUMDA eşitlenir. Kapalı hesabın rolünü atlamak, hesap
          * merkezden geri açıldığında eski rolle açılmasına yol açıyordu.
          */
-        $rolDegisti = $this->roluGuncelle($kullanici, $durum['rol'] ?? null);
+        $rolDegisti = $this->roluGuncelle($kullanici, $durum['role'] ?? null);
 
         /* Ortak çıkış: bildirim kaybolduysa an buradan gelir (bkz. SharedLogout). */
-        if (is_int($durum['son_cikis'] ?? null) && ($bag = SharedLogout::bag($kullanici)) !== null) {
-            SharedLogout::isle($bag, $durum['son_cikis']);
+        if (is_int($durum['last_logout'] ?? null) && ($bag = SharedLogout::bag($kullanici)) !== null) {
+            SharedLogout::isle($bag, $durum['last_logout']);
         }
 
         return ['kapatildi' => $kapatildi, 'acildi' => $acildi, 'rol_degisti' => $rolDegisti];

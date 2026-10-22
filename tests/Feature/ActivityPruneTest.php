@@ -54,7 +54,7 @@ class ActivityPruneTest extends TestCase
 
         $this->assertSame(2, app(ActivityChain::class)->verify()['unprotected']);
 
-        $this->artisan('erisim:kayit-buda', ['--korumasiz' => true, '--force' => true])
+        $this->artisan('activity:prune', ['--unprotected' => true, '--force' => true])
             ->assertSuccessful();
 
         $sonuc = app(ActivityChain::class)->verify();
@@ -70,9 +70,9 @@ class ActivityPruneTest extends TestCase
     {
         $this->korumasizYaz('eski');
 
-        $this->artisan('erisim:kayit-buda', [
-            '--korumasiz' => true,
-            '--gerekce' => 'Denetim oncesi temizlik',
+        $this->artisan('activity:prune', [
+            '--unprotected' => true,
+            '--reason' => 'Denetim oncesi temizlik',
             '--force' => true,
         ])->assertSuccessful();
 
@@ -92,7 +92,7 @@ class ActivityPruneTest extends TestCase
 
         $kalan = $this->yaz('yeni');
 
-        $this->artisan('erisim:kayit-buda', ['--gun' => '365', '--force' => true])
+        $this->artisan('activity:prune', ['--days' => '365', '--force' => true])
             ->assertSuccessful();
 
         $this->assertDatabaseMissing('activity_logs', ['id' => $eski->id]);
@@ -112,7 +112,7 @@ class ActivityPruneTest extends TestCase
     {
         $this->korumasizYaz('eski');
 
-        $this->artisan('erisim:kayit-buda', ['--korumasiz' => true, '--force' => true])
+        $this->artisan('activity:prune', ['--unprotected' => true, '--force' => true])
             ->assertSuccessful();
 
         $this->actingAs(User::factory()->admin()->create())
@@ -127,7 +127,7 @@ class ActivityPruneTest extends TestCase
     {
         $this->yaz('duruyor');
 
-        $this->artisan('erisim:kayit-buda', ['--force' => true])->assertFailed();
+        $this->artisan('activity:prune', ['--force' => true])->assertFailed();
 
         $this->assertDatabaseCount('activity_logs', 1);
     }

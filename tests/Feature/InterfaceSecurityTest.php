@@ -53,24 +53,24 @@ final class InterfaceSecurityTest extends TestCase
     {
         [$user, $group] = $this->kisi(['view', 'field.password', 'session']);
         $oturum = app(InterfaceSession::class)->ac($this->kayit($group), (int) $user->id);
-        $adres = '/cihaz-oturum/'.$oturum['token'].'/ui/';
+        $adres = '/device-session/'.$oturum['token'].'/ui/';
 
         /* Çerezsiz: ne URI ne Referer ile geçer; hedef de sır da verilmez. */
-        $this->withHeader('X-Original-Uri', $adres)->get(route('ajax.arayuz.guard'))
-            ->assertForbidden()->assertHeaderMissing('X-Eys-Hedef')->assertHeaderMissing('X-Eys-Gizli');
-        $this->withHeader('Referer', 'https://eys.ornek.test'.$adres)->get(route('ajax.arayuz.guard'))
-            ->assertForbidden()->assertHeaderMissing('X-Eys-Hedef');
+        $this->withHeader('X-Original-Uri', $adres)->get(route('ajax.interface.guard'))
+            ->assertForbidden()->assertHeaderMissing('X-Eys-Target')->assertHeaderMissing('X-Eys-Secret');
+        $this->withHeader('Referer', 'https://eys.ornek.test'.$adres)->get(route('ajax.interface.guard'))
+            ->assertForbidden()->assertHeaderMissing('X-Eys-Target');
 
         /* Başkasının çerezi de yetmez. */
         $baska = app(InterfaceSession::class)->ac($this->kayit($this->kisi(['view', 'field.password', 'session'])[1]), (int) User::factory()->create()->id);
         $this->withCookies([InterfaceSession::COOKIE => $baska['token']])->withHeader('X-Original-Uri', $adres)
-            ->get(route('ajax.arayuz.guard'))->assertForbidden();
+            ->get(route('ajax.interface.guard'))->assertForbidden();
 
         /* Sahibinin çerezi ile geçer. */
         $this->withCookies([InterfaceSession::COOKIE => $oturum['token']])->withHeader('X-Original-Uri', $adres)
-            ->get(route('ajax.arayuz.guard'))->assertNoContent()->assertHeader('X-Eys-Hedef', '10.0.0.44:443');
+            ->get(route('ajax.interface.guard'))->assertNoContent()->assertHeader('X-Eys-Target', '10.0.0.44:443');
         $this->withCookies([InterfaceSession::COOKIE => $oturum['token']])->withHeader('Referer', 'https://eys.ornek.test'.$adres)
-            ->get(route('ajax.arayuz.guard'))->assertNoContent();
+            ->get(route('ajax.interface.guard'))->assertNoContent();
     }
 
     #[Test]
@@ -80,7 +80,7 @@ final class InterfaceSecurityTest extends TestCase
         $oturum = app(InterfaceSession::class)->ac($this->kayit($group), (int) $user->id);
         $cerez = [InterfaceSession::COOKIE => $oturum['token']];
 
-        $yanit = $this->withCookies($cerez)->get($oturum['adres'].'kimlik');
+        $yanit = $this->withCookies($cerez)->get($oturum['adres'].'identity');
 
         $yanit->assertForbidden();
         $this->assertStringNotContainsString('ESXI-PAROLASI', $yanit->getContent());
@@ -93,8 +93,8 @@ final class InterfaceSecurityTest extends TestCase
         $kayit = $this->kayit($group);
         $oturum = app(InterfaceSession::class)->ac($kayit, (int) $user->id);
 
-        $this->withCookies([InterfaceSession::COOKIE => $oturum['token']])->get($oturum['adres'].'kimlik')
-            ->assertOk()->assertJson(['parola' => 'ESXI-PAROLASI']);
+        $this->withCookies([InterfaceSession::COOKIE => $oturum['token']])->get($oturum['adres'].'identity')
+            ->assertOk()->assertJson(['password' => 'ESXI-PAROLASI']);
 
         $this->assertDatabaseHas('activity_logs', ['action' => 'revealed', 'subject_id' => $kayit->id, 'user_id' => $user->id]);
     }
@@ -106,24 +106,24 @@ final class InterfaceSecurityTest extends TestCase
         $kayit = $this->kayit($group);
 
         /* Oturumu açan tarayıcı: yönlendirme ile birlikte bağ çerezini alır. */
-        $ac = $this->actingAs($user)->post(route('credentials.arayuz', $kayit), ['reason' => 'bakim']);
+        $ac = $this->actingAs($user)->post(route('credentials.interface', $kayit), ['reason' => 'bakim']);
         $ac->assertRedirect();
         $bag = collect($ac->headers->getCookies())->first(fn ($c) => $c->getName() === InterfaceSession::DEVIR_BAG_COOKIE);
         $this->assertNotNull($bag, 'Devri açan tarayıcıya bağ çerezi bırakılmalı.');
         $devirAdresi = $ac->headers->get('Location');
-        preg_match('#/devir/([0-9a-f-]{36})$#', (string) $devirAdresi, $m);
+        preg_match('#/handoff/([0-9a-f-]{36})$#', (string) $devirAdresi, $m);
 
         /* Bağ çerezi olmayan (saldırganın bağlantısını açan kurban): reddedilir ve jeton yanar. */
-        $this->get(route('credentials.arayuz.handoff', ['devir' => $m[1]]))->assertStatus(410);
+        $this->get(route('credentials.interface.handoff', ['devir' => $m[1]]))->assertStatus(410);
 
         /* (Jeton yandı: doğru tarayıcıyla bile ikinci kez harcanamaz.) Yeni devir, doğru tarayıcı: çerez kurulur. */
-        $ac = $this->actingAs($user)->post(route('credentials.arayuz', $kayit), ['reason' => 'bakim']);
+        $ac = $this->actingAs($user)->post(route('credentials.interface', $kayit), ['reason' => 'bakim']);
         $bag = collect($ac->headers->getCookies())->first(fn ($c) => $c->getName() === InterfaceSession::DEVIR_BAG_COOKIE);
-        preg_match('#/devir/([0-9a-f-]{36})$#', (string) $ac->headers->get('Location'), $m);
+        preg_match('#/handoff/([0-9a-f-]{36})$#', (string) $ac->headers->get('Location'), $m);
 
         /* Tarayıcı çerezi şifreli değeriyle geri yollar. */
         $this->withUnencryptedCookie(InterfaceSession::DEVIR_BAG_COOKIE, $bag->getValue())
-            ->get(route('credentials.arayuz.handoff', ['devir' => $m[1]]))
+            ->get(route('credentials.interface.handoff', ['devir' => $m[1]]))
             ->assertRedirect()->assertCookie(InterfaceSession::COOKIE);
     }
 
@@ -135,7 +135,7 @@ final class InterfaceSecurityTest extends TestCase
 
         /* Snippet iki dinleyicide de include ediliyor ve iç konumlar `internal`. */
         $this->assertSame(2, substr_count($conf, 'include /etc/nginx/snippets/interface-watcher.conf;'));
-        $this->assertMatchesRegularExpression('#location \^~ /ajax/cihaz-oturum/ \{\s*return 404;#', $snippet);
+        $this->assertMatchesRegularExpression('#location \^~ /ajax/device-session/ \{\s*return 404;#', $snippet);
         $this->assertSame(3, substr_count($snippet, 'internal;'));
     }
 }

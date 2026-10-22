@@ -6,7 +6,7 @@
 
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('users.store') }}" autocomplete="off">
+            <form method="POST" data-inline action="{{ route('users.store') }}" autocomplete="off">
                 @csrf
                 <x-users.form :roles="$roles" :statuses="$statuses" :default-role="$defaultRole" />
 

@@ -24,7 +24,7 @@ class AdminUserSeeder extends Seeder
     {
         // Bilgi verilmediyse hesap AÇILMAZ. Varsayılan bir adres ve parolayla
         // hesap açmak, imajı indiren herkeste aynı girişin bulunması demek
-        // olurdu. Yönetici `erisim:yonetici-ekle` ile eklenir.
+        // olurdu. Yönetici `admin:add` ile eklenir.
         if (blank(config('app.admin_email')) || blank(config('app.admin_password'))) {
             return;
         }

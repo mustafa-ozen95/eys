@@ -7,28 +7,28 @@
     UĞRAMIYOR.
 */
 (() => {
-    const ADRES = @json($kimlikAdresi);
+    const ENDPOINT = @json($identityUrl);
 
     /* Arayüzün beklediği anahtarlar; adları ONUN belirlediği adlardır. */
-    const JETON = 'auth_token';
-    const KULLANICI = 'username';
+    const TOKEN_KEY = 'auth_token';
+    const USER_KEY = 'username';
 
-    const ac = async () => {
+    const run = async () => {
         /* Zaten yerleştirdiysek tekrar yazmayız: uç tek kullanımlık. */
-        if (localStorage.getItem(JETON)) return;
+        if (localStorage.getItem(TOKEN_KEY)) return;
 
-        const yanit = await fetch(ADRES, { credentials: 'same-origin' });
+        const response = await fetch(ENDPOINT, { credentials: 'same-origin' });
 
         /*
          * Uç tek kullanımlık: sayfa yenilenirse 410 döner. O zaman hiçbir şey
          * yapılmaz ve kullanıcı arayüzün kendi giriş ekranında kalır.
          */
-        if (!yanit.ok) return;
+        if (!response.ok) return;
 
-        const kimlik = await yanit.json();
+        const identity = await response.json();
 
-        localStorage.setItem(JETON, kimlik.jeton);
-        localStorage.setItem(KULLANICI, kimlik.kullanici);
+        localStorage.setItem(TOKEN_KEY, identity.token);
+        localStorage.setItem(USER_KEY, identity.username);
 
         /*
          * Arayüz jetonu AÇILIŞTA okuyor; biz ondan sonra yazdık. Sayfayı
@@ -38,8 +38,8 @@
     };
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => ac().catch(() => {}));
+        document.addEventListener('DOMContentLoaded', () => run().catch(() => {}));
     } else {
-        ac().catch(() => {});
+        run().catch(() => {});
     }
 })();

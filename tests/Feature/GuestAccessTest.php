@@ -82,7 +82,7 @@ class GuestAccessTest extends TestCase
          * denetimde her seferinde yeniden sorgulanan bir yüzeydir.
          */
         /*
-         * `ajax/uzak-oturum/dogrula` bilinçli olarak "auth" DIŞINDADIR.
+         * `ajax/remote-session/verify` bilinçli olarak "auth" DIŞINDADIR.
          *
          * nginx auth_request yalnızca 2xx/401/403 anlar; "auth" katmanı
          * kimliksiz isteği login'e YÖNLENDİRİR (302) ve nginx onu 500 sayar.
@@ -99,7 +99,7 @@ class GuestAccessTest extends TestCase
          * (bkz. bootstrap/app.php → health).
          */
         /*
-         * `api/kimlik/tazele` OTURUM TAŞIMAZ ve taşıyamaz.
+         * `api/identity/refresh` OTURUM TAŞIMAZ ve taşıyamaz.
          *
          * Çağıran bir insan değil, Kimlik Yönetim Merkezi'dir: "şu kimlik
          * değişti" der. Kimlik doğrulaması imzadır (istemciye verilen bildirim
@@ -107,7 +107,7 @@ class GuestAccessTest extends TestCase
          * merkezden kendi sorar. Oturum aransaydı bildirim hiç ulaşamazdı.
          */
         /*
-         * `ajax/cihaz-oturum/dogrula` ve `.../izle` de aynı sebeple "auth"
+         * `ajax/device-session/verify` ve `.../izle` de aynı sebeple "auth"
          * DIŞINDADIR: ikisi de nginx'in iç isteğidir.
          *
          * Bekçiyi auth_request çağırıyor ve 302'yi 500 sayıyor. İzleme ucunu
@@ -117,7 +117,7 @@ class GuestAccessTest extends TestCase
          * oturumuna yazıyor.
          */
         /*
-         * `cihaz-oturum/...` uçları da "auth" DIŞINDADIR ve bu, güvenliği
+         * `device-session/...` uçları da "auth" DIŞINDADIR ve bu, güvenliği
          * ZAYIFLATMAK değil GÜÇLENDİRMEK için.
          *
          * Vekillenen arayüz ayrı bir alan adından verilebiliyor ve orada
@@ -136,28 +136,28 @@ class GuestAccessTest extends TestCase
          * kullanıyor), panelin kendi kökeninde ise önek şart.
          */
         $this->assertSame([
-            'ajax/cihaz-oturum/dogrula',
-            'ajax/cihaz-oturum/izle',
-            'ajax/uzak-oturum/dogrula',
-            'api/kimlik/cikis',
-            'api/kimlik/tazele',
-            'cihaz-oturum/acilis.js',
+            'ajax/device-session/verify',
+            'ajax/device-session/watch',
+            'ajax/remote-session/verify',
+            'api/identity/logout',
+            'api/identity/refresh',
+            'device-session/boot.js',
+            'device-session/handoff/{devir}',
+            'device-session/identity',
             /*
              * "Ayrıldım" haberi. Oturumu KAPATMAZ, sessiz sayar; kimliği de
              * kendi çerezinden okur. Panel oturumu istemez çünkü sayfa
              * kapanırken sendBeacon ile atılıyor ve cihazın kökeninde panelin
              * çerezi yok.
              */
-            'cihaz-oturum/ayril',
-            'cihaz-oturum/devir/{devir}',
-            'cihaz-oturum/kimlik',
-            'cihaz-oturum/sayfa',
-            'cihaz-oturum/{token}',
-            'cihaz-oturum/{token}/acilis.js',
-            'cihaz-oturum/{token}/kimlik',
-            'giris',
-            'giris/merkez',
-            'giris/merkez/geri',
+            'device-session/leave',
+            'device-session/page',
+            'device-session/{token}',
+            'device-session/{token}/boot.js',
+            'device-session/{token}/identity',
+            'login',
+            'login/center',
+            'login/center/callback',
             'up',
         ], $acik);
     }

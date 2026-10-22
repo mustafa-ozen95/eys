@@ -1,8 +1,8 @@
 <x-layout.gate title="Giriş">
     {{-- Ad tek yerden gelir: config('app.name'). --}}
     <div class="gate__mark">{{ config('app.name') }}</div>
-    {{-- Panelin açık adı da tek yerden: config('app.aciklama'). --}}
-    <p class="gate__lead">{{ config('app.aciklama') }} — devam etmek için oturum açın.</p>
+    {{-- Panelin açık adı da tek yerden: config('app.description'). --}}
+    <p class="gate__lead">{{ config('app.description') }} — devam etmek için oturum açın.</p>
 
     <x-ui.flash />
 
@@ -13,15 +13,15 @@
         yöneticisi dahil. İkinci yolu kapatmak, kurtarma yolunu kapatmak olurdu.
     --}}
     @if ($merkezAcik)
-        <a href="{{ route('kimlik.giris') }}" class="btn btn--primary btn--block">
+        <a href="{{ route('identity.login') }}" class="btn btn--primary btn--block">
             {{ $merkezAd }} ile giriş
         </a>
 
-        <div class="gate__ayrac"><span>veya</span></div>
+        <div class="gate__divider"><span>veya</span></div>
     @endif
 
-    <details class="gate__katlanir" @if (! $merkezAcik || $errors->any()) open @endif>
-        <summary class="gate__katlanir-baslik">Parolayla giriş</summary>
+    <details class="gate__collapsible" @if (! $merkezAcik || $errors->any()) open @endif>
+        <summary class="gate__collapsible-title">Parolayla giriş</summary>
 
         <form method="POST" action="{{ route('login') }}">
             @csrf

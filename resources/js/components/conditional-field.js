@@ -7,13 +7,13 @@ import { $$ } from '../lib/dom.js';
  * kalabalıklaştırıyordu. Alan, açılır listedeki seçime ya da işaretlenen
  * kutuya göre görünür. Kural HTML'de yazılı, burada yalnızca uygulanır:
  *
- *   data-goster="access_type:rdp"               seçim bu değerlerdense
- *   data-goster="access_type:!ssh,rdp,vnc"      seçim bu değerlerden DEĞİLSE
- *   data-goster="portal_acik:*"                 kutu işaretliyse / alan doluysa
- *   data-goster="a:x|b:*"                       koşullardan BİRİ tutarsa
+ *   data-show="access_type:rdp"               seçim bu değerlerdense
+ *   data-show="access_type:!ssh,rdp,vnc"      seçim bu değerlerden DEĞİLSE
+ *   data-show="portal_acik:*"                 kutu işaretliyse / alan doluysa
+ *   data-show="a:x|b:*"                       koşullardan BİRİ tutarsa
  *
  * Koşuldaki ad önce bir form alanının `name`'i, yoksa ekrana ait bir kutunun
- * `data-kosul`'u olarak aranır (formla gönderilmeyen "portal kullan" gibi).
+ * `data-condition`'u olarak aranır (formla gönderilmeyen "portal kullan" gibi).
  *
  * ÜÇ GÜVENCE:
  *  - Betik hiç çalışmazsa her şey görünür kalır: sunucu gizli çizmez.
@@ -22,81 +22,81 @@ import { $$ } from '../lib/dom.js';
  *  - Gizlenen alan formdan ÇIKMAZ, yalnızca görünmez; değeri gönderilmeye
  *    devam eder ve tür değiştirildiğinde sessizce silinmez. Silinmesi
  *    İSTENEN yerde (kutu kaldırılınca kapanan bir özellik) sarmalayıcı
- *    `data-gizlenince-temizle` taşır.
+ *    `data-clear-on-hide` taşır.
  */
 
-const GIZLI = 'is-hidden';
+const HIDDEN = 'is-hidden';
 
-function denetim(form, ad) {
-    return form.querySelector(`[name="${CSS.escape(ad)}"]`)
-        ?? form.querySelector(`[data-kosul="${CSS.escape(ad)}"]`);
+function control(form, name) {
+    return form.querySelector(`[name="${CSS.escape(name)}"]`)
+        ?? form.querySelector(`[data-condition="${CSS.escape(name)}"]`);
 }
 
-function deger(dugum) {
-    if (!dugum) {
+function val(node) {
+    if (!node) {
         return '';
     }
 
-    if (dugum.type === 'checkbox' || dugum.type === 'radio') {
-        return dugum.checked ? (dugum.value || '1') : '';
+    if (node.type === 'checkbox' || node.type === 'radio') {
+        return node.checked ? (node.value || '1') : '';
     }
 
-    return String(dugum.value ?? '').trim();
+    return String(node.value ?? '').trim();
 }
 
 /** "alan:değer,değer|alan:*" ifadesini değerlendirir. */
-function tutarMi(form, ifade) {
-    return ifade.split('|').some((kosul) => {
-        const bol = kosul.indexOf(':');
-        const ad = kosul.slice(0, bol).trim();
-        let beklenen = kosul.slice(bol + 1).trim();
-        const simdiki = deger(denetim(form, ad));
+function isMatch(form, expression) {
+    return expression.split('|').some((condition) => {
+        const split = condition.indexOf(':');
+        const name = condition.slice(0, split).trim();
+        let expected = condition.slice(split + 1).trim();
+        const currentValue = val(control(form, name));
 
-        if (beklenen === '*') {
-            return simdiki !== '';
+        if (expected === '*') {
+            return currentValue !== '';
         }
 
-        const degil = beklenen.startsWith('!');
-        if (degil) {
-            beklenen = beklenen.slice(1);
+        const isNot = expected.startsWith('!');
+        if (isNot) {
+            expected = expected.slice(1);
         }
 
-        const icinde = beklenen.split(',').map((v) => v.trim()).includes(simdiki);
+        const within = expected.split(',').map((v) => v.trim()).includes(currentValue);
 
-        return degil ? !icinde : icinde;
+        return isNot ? !within : within;
     });
 }
 
 /** Sarmalayıcının içinde kullanıcının girdiği bir değer ya da hata var mı? */
-function korunmali(sarmalayici) {
-    if (sarmalayici.querySelector('[aria-invalid="true"], .field__error')) {
+function mustKeep(wrapper) {
+    if (wrapper.querySelector('[aria-invalid="true"], .field__error')) {
         return true;
     }
 
     /* Temizlenecek bölüm korunmaz: gizlenmesi zaten "özelliği kapat" demek. */
-    if (sarmalayici.hasAttribute('data-gizlenince-temizle')) {
+    if (wrapper.hasAttribute('data-clear-on-hide')) {
         return false;
     }
 
-    return [...sarmalayici.querySelectorAll('input[name], select[name], textarea[name]')].some((alan) => {
-        if (alan.type === 'hidden') {
+    return [...wrapper.querySelectorAll('input[name], select[name], textarea[name]')].some((field) => {
+        if (field.type === 'hidden') {
             return false;
         }
 
-        if (alan.type === 'checkbox' || alan.type === 'radio') {
-            return alan.checked;
+        if (field.type === 'checkbox' || field.type === 'radio') {
+            return field.checked;
         }
 
-        return String(alan.value ?? '').trim() !== '';
+        return String(field.value ?? '').trim() !== '';
     });
 }
 
-function temizle(sarmalayici) {
-    sarmalayici.querySelectorAll('input[name], textarea[name]').forEach((alan) => {
-        if (alan.type === 'checkbox' || alan.type === 'radio') {
-            alan.checked = false;
-        } else if (alan.type !== 'hidden') {
-            alan.value = '';
+function clear(wrapper) {
+    wrapper.querySelectorAll('input[name], textarea[name]').forEach((field) => {
+        if (field.type === 'checkbox' || field.type === 'radio') {
+            field.checked = false;
+        } else if (field.type !== 'hidden') {
+            field.value = '';
         }
     });
 }
@@ -104,8 +104,8 @@ function temizle(sarmalayici) {
 /**
  * BAĞLI LİSTE: bir seçimin seçenekleri başka bir seçime göre daralır.
  *
- *   <select name="access_type" data-bagli="operating_system"
- *           data-bagli-secenekler='{"windows":["rdp","ssh",...], ...}'>
+ *   <select name="access_type" data-linked="operating_system"
+ *           data-linked-options='{"windows":["rdp","ssh",...], ...}'>
  *
  * Önce platform seçilir, erişim türü listesi ona göre kurulur ve en olası
  * tür başta durur: önce platform, sonra erişim türü. Liste sunucudan gelir
@@ -115,88 +115,88 @@ function temizle(sarmalayici) {
  * seçili kalır. Seçim ancak kullanıcı platformu değiştirdiğinde ve eski tür
  * yeni platformda anlamsızsa listenin başına geçer.
  */
-function bagliListe(form, secim) {
-    const kaynak = denetim(form, secim.dataset.bagli);
-    let harita;
+function linkedList(form, selection) {
+    const source = control(form, selection.dataset.linked);
+    let mapping;
 
     try {
-        harita = JSON.parse(secim.dataset.bagliSecenekler || '{}');
+        mapping = JSON.parse(selection.dataset.linkedOptions || '{}');
     } catch {
         return null;
     }
 
-    if (!kaynak) {
+    if (!source) {
         return null;
     }
 
-    const tumu = [...secim.options].map((o) => ({ deger: o.value, etiket: o.textContent }));
-    const ilkSecim = secim.value;
+    const all = [...selection.options].map((o) => ({ val: o.value, label: o.textContent }));
+    const firstSelection = selection.value;
 
     /** Listeyi kurar; seçim değiştiyse true döner. */
-    const listeyiKur = (koruSecimi) => {
-        const izinli = Array.isArray(harita[kaynak.value]) ? harita[kaynak.value] : tumu.map((o) => o.deger);
-        const onceki = secim.value;
-        const liste = izinli.map((d) => tumu.find((o) => o.deger === d)).filter(Boolean);
+    const buildList = (keepSelection) => {
+        const allowed = Array.isArray(mapping[source.value]) ? mapping[source.value] : all.map((o) => o.val);
+        const previous = selection.value;
+        const list = allowed.map((d) => all.find((o) => o.val === d)).filter(Boolean);
 
-        if (koruSecimi && onceki !== '' && !liste.some((o) => o.deger === onceki)) {
-            const eski = tumu.find((o) => o.deger === onceki);
-            if (eski) {
-                liste.push(eski);
+        if (keepSelection && previous !== '' && !list.some((o) => o.val === previous)) {
+            const old = all.find((o) => o.val === previous);
+            if (old) {
+                list.push(old);
             }
         }
 
-        secim.replaceChildren(...liste.map((o) => new Option(o.etiket, o.deger, false, o.deger === onceki)));
+        selection.replaceChildren(...list.map((o) => new Option(o.label, o.val, false, o.val === previous)));
 
-        if (!liste.some((o) => o.deger === onceki)) {
-            secim.value = liste[0]?.deger ?? '';
+        if (!list.some((o) => o.val === previous)) {
+            selection.value = list[0]?.val ?? '';
         }
 
-        return secim.value !== onceki;
+        return selection.value !== previous;
     };
 
-    listeyiKur(true);
+    buildList(true);
 
-    kaynak.addEventListener('change', () => {
-        if (listeyiKur(false)) {
+    source.addEventListener('change', () => {
+        if (buildList(false)) {
             /* Bağlı alanlar (RDP kipi, portal…) yeni türe göre yeniden karar versin. */
-            secim.dispatchEvent(new Event('change', { bubbles: true }));
+            selection.dispatchEvent(new Event('change', { bubbles: true }));
         }
     });
 
     /* Formun sıfırlanması: platform tarayıcı tarafından geri alınır, tür ilk hâline döner. */
     return () => {
-        secim.replaceChildren(...tumu.map((o) => new Option(o.etiket, o.deger, false, o.deger === ilkSecim)));
-        secim.value = ilkSecim;
-        listeyiKur(true);
+        selection.replaceChildren(...all.map((o) => new Option(o.label, o.val, false, o.val === firstSelection)));
+        selection.value = firstSelection;
+        buildList(true);
     };
 }
 
-function kur(form) {
-    const kosullular = [...form.querySelectorAll('[data-goster]')];
-    const sifirlayicilar = [...form.querySelectorAll('select[data-bagli]')]
-        .map((secim) => bagliListe(form, secim))
+function setUp(form) {
+    const conditionals = [...form.querySelectorAll('[data-show]')];
+    const resetters = [...form.querySelectorAll('select[data-linked]')]
+        .map((selection) => linkedList(form, selection))
         .filter(Boolean);
 
-    if (kosullular.length === 0) {
+    if (conditionals.length === 0) {
         return;
     }
 
-    const satirlar = [...form.querySelectorAll('.field-row')];
+    const rows = [...form.querySelectorAll('.field-row')];
 
-    const uygula = (ilk = false) => {
-        kosullular.forEach((sarmalayici) => {
-            const gorunsun = tutarMi(form, sarmalayici.dataset.goster) || korunmali(sarmalayici);
-            const gizliydi = sarmalayici.classList.contains(GIZLI);
+    const apply = (first = false) => {
+        conditionals.forEach((wrapper) => {
+            const visible = isMatch(form, wrapper.dataset.show) || mustKeep(wrapper);
+            const wasHidden = wrapper.classList.contains(HIDDEN);
 
-            sarmalayici.classList.toggle(GIZLI, !gorunsun);
+            wrapper.classList.toggle(HIDDEN, !visible);
 
             /*
              * Temizleme yalnızca KULLANICI bir kutuyu kaldırdığında: sayfa
              * açılışında boş gelen bölüm zaten boştur, dolu gelen bölümün
              * kutusu da işaretli gelir.
              */
-            if (!ilk && !gorunsun && !gizliydi && sarmalayici.hasAttribute('data-gizlenince-temizle')) {
-                temizle(sarmalayici);
+            if (!first && !visible && !wasHidden && wrapper.hasAttribute('data-clear-on-hide')) {
+                clear(wrapper);
             }
         });
 
@@ -204,32 +204,32 @@ function kur(form) {
          * Bütün alanları gizlenen satır da yer kaplamasın: üyelik kaydında
          * adres ve port gizlenince arada boş bir satır kalıyordu.
          */
-        satirlar.forEach((satir) => {
-            const cocuklar = [...satir.children];
+        rows.forEach((row) => {
+            const childItems = [...row.children];
 
-            satir.classList.toggle('is-bos', cocuklar.length > 0 && cocuklar.every((c) => c.classList.contains(GIZLI)));
+            row.classList.toggle('is-empty', childItems.length > 0 && childItems.every((c) => c.classList.contains(HIDDEN)));
         });
     };
 
-    form.addEventListener('change', () => uygula());
+    form.addEventListener('change', () => apply());
 
     /* Pencerenin "Vazgeç"i formu sıfırlar; değerler dönünce görünüm de dönsün. */
     form.addEventListener('reset', () => setTimeout(() => {
-        sifirlayicilar.forEach((sifirla) => sifirla());
-        uygula(true);
+        resetters.forEach((reset) => reset());
+        apply(true);
     }, 0));
 
-    uygula(true);
+    apply(true);
 }
 
 export function init() {
-    $$('[data-kosullu-form]').forEach((kok) => {
-        const form = kok.closest('form');
+    $$('[data-conditional-form]').forEach((root) => {
+        const form = root.closest('form');
 
         /* Aynı form iki kez kurulmasın (sayfa geçişinde DOM zaten yenileniyor). */
-        if (form && form.dataset.kosulluKurulu === undefined) {
-            form.dataset.kosulluKurulu = '';
-            kur(form);
+        if (form && form.dataset.conditionalReady === undefined) {
+            form.dataset.conditionalReady = '';
+            setUp(form);
         }
     });
 }

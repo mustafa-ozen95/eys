@@ -18,7 +18,7 @@ use Illuminate\Http\Request;
  * (bkz. VerifyIdentityStatus). Anı üç yol getirir:
  *
  *   - merkezin imzalı çıkış bildirimi (IdentityLogoutController),
- *   - kimlik-durumu yanıtındaki `son_cikis` (bildirim kaybolursa),
+ *   - identity-status yanıtındaki `last_logout` (bildirim kaybolursa),
  *   - bu panelden çıkış (LoginController · destroy; merkeze de bildirilir).
  *
  * An yalnızca İLERİ gider: geç gelen eski bir bildirim yeni girişi kapatmaz.

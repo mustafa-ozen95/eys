@@ -11,7 +11,7 @@
     tıklamışsa hangisi olduğunu görsün, yöneticiye söyleyebilsin.
 --}}
 <x-layout.gate title="403">
-    <div class="gate__mark gate__mark--uyari mono">
+    <div class="gate__mark gate__mark--warning mono">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
             <path d="M12 3 3 7v5c0 5 3.8 8.4 9 9 5.2-.6 9-4 9-9V7l-9-4Z" stroke-linejoin="round" />
             <path d="M12 8.5v4.2M12 16.2h.01" stroke-linecap="round" />
@@ -24,9 +24,9 @@
         Bu sayfa var, ancak hesabınızın ona erişim yetkisi yok.
     </p>
 
-    <p class="gate__yol mono">{{ Str::limit(request()->path() === '/' ? '/' : '/'.request()->path(), 60) }}</p>
+    <p class="gate__path mono">{{ Str::limit(request()->path() === '/' ? '/' : '/'.request()->path(), 60) }}</p>
 
-    <p class="gate__lead gate__lead--kucuk">
+    <p class="gate__lead gate__lead--small">
         Yetkiyi rolünüz belirler. Gerekiyorsa panel yöneticisinden isteyin;
         yetkiler kayıt ve grup düzeyinde tek tek verilebiliyor.
     </p>

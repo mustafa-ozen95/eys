@@ -18,7 +18,7 @@ use Throwable;
 /**
  * Güncelleme kontrolü: çalışan sürüm ve GitHub'daki son başarılı derleme.
  *
- * Yalnızca BAKAR. Kontrol her sabah kendiliğinden yapılır (guncelleme:denetle);
+ * Yalnızca BAKAR. Kontrol her sabah kendiliğinden yapılır (update:check);
  * düğme aynı kontrolü hemen yapar. Güncellemenin kendisi sunucudan yapılır.
  *
  * Yetkilendirme: ayarları görebilen ekranı görür, değiştirebilen kontrol
@@ -46,7 +46,7 @@ class UpdateController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:viewAny,'.Setting::class, only: ['index']),
-            new Middleware('can:update,'.Setting::class, only: ['denetle']),
+            new Middleware('can:update,'.Setting::class, only: ['check']),
         ];
     }
 
@@ -79,7 +79,7 @@ class UpdateController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function denetle(Request $istek): RedirectResponse
+    public function check(Request $istek): RedirectResponse
     {
         $sonuc = $this->denetim->denetle((string) $istek->user()->name);
 

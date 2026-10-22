@@ -26,7 +26,7 @@ class BulkRoundController extends Controller implements HasMiddleware
         return [new Middleware('can:rotateAny,App\Models\Credential')];
     }
 
-    public function durum(Request $request, string $parti): JsonResponse
+    public function status(Request $request, string $parti): JsonResponse
     {
         $durum = BulkRound::durum($request->user(), $parti);
 
@@ -36,7 +36,7 @@ class BulkRoundController extends Controller implements HasMiddleware
     }
 
     /** Göstergeyi ekrandan kaldırır; turlara dokunmaz. */
-    public function kapat(Request $request, string $parti): RedirectResponse
+    public function dismiss(Request $request, string $parti): RedirectResponse
     {
         BulkRound::kapat($request->user(), $parti);
 

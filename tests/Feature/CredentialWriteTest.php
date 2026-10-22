@@ -109,21 +109,21 @@ class CredentialWriteTest extends TestCase
         $this->actingAs($user)
             ->get(route('credentials.index', ['kayit' => $credential->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertDontSee('id="kayit-duzenle"', false)
-            ->assertDontSee('data-modal-acik', false);
+            ->assertDontSee('id="record-edit"', false)
+            ->assertDontSee('data-modal-active', false);
 
         /* Ekleme penceresi de basılmaz: yazabileceği grup yok. */
         $this->actingAs($user)
             ->get(route('credentials.index', ['grup' => $group->uuid, 'pencere' => 'ekle']))
             ->assertOk()
-            ->assertDontSee('id="kayit-ekle"', false);
+            ->assertDontSee('id="record-add"', false);
 
         /*
          * Seçenek listesi BOŞ — Kişisel alan kaldırıldı, okuyucu hiçbir gruba
          * yazamaz.
          */
         $secenekler = app(CredentialListing::class)
-            ->forRequest(tap(Request::create('/erisim'),
+            ->forRequest(tap(Request::create('/access'),
                 fn ($r) => $r->setUserResolver(fn () => $user)))['groupOptions'];
 
         $this->assertSame([], $secenekler);
@@ -139,14 +139,14 @@ class CredentialWriteTest extends TestCase
         $this->actingAs($user)
             ->get(route('credentials.index', ['pencere' => 'ekle']))
             ->assertOk()
-            ->assertSee('id="kayit-ekle"', false)
-            ->assertSee('data-modal-acik', false);
+            ->assertSee('id="record-add"', false)
+            ->assertSee('data-modal-active', false);
 
         $this->actingAs($user)
             ->get(route('credentials.index', ['kayit' => $credential->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertSee('id="kayit-duzenle"', false)
-            ->assertSee('data-modal-acik', false);
+            ->assertSee('id="record-edit"', false)
+            ->assertSee('data-modal-active', false);
     }
 
     /**
@@ -196,7 +196,7 @@ class CredentialWriteTest extends TestCase
         $this->actingAs($user)
             ->get(route('credentials.index', ['kayit' => $credential->uuid, 'pencere' => 'duzenle']))
             ->assertOk()
-            ->assertSee('id="kayit-duzenle"', false)
+            ->assertSee('id="record-edit"', false)
             ->assertDontSee('GIZLI-NOT-42')
             ->assertDontSee('10.9.9.9')
             ->assertDontSee('gizli-kullanici');

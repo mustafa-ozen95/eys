@@ -49,21 +49,21 @@ class InterfaceSessionController extends Controller implements HasMiddleware
     {
         return [
             /*
-             * "arayuz", "session" DEĞİL.
+             * "deviceInterface", "session" DEĞİL.
              *
              * Portal fırlatma parolayı tarayıcıdan gönderiyor ve orada
              * parolayı görme yetkisi aranıyor; vekil oturumu SUNUCUDA açıyor,
              * parola tarayıcıya hiç gitmiyor. Gerekçe CredentialPolicy'de.
              */
-            new Middleware('can:arayuz,credential', only: ['ac']),
+            new Middleware('can:deviceInterface,credential', only: ['open']),
             ...RequestLimit::icin('portal', ['ac']),
         ];
     }
 
     /** Oturumu açar ve tarayıcıyı vekillenen arayüze yollar. */
-    public function ac(InterfaceSessionRequest $request, Credential $credential): RedirectResponse|Response
+    public function open(InterfaceSessionRequest $request, Credential $credential): RedirectResponse|Response
     {
-        abort_unless($credential->arayuz_turu !== null, 404);
+        abort_unless($credential->interface_type !== null, 404);
 
         /*
          * CİHAZ GİRİŞİ BAŞARISIZSA BU BİR ÇÖKME DEĞİLDİR.
@@ -137,23 +137,23 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * aynı konaktaysa gider. Vekil AYRI bir alan adındaysa çerez oraya
          * gidemez; o durumda bağlama yapılamaz ve devir eskisi gibi çalışır.
          */
-        $bag = $this->devirBagiGecerliMi($request) ? Str::random(40) : null;
+        $bag = $this->handoffBindingValid($request) ? Str::random(40) : null;
         $devir = $this->oturumlar->devirJetonuUret($oturum['token'], $bag);
 
-        $yanit = redirect()->away(InterfaceSession::taban().InterfaceSession::onek().'/devir/'.$devir);
+        $yanit = redirect()->away(InterfaceSession::taban().InterfaceSession::prefix().'/handoff/'.$devir);
 
         return $bag === null
             ? $yanit
             : $yanit->withCookie(Cookie::make(
-                InterfaceSession::DEVIR_BAG_COOKIE, $bag, (int) ceil(config('remote.arayuz.devir_omru') / 60) + 1,
+                InterfaceSession::DEVIR_BAG_COOKIE, $bag, (int) ceil(config('remote.interface.handoff_ttl') / 60) + 1,
                 '/', null, true, true, false, 'lax',
             ));
     }
 
     /** Vekil, paneli açan tarayıcının çerezlerini görecek kadar aynı konakta mı? */
-    private function devirBagiGecerliMi(Request $request): bool
+    private function handoffBindingValid(Request $request): bool
     {
-        $alan = trim((string) config('remote.arayuz.alan'));
+        $alan = trim((string) config('remote.interface.domain'));
 
         return $alan === ''
             || strcasecmp((string) preg_replace('/:\d+$/', '', $alan), $request->getHost()) === 0;
@@ -166,7 +166,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * adında zaten gelmiyor. Yetki her istekte yeniden sorulur ama kimlik
      * kaydın kendisinden okunur (bkz. InterfaceProxyWatcher).
      */
-    public function devral(Request $request, string $devir): RedirectResponse
+    public function handOff(Request $request, string $devir): RedirectResponse
     {
         $kayit = $this->oturumlar->devriHarca($devir, $request->cookie(InterfaceSession::DEVIR_BAG_COOKIE));
 
@@ -180,7 +180,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * dizinden, yani oturum kimliği OLMADAN isteniyor; ekran bembeyaz
          * kalıyor.
          */
-        return redirect()->away(InterfaceSession::sayfaAdresi(
+        return redirect()->away(InterfaceSession::pageUrl(
             (string) $kayit['token'],
             InterfaceType::from((string) $kayit['tur']),
             Credential::query()->find($kayit['credential_id']),
@@ -196,7 +196,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
              * (alan verilmez): panelin alan adına hiç gitmez.
              */
             ->withCookie(Cookie::make(InterfaceSession::COOKIE, $kayit['token'], $omur, '/', null, true, true))
-            ->withCookies($this->cihazCerezleri($kayit, $omur));
+            ->withCookies($this->deviceCookies($kayit, $omur));
     }
 
     /**
@@ -206,13 +206,13 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * değişiyor ve panelde kopyasını tutmak, ilk ESXi yükseltmesinde sessizce
      * bozulacak bir kopya tutmak olurdu.
      */
-    public function sayfa(Request $request, ?string $token = null): Response
+    public function page(Request $request, ?string $token = null): Response
     {
         /*
          * Ayrı kökende arayüz KÖKTE duruyor ve adreste oturum kimliği yok;
          * kimliği çerez taşıyor. Panelin kendi kökeninde ise adres önekli.
          */
-        $kayit = $this->dogrula($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
+        $kayit = $this->verify($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
         $tur = InterfaceType::from((string) $kayit['tur']);
 
         try {
@@ -225,7 +225,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
 
         abort_unless($yanit->successful(), 503, $tur->etiket().' yanıt vermedi.');
 
-        return response($this->betigiEkle($yanit->body(), $kayit))
+        return response($this->addScript($yanit->body(), $kayit))
             ->header('Content-Type', 'text/html; charset=utf-8')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
             ->header('Referrer-Policy', 'no-referrer');
@@ -238,9 +238,9 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * daha verilmez. Kasadaki değer kullanıcının ekranına ve panosuna
      * uğramadan doğrudan arayüzün giriş alanına gider.
      */
-    public function kimlik(Request $request, ?string $token = null): JsonResponse
+    public function identity(Request $request, ?string $token = null): JsonResponse
     {
-        $kayit = $this->dogrula($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
+        $kayit = $this->verify($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
 
         /*
          * Anahtar KAYITTAKİ kimlikten kurulur, yol parametresinden değil:
@@ -248,7 +248,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * kalıyordu. Boş kalınca anahtar bütün oturumlarda AYNI oluyor ve ilk
          * açılan oturum diğerlerinin kimliğini de yakıyordu.
          */
-        $anahtar = 'eys:arayuz-kimlik-verildi:'.$kayit['token'];
+        $anahtar = 'eys:interface-identity-given:'.$kayit['token'];
 
         abort_if(Cache::has($anahtar), 410, 'Kimlik zaten bir kez verildi.');
 
@@ -261,15 +261,15 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * Yetki HER istekte yeniden sorulur: oturum açıldıktan sonra kişinin
          * yetkisi geri alınmış ya da hesabı kapatılmış olabilir.
          */
-        /* Yetki HER istekte yeniden sorulur; sorulan yetenek "arayuz". */
-        abort_if($sahip === null || ! $sahip->isActive() || $sahip->cannot('arayuz', $credential), 403);
+        /* Yetki HER istekte yeniden sorulur; sorulan yetenek "deviceInterface". */
+        abort_if($sahip === null || ! $sahip->isActive() || $sahip->cannot('deviceInterface', $credential), 403);
 
         $tur = InterfaceType::from((string) $kayit['tur']);
 
         /*
          * PAROLA TARAYICIYA GİDİYORSA PAROLA GÖRME YETKİSİ ŞARTTIR.
          *
-         * 'arayuz' yeteneği (oturum + görme) parolayı tarayıcıya vermeyi
+         * 'deviceInterface' yeteneği (oturum + görme) parolayı tarayıcıya vermeyi
          * kapsamaz: policy'nin gerekçesi "parola tarayıcıya hiç gitmiyor"
          * idi, ama ESXi'de giriş tarayıcıda yapılıyor ve bu uç parolayı
          * düz metin döndürüyor. Yetkisi 'field.password' olmayan kullanıcı
@@ -302,8 +302,8 @@ class InterfaceSessionController extends Controller implements HasMiddleware
         if ($tur === InterfaceType::Vami) {
             return response()
                 ->json([
-                    'kullanici' => (string) $credential->username,
-                    'jeton' => $this->vamiJetonu($kayit, $credential),
+                    'username' => (string) $credential->username,
+                    'token' => $this->vamiToken($kayit, $credential),
                 ])
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         }
@@ -311,8 +311,8 @@ class InterfaceSessionController extends Controller implements HasMiddleware
         return response()
             ->json([
                 'konak' => $kayit['konak'],
-                'kullanici' => (string) $credential->username,
-                'parola' => (string) $credential->password,
+                'username' => (string) $credential->username,
+                'password' => (string) $credential->password,
             ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     }
@@ -332,7 +332,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * @param  array<string, mixed>  $kayit
      * @return array<int, \Symfony\Component\HttpFoundation\Cookie>
      */
-    private function cihazCerezleri(array $kayit, int $omur): array
+    private function deviceCookies(array $kayit, int $omur): array
     {
         $izinli = InterfaceType::from((string) $kayit['tur'])->tarayiciCerezleri();
 
@@ -364,7 +364,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      *
      * @param  array<string, mixed>  $kayit
      */
-    private function vamiJetonu(array $kayit, Credential $credential): string
+    private function vamiToken(array $kayit, Credential $credential): string
     {
         try {
             /*
@@ -393,7 +393,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
     }
 
     /** @return array<string, mixed> */
-    private function dogrula(Request $request, string $token): array
+    private function verify(Request $request, string $token): array
     {
         $kayit = $this->oturumlar->bul($token);
 
@@ -410,7 +410,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * arayüz kendi portunda açılır ve aynı tarayıcıda birden çok oturum
          * yaşar; çerez yalnızca EN SON açılanı gösterir, dolayısıyla öteki
          * oturumların kendi betiği bile reddedilirdi (iLO konsolunda
-         * "403 /cihaz-oturum/<jeton>/acilis.js").
+         * "403 /device-session/<jeton>/boot.js").
          *
          * Korunan şey aynı: başkasının bağlantısını ele geçiren biri kendi
          * çereziyle onu açamaz — çerezdeki oturumun SAHİBİ tutmuyorsa 403.
@@ -438,7 +438,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * panelin uydurduğu bir mesaj değil.
      */
     /** @param  array<string, mixed>  $kayit */
-    private function betigiEkle(string $html, array $kayit): string
+    private function addScript(string $html, array $kayit): string
     {
         $tur = InterfaceType::from((string) $kayit['tur']);
         $taban = InterfaceSession::tabanYolu((string) $kayit['token']);
@@ -469,7 +469,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
          * Betik HER TÜRDE eklenir. İçinde açılış işi olmayabilir (girişi
          * sunucu yapan arayüzlerde yok) ama ayrılış haberi hepsinde var.
          */
-        $ekler .= '<script src="'.e(InterfaceSession::acilisAdresi((string) $kayit['token'])).'"></script>';
+        $ekler .= '<script src="'.e(InterfaceSession::bootUrl((string) $kayit['token'])).'"></script>';
 
         $yer = mb_stripos($html, '<head>');
         $html = $yer === false
@@ -489,17 +489,17 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * girişi sunucu yapıyor) ama AYRILIŞ HABERİ hepsinde gerekiyor: cihazda
      * açtığımız oturumu cihazda kapatmak bize düşüyor.
      */
-    public function acilis(Request $request, ?string $token = null): Response
+    public function boot(Request $request, ?string $token = null): Response
     {
-        $kayit = $this->dogrula($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
+        $kayit = $this->verify($request, $token ?? (string) $request->cookie(InterfaceSession::COOKIE));
         $tur = InterfaceType::from((string) $kayit['tur']);
 
         $icerik = view('credentials.interface.page-leave', [
-            'ayrilisAdresi' => InterfaceSession::ayrilisAdresi(),
+            'leaveUrl' => InterfaceSession::leaveUrl(),
             /* vSphere konsolu açılır pencere yerine sekmede açılsın. */
-            'sekmeyeAc' => $tur->vsphereMi(),
+            'openInTab' => $tur->vsphereMi(),
             /* iLO'nun HTML5 konsol düğmesi kendi başına tetiklenmiyor. */
-            'iloKonsolu' => $tur === InterfaceType::Ilo,
+            'iloConsole' => $tur === InterfaceType::Ilo,
             /*
              * Adres çubuğu önek dışına düşerse betik onu geri yazsın.
              *
@@ -509,15 +509,15 @@ class InterfaceSessionController extends Controller implements HasMiddleware
              * Referer'ı artık öneksiz oluyor ve zincir kopuyor. Betik adresi
              * geri yazınca zincir onarılıyor.
              */
-            'onekYolu' => InterfaceSession::ayriKoken() && $tur->yolOnekiKullanir()
+            'prefixPath' => InterfaceSession::ayriKoken() && $tur->yolOnekiKullanir()
                 && ($cihaz = Credential::query()->find($kayit['credential_id'])) !== null
-                ? InterfaceSession::cihazOneki($cihaz)
+                ? InterfaceSession::devicePrefix($cihaz)
                 : null,
         ])->render();
 
         if ($tur->acilisGorunumu() !== null) {
             $icerik .= "\n".view($tur->acilisGorunumu(), [
-                'kimlikAdresi' => InterfaceSession::kimlikAdresi((string) $kayit['token']),
+                'identityUrl' => InterfaceSession::identityUrl((string) $kayit['token']),
             ])->render();
         }
 
@@ -532,7 +532,7 @@ class InterfaceSessionController extends Controller implements HasMiddleware
      * Oturumu KAPATMAZ, sessiz sayar; gerekçesi InterfaceSession::ayrildi'de.
      * Yanıt gövdesizdir: beacon'ın yanıtı zaten okunmuyor.
      */
-    public function ayril(Request $request): Response
+    public function leave(Request $request): Response
     {
         $kayit = $this->oturumlar->bul((string) $request->cookie(InterfaceSession::COOKIE));
 

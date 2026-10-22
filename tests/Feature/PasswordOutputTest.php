@@ -156,7 +156,7 @@ final class PasswordOutputTest extends TestCase
         $yanit->assertOk();
         $this->assertStringContainsString(
             '1 kaydın kasada parolası yok',
-            (string) $yanit->headers->get('X-Eys-Ozet'),
+            (string) $yanit->headers->get('X-Eys-Digest'),
         );
     }
 

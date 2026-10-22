@@ -8,10 +8,10 @@
 #  sertifikası geçerlidir: /sertifika/tls.crt ve tls.key (hacim, salt okunur).
 #
 #  Adres YAZILMAZ (":9443"): her ad için aynı sertifika verilir, alan adını
-#  panel ARAYUZ_ALANI ile bilir. ACME yok: sertifikayı kurulum koyar.
+#  panel INTERFACE_DOMAIN ile bilir. ACME yok: sertifikayı kurulum koyar.
 #
 #  Port aralığını değiştirirken üç yer birden değişir: burası, compose'taki
-#  yayın aralığı ve ARAYUZ_PORT_ILK/SON. Caddy port ARALIĞI kabul etmiyor
+#  yayın aralığı ve INTERFACE_PORT_START/SON. Caddy port ARALIĞI kabul etmiyor
 #  (ölçüldü: "invalid port '9450-9479'"), adresler tek tek yazılı.
 # =============================================================================
 {

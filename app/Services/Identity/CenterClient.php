@@ -32,7 +32,7 @@ class CenterClient
      */
     public function acikMi(): bool
     {
-        return (bool) config('identity.acik') && (bool) config('identity.yapilandirildi');
+        return (bool) config('identity.acik') && (bool) config('identity.configured');
     }
 
     public function dogrulayici(): string
@@ -49,9 +49,9 @@ class CenterClient
     /** Kullanıcının gönderileceği adres. */
     public function girisAdresi(string $durum, string $meydanOkuma): string
     {
-        return config('identity.adres').'/oauth/authorize?'.http_build_query([
-            'client_id' => config('identity.istemci'),
-            'redirect_uri' => config('identity.donus'),
+        return config('identity.url').'/oauth/authorize?'.http_build_query([
+            'client_id' => config('identity.client_id'),
+            'redirect_uri' => config('identity.redirect_uri'),
             'response_type' => 'code',
             'scope' => '',
             'state' => $durum,
@@ -80,7 +80,7 @@ class CenterClient
      * kimlik yanıtta yoktur ve çağıran ona dokunmaz.
      *
      * @param  list<string>  $kimlikler  merkezdeki uuid'ler
-     * @return array<string, array{durum: string, girebilir?: bool, rol?: ?string}>
+     * @return array<string, array{status: string, can_enter?: bool, last_logout?: ?int, role?: ?string, email?: string}>
      *
      * @throws RuntimeException merkez yanıt vermezse
      */
@@ -90,29 +90,29 @@ class CenterClient
             return [];
         }
 
-        $yanit = $this->istek()->acceptJson()->post(config('identity.adres').'/api/kimlik-durumu', [
-            'client_id' => config('identity.istemci'),
-            'client_secret' => config('identity.sir'),
-            'kimlikler' => array_values($kimlikler),
+        $yanit = $this->istek()->acceptJson()->post(config('identity.url').'/api/identity-status', [
+            'client_id' => config('identity.client_id'),
+            'client_secret' => config('identity.client_secret'),
+            'identities' => array_values($kimlikler),
         ]);
 
         if ($yanit->failed()) {
             throw new RuntimeException('Merkez kimlik durumlarını vermedi ('.$yanit->status().').');
         }
 
-        return (array) $yanit->json('kimlikler', []);
+        return (array) $yanit->json('identities', []);
     }
 
     /**
-     * Ortak çıkış: "bu kişi bende çıkış yaptı" (merkez: api/oturum-kapandi).
+     * Ortak çıkış: "bu kişi bende çıkış yaptı" (merkez: api/session-closed).
      * Merkez anı yazar, kendi oturumunu ve öteki panelleri kapatır.
      * Bekleme kısa: merkeze ulaşılamıyorsa çıkış yine olur, yalnız ortak kalmaz.
      */
     public function oturumKapandi(string $subject): void
     {
-        $yanit = $this->istek()->timeout(5)->acceptJson()->post(config('identity.adres').'/api/oturum-kapandi', [
-            'client_id' => config('identity.istemci'),
-            'client_secret' => config('identity.sir'),
+        $yanit = $this->istek()->timeout(5)->acceptJson()->post(config('identity.url').'/api/session-closed', [
+            'client_id' => config('identity.client_id'),
+            'client_secret' => config('identity.client_secret'),
             'subject' => $subject,
         ]);
 
@@ -124,7 +124,7 @@ class CenterClient
     private function istek(): PendingRequest
     {
         $istek = Http::timeout(15);
-        $kok = config('identity.kok');
+        $kok = config('identity.ca_cert');
 
         return filled($kok) ? $istek->withOptions(['verify' => $kok]) : $istek;
     }
@@ -136,11 +136,11 @@ class CenterClient
      */
     public function jeton(string $kod, string $dogrulayici): array
     {
-        $yanit = $this->istek()->asForm()->post(config('identity.adres').'/oauth/token', [
+        $yanit = $this->istek()->asForm()->post(config('identity.url').'/oauth/token', [
             'grant_type' => 'authorization_code',
-            'client_id' => config('identity.istemci'),
-            'client_secret' => config('identity.sir'),
-            'redirect_uri' => config('identity.donus'),
+            'client_id' => config('identity.client_id'),
+            'client_secret' => config('identity.client_secret'),
+            'redirect_uri' => config('identity.redirect_uri'),
             'code_verifier' => $dogrulayici,
             'code' => $kod,
         ]);
@@ -160,7 +160,7 @@ class CenterClient
     public function kullanici(string $jeton): array
     {
         $yanit = $this->istek()->withToken($jeton)->acceptJson()
-            ->get(config('identity.adres').'/oauth/kullanici');
+            ->get(config('identity.url').'/oauth/userinfo');
 
         /*
          * MERKEZ KAPIYI KAPATTIYSA AYRI HATA.
@@ -173,7 +173,7 @@ class CenterClient
          */
         if ($yanit->status() === 403) {
             throw new CenterUnauthorizedException(
-                (string) ($yanit->json('hata') ?? 'Bu panele erişim yetkiniz yok.'),
+                (string) ($yanit->json('error') ?? 'Bu panele erişim yetkiniz yok.'),
             );
         }
 
@@ -198,14 +198,14 @@ class CenterClient
              * verir (bkz. AccountOpener). Merkez rol döndürmüyorsa alan boş
              * kalır ve akış bozulmaz.
              */
-            'rol' => filled($veri['rol'] ?? null) ? (string) $veri['rol'] : null,
+            'role' => filled($veri['role'] ?? null) ? (string) $veri['role'] : null,
 
             /*
              * HESAP KENDİLİĞİNDEN AÇILABİLİR Mİ? Kararı da merkez verir
              * (İstemciler ekranında uygulama başına bir kutucuk). Merkez
              * söylemiyorsa varsayılan HAYIR: eksik bilgi yetki üretmemeli.
              */
-            'hesap_acilabilir' => (bool) ($veri['hesap_acilabilir'] ?? false),
+            'can_create_account' => (bool) ($veri['can_create_account'] ?? false),
         ];
     }
 }

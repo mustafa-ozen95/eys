@@ -23,6 +23,6 @@ return [
     |
     */
 
-    'cerez_alani' => env('TEMA_ALANI'),
+    'cookie_domain' => env('THEME_COOKIE_DOMAIN'),
 
 ];

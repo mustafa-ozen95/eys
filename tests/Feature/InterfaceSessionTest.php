@@ -77,7 +77,7 @@ final class InterfaceSessionTest extends TestCase
         $credential = $this->kayit(['credential_group_id' => $group->getKey()]);
 
         $yanit = $this->actingAs($user)
-            ->post(route('credentials.arayuz', $credential), ['reason' => 'bakim']);
+            ->post(route('credentials.interface', $credential), ['reason' => 'bakim']);
 
         $yanit->assertRedirect();
 
@@ -86,7 +86,7 @@ final class InterfaceSessionTest extends TestCase
          * KONULMAZ (ayrı alan adına zaten gitmez).
          */
         $this->assertMatchesRegularExpression(
-            '#/cihaz-oturum/devir/[0-9a-f-]{36}$#',
+            '#/device-session/handoff/[0-9a-f-]{36}$#',
             $yanit->headers->get('Location') ?? '',
         );
         $this->assertArrayNotHasKey(InterfaceSession::COOKIE, $yanit->headers->getCookies());
@@ -111,7 +111,7 @@ final class InterfaceSessionTest extends TestCase
         $oturum = app(InterfaceSession::class)->ac($credential, (int) $user->id);
         $devir = app(InterfaceSession::class)->devirJetonuUret($oturum['token']);
 
-        $yanit = $this->get(route('credentials.arayuz.handoff', ['devir' => $devir]));
+        $yanit = $this->get(route('credentials.interface.handoff', ['devir' => $devir]));
 
         $yanit->assertRedirect();
         $yanit->assertCookie(InterfaceSession::COOKIE, $oturum['token']);
@@ -140,8 +140,8 @@ final class InterfaceSessionTest extends TestCase
         $oturum = app(InterfaceSession::class)->ac($credential, (int) $user->id);
         $devir = app(InterfaceSession::class)->devirJetonuUret($oturum['token']);
 
-        $this->get(route('credentials.arayuz.handoff', ['devir' => $devir]))->assertRedirect();
-        $this->get(route('credentials.arayuz.handoff', ['devir' => $devir]))->assertStatus(410);
+        $this->get(route('credentials.interface.handoff', ['devir' => $devir]))->assertRedirect();
+        $this->get(route('credentials.interface.handoff', ['devir' => $devir]))->assertStatus(410);
     }
 
     /**
@@ -189,7 +189,7 @@ final class InterfaceSessionTest extends TestCase
      * kendi portunda açılmaya başlayınca aynı tarayıcıda birden çok oturum
      * yaşıyor ve çerez yalnızca EN SON açılanı gösteriyor: kişinin kendi
      * ikinci oturumu bile reddediliyordu (iLO konsolunda
-     * "403 /cihaz-oturum/<jeton>/acilis.js").
+     * "403 /device-session/<jeton>/boot.js").
      *
      * Korunan şey aynı kaldı: bağlantıyı ele geçiren BAŞKASI onu kendi
      * çereziyle açamaz.
@@ -214,7 +214,7 @@ final class InterfaceSessionTest extends TestCase
         $kendi = app(InterfaceSession::class)->ac($credential, (int) $user->id);
 
         $this->withCookies([InterfaceSession::COOKIE => $kendi['token']])
-            ->get($oturum['adres'].'acilis.js')
+            ->get($oturum['adres'].'boot.js')
             ->assertOk();
     }
 
@@ -233,13 +233,13 @@ final class InterfaceSessionTest extends TestCase
         $kritik = $this->kayit(['credential_group_id' => $group->getKey(), 'is_critical' => true]);
 
         $this->actingAs($user)
-            ->post(route('credentials.arayuz', $kritik), ['reason' => ''])
+            ->post(route('credentials.interface', $kritik), ['reason' => ''])
             ->assertSessionHasErrors('reason');
 
         $sade = $this->kayit(['credential_group_id' => $group->getKey(), 'is_critical' => false]);
 
         $this->actingAs($user)
-            ->post(route('credentials.arayuz', $sade), ['reason' => ''])
+            ->post(route('credentials.interface', $sade), ['reason' => ''])
             ->assertSessionDoesntHaveErrors('reason');
     }
 
@@ -250,7 +250,7 @@ final class InterfaceSessionTest extends TestCase
         $credential = $this->kayit(['credential_group_id' => $group->getKey()]);
 
         $this->actingAs($user)
-            ->post(route('credentials.arayuz', $credential), ['reason' => 'bakim'])
+            ->post(route('credentials.interface', $credential), ['reason' => 'bakim'])
             ->assertForbidden();
     }
 
@@ -267,23 +267,23 @@ final class InterfaceSessionTest extends TestCase
         $yanit = $this->withCookies($cerez)->get($oturum['adres']);
 
         $yanit->assertOk();
-        $yanit->assertSee('<base href="/cihaz-oturum/'.$oturum['token'].'/">', false);
+        $yanit->assertSee('<base href="/device-session/'.$oturum['token'].'/">', false);
 
         /*
          * Betik SATIR İÇİ DEĞİL, ayrı dosya: cihazların Güvenlik İlkesi satır
          * içi betiği reddediyor (VAMI'de ölçüldü), aynı kökenden geleni
          * kabul ediyor.
          */
-        $yanit->assertSee('<script src="/cihaz-oturum/'.$oturum['token'].'/acilis.js"></script>', false);
+        $yanit->assertSee('<script src="/device-session/'.$oturum['token'].'/boot.js"></script>', false);
 
         /* Parola sayfanın GÖVDESİNDE DEĞİL; betik onu ayrı uçtan ister. */
         $this->assertStringNotContainsString('ESXI-PAROLASI', $yanit->getContent());
 
-        $betik = $this->withCookies($cerez)->get($oturum['adres'].'acilis.js');
+        $betik = $this->withCookies($cerez)->get($oturum['adres'].'boot.js');
         $betik->assertOk();
         $this->assertStringContainsString('javascript', (string) $betik->headers->get('Content-Type'));
         $this->assertStringNotContainsString('ESXI-PAROLASI', $betik->getContent());
-        $betik->assertSee('/kimlik', false);
+        $betik->assertSee('/identity', false);
     }
 
     #[Test]
@@ -293,11 +293,11 @@ final class InterfaceSessionTest extends TestCase
         $credential = $this->kayit(['credential_group_id' => $group->getKey()]);
 
         [$oturum, $cerez] = $this->devralarakAc($user, $credential);
-        $adres = $oturum['adres'].'kimlik';
+        $adres = $oturum['adres'].'identity';
 
         $this->withCookies($cerez)->get($adres)
             ->assertOk()
-            ->assertJson(['kullanici' => 'root', 'parola' => 'ESXI-PAROLASI']);
+            ->assertJson(['username' => 'root', 'password' => 'ESXI-PAROLASI']);
 
         /* İkinci okuma yok: sayfa yenilenirse parola bir daha verilmez. */
         $this->withCookies($cerez)->get($adres)->assertStatus(410);
@@ -314,7 +314,7 @@ final class InterfaceSessionTest extends TestCase
         /* Çerezi olmayan hiç kimse açamaz — panele girmiş olsa bile. */
         $baskasi = User::factory()->create();
 
-        $this->actingAs($baskasi)->get($oturum['adres'].'kimlik')->assertForbidden();
+        $this->actingAs($baskasi)->get($oturum['adres'].'identity')->assertForbidden();
     }
 
     /**
@@ -333,14 +333,14 @@ final class InterfaceSessionTest extends TestCase
 
         $this->withCookies($cerez)
             ->withHeader('X-Vsphere-Proxy', 'https://10.0.0.44:443/sdk')
-            ->get(route('ajax.arayuz.guard'))
+            ->get(route('ajax.interface.guard'))
             ->assertNoContent()
-            ->assertHeader('X-Eys-Hedef', '10.0.0.44:443');
+            ->assertHeader('X-Eys-Target', '10.0.0.44:443');
 
         /* Kayıtta olmayan bir konak istenirse bağlanılmaz. */
         $this->withCookies($cerez)
             ->withHeader('X-Vsphere-Proxy', 'https://169.254.169.254:443/sdk')
-            ->get(route('ajax.arayuz.guard'))
+            ->get(route('ajax.interface.guard'))
             ->assertForbidden();
     }
 
@@ -348,7 +348,7 @@ final class InterfaceSessionTest extends TestCase
     public function bekci_cerezsiz_istege_403_doner(): void
     {
         /* nginx auth_request yalnızca 2xx/401/403 anlar; 302 olsaydı 500 olurdu. */
-        $this->get(route('ajax.arayuz.guard'))->assertForbidden();
+        $this->get(route('ajax.interface.guard'))->assertForbidden();
     }
 
     #[Test]
@@ -435,15 +435,15 @@ final class InterfaceSessionTest extends TestCase
 
         [$oturum, $cerez] = $this->devralarakAc($user, $credential);
 
-        $betik = $this->withCookies($cerez)->get($oturum['adres'].'acilis.js');
+        $betik = $this->withCookies($cerez)->get($oturum['adres'].'boot.js');
 
         $betik->assertOk();
         $this->assertStringContainsString('window.open', $betik->getContent());
 
         /* vSphere dışındaki arayüzlerde sarmalayıcı hiç yazılmaz. */
         $digeri = view('credentials.interface.page-leave', [
-            'ayrilisAdresi' => '/cihaz-oturum/ayril',
-            'sekmeyeAc' => false,
+            'leaveUrl' => '/device-session/leave',
+            'openInTab' => false,
         ])->render();
 
         $this->assertStringNotContainsString('window.open', $digeri);
@@ -460,7 +460,7 @@ final class InterfaceSessionTest extends TestCase
     #[Test]
     public function cihaz_girisi_tutmazsa_anlasilir_sayfa_doner(): void
     {
-        config(['remote.arayuz.turler' => ['plesk']]);
+        config(['remote.interface.types' => ['plesk']]);
 
         /* Cihaz girişi reddediyor: sunucuda oturum açılamıyor. */
         Http::fake(['*' => Http::response('', 401)]);
@@ -478,7 +478,7 @@ final class InterfaceSessionTest extends TestCase
         ]);
 
         $yanit = $this->actingAs($user)
-            ->post(route('credentials.arayuz', $credential), ['reason' => 'bakim']);
+            ->post(route('credentials.interface', $credential), ['reason' => 'bakim']);
 
         $yanit->assertStatus(502);
         $yanit->assertSee('Arayüz açılamadı');

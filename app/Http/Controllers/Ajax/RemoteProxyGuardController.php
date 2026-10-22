@@ -60,7 +60,7 @@ class RemoteProxyGuardController extends Controller
         $port = $this->requestedPort($request);
 
         $session = $port === null
-            ? $this->vekilOturumu($request->user()->id)
+            ? $this->proxySession($request->user()->id)
             : $this->sessions->forPort($port);
 
         if ($session === null || $session['user_id'] !== $request->user()->id) {
@@ -81,7 +81,7 @@ class RemoteProxyGuardController extends Controller
      *
      * @return array<string, mixed>|null
      */
-    private function vekilOturumu(int $userId): ?array
+    private function proxySession(int $userId): ?array
     {
         foreach (self::VEKILDEN_VERILENLER as $tur) {
             $oturum = $this->sessions->forUser($userId, $tur);

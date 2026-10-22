@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test';
 const tema = (page) => page.evaluate(() => document.documentElement.dataset.theme);
 
 test('bir panelde yapılan seçim diğerlerinde de geçerli', async ({ page }) => {
-    await page.goto('https://eys.ornek.test/giris');
+    await page.goto('https://eys.ornek.test/login');
 
     const dugme = page.locator('[data-theme-toggle]');
     await expect(dugme).toBeVisible();
@@ -22,7 +22,7 @@ test('bir panelde yapılan seçim diğerlerinde de geçerli', async ({ page }) =
     console.log('### EYS giriş ekranında seçildi:', secilen);
 
     for (const [ad, adres] of [
-        ['NYS', 'https://panel-b.ornek.test/giris'],
+        ['NYS', 'https://panel-b.ornek.test/login'],
         ['KYM', 'https://merkez.ornek.test/'],
     ]) {
         await page.goto(adres);
@@ -37,7 +37,7 @@ test('bir panelde yapılan seçim diğerlerinde de geçerli', async ({ page }) =
     const merkezde = await tema(page);
     console.log('### merkezde değiştirildi:', merkezde);
 
-    await page.goto('https://eys.ornek.test/giris');
+    await page.goto('https://eys.ornek.test/login');
     console.log('### EYS:', await tema(page));
     expect(await tema(page)).toBe(merkezde);
 });
@@ -47,7 +47,7 @@ test('seçim yokken tarayıcının tercihi izlenir', async ({ browser }) => {
         const baglam = await browser.newContext({ colorScheme: tercih });
         const sayfa = await baglam.newPage();
 
-        await sayfa.goto('https://eys.ornek.test/giris');
+        await sayfa.goto('https://eys.ornek.test/login');
         const gorulen = await sayfa.evaluate(() => document.documentElement.dataset.theme);
         console.log(`### tarayıcı ${tercih} → panel ${gorulen}`);
 

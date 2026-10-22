@@ -57,7 +57,7 @@ class RecordSortingTest extends TestCase
         [, $alt, [$a, $b, $c, $d]] = $this->sahne();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->put(route('credentials.sirala'), ['sira' => [$d->uuid, $c->uuid, $b->uuid, $a->uuid]])
+            ->put(route('credentials.reorder'), ['sira' => [$d->uuid, $c->uuid, $b->uuid, $a->uuid]])
             ->assertRedirect();
 
         $this->assertSame(['D', 'C', 'B', 'A'], $this->dizilim($alt));
@@ -73,7 +73,7 @@ class RecordSortingTest extends TestCase
         [, $alt, [$a, $b, $c, $d]] = $this->sahne();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->put(route('credentials.sirala'), ['sira' => [$d->uuid, $b->uuid]]);
+            ->put(route('credentials.reorder'), ['sira' => [$d->uuid, $b->uuid]]);
 
         /* A ve C yerinde; B ile D'nin yuvaları (2 ve 4) yeni sırayla D, B. */
         $this->assertSame(['A', 'D', 'C', 'B'], $this->dizilim($alt));
@@ -85,7 +85,7 @@ class RecordSortingTest extends TestCase
         [, $alt, [$a, $b], $ana] = $this->sahne();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->put(route('credentials.sirala'), ['sira' => [$ana->uuid, $a->uuid, $b->uuid]])
+            ->put(route('credentials.reorder'), ['sira' => [$ana->uuid, $a->uuid, $b->uuid]])
             ->assertStatus(422);
 
         $this->assertNull($ana->fresh()->alt_grup_id);
@@ -105,7 +105,7 @@ class RecordSortingTest extends TestCase
         $this->assertTrue($kullanici->can('update', $a), 'sahne: kayıt düzenleme yetkisi var');
 
         $this->actingAs($kullanici)
-            ->put(route('credentials.sirala'), ['sira' => [$b->uuid, $a->uuid]])
+            ->put(route('credentials.reorder'), ['sira' => [$b->uuid, $a->uuid]])
             ->assertForbidden();
 
         $this->assertSame(['A', 'B', 'C', 'D'], $this->dizilim($alt));
@@ -113,8 +113,8 @@ class RecordSortingTest extends TestCase
         $this->actingAs($kullanici)
             ->get(route('credentials.index', ['grup' => $grup->uuid]))
             ->assertOk()
-            ->assertDontSee('data-sira-kimlik', false)
-            ->assertDontSee('class="tutamak"', false);
+            ->assertDontSee('data-order-id', false)
+            ->assertDontSee('class="handle"', false);
     }
 
     #[Test]
@@ -127,16 +127,16 @@ class RecordSortingTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('data-sira="'.route('groups.alt.sirala', $grup).'"', $html, 'bölümler sürüklenir');
-        $this->assertStringContainsString('data-sira-kimlik="'.$alt->uuid.'"', $html);
-        $this->assertStringContainsString('data-sira="'.route('credentials.sirala').'"', $html, 'kayıtlar sürüklenir');
-        $this->assertStringContainsString('data-sira-kimlik="'.$a->uuid.'"', $html);
-        $this->assertSame(1 + 5, substr_count($html, 'class="tutamak"'), 'bir bölüm başlığı + beş satır');
+        $this->assertStringContainsString('data-order="'.route('groups.sub.reorder', $grup).'"', $html, 'bölümler sürüklenir');
+        $this->assertStringContainsString('data-order-id="'.$alt->uuid.'"', $html);
+        $this->assertStringContainsString('data-order="'.route('credentials.reorder').'"', $html, 'kayıtlar sürüklenir');
+        $this->assertStringContainsString('data-order-id="'.$a->uuid.'"', $html);
+        $this->assertSame(1 + 5, substr_count($html, 'class="handle"'), 'bir bölüm başlığı + beş satır');
 
         /* Aramada sürükleme yok: süzülmüş liste. */
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('credentials.index', ['grup' => $grup->uuid, 'q' => 'A']))
-            ->assertDontSee('data-sira-kimlik', false);
+            ->assertDontSee('data-order-id', false);
     }
 
     #[Test]
@@ -147,7 +147,7 @@ class RecordSortingTest extends TestCase
             ->for($grup, 'group')->create(['name' => $ad, 'position' => $i + 1]))->all();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->put(route('groups.alt.sirala', $grup), ['sira' => [$z->uuid, $x->uuid]])
+            ->put(route('groups.sub.reorder', $grup), ['sira' => [$z->uuid, $x->uuid]])
             ->assertRedirect();
 
         $this->assertSame(['Z', 'Y', 'X'], $grup->altGruplar()->pluck('name')->all());

@@ -35,7 +35,7 @@ class InterfaceMonitorController extends Controller
          * yolu olmamalı. Kayıt yalnızca çerezin gösterdiği oturuma yazılır ve
          * o çerez HttpOnly, konak-özel ve kısa ömürlüdür.
          */
-        $oturum = $this->oturum($request);
+        $oturum = $this->session($request);
 
         if ($oturum !== null) {
             $this->izleyici->kaydet(
@@ -50,7 +50,7 @@ class InterfaceMonitorController extends Controller
     }
 
     /** @return array<string, mixed>|null */
-    private function oturum(Request $request): ?array
+    private function session(Request $request): ?array
     {
         $token = $request->cookie(InterfaceSession::COOKIE);
         $kayit = is_string($token) ? $this->oturumlar->bul($token) : null;

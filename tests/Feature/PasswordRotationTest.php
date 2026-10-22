@@ -109,7 +109,7 @@ class PasswordRotationTest extends TestCase
         $this->assertNotNull(RotationLauncher::pending($credential));
         $this->actingAs($user)->get(route('credentials.index', ['kayit' => $credential->uuid]))
             ->assertOk()
-            ->assertSee('data-ilerleme-adres', false)
+            ->assertSee('data-progress-url', false)
             ->assertDontSee('>Turu kapat</button>', false);
 
         /* İş bitince iz düşer; yoklama "bitti" der ve sayfa tazelenir. */
@@ -118,7 +118,7 @@ class PasswordRotationTest extends TestCase
 
         $this->assertNull(RotationLauncher::pending($credential));
         $this->actingAs($user)->getJson(route('credentials.rotate.progress', $credential))
-            ->assertOk()->assertJson(['calisiyor' => false]);
+            ->assertOk()->assertJson(['running' => false]);
     }
 
     #[Test]

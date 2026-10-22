@@ -202,8 +202,8 @@ class PermissionLayersTest extends TestCase
     {
         [$duz, $k] = $this->jetonlu(['rotate']);
 
-        $this->withToken($duz)->getJson('/api/v1/kayitlar')->assertForbidden();
-        $this->withToken($duz)->getJson("/api/v1/kayitlar/{$k->uuid}")->assertForbidden();
+        $this->withToken($duz)->getJson('/api/v1/records')->assertForbidden();
+        $this->withToken($duz)->getJson("/api/v1/records/{$k->uuid}")->assertForbidden();
     }
 
     #[Test]
@@ -211,7 +211,7 @@ class PermissionLayersTest extends TestCase
     {
         [$duz, $k] = $this->jetonlu(['view']);
 
-        foreach (["/api/v1/kayitlar/{$k->uuid}", '/api/v1/kayitlar'] as $adres) {
+        foreach (["/api/v1/records/{$k->uuid}", '/api/v1/records'] as $adres) {
             $json = $this->withToken($duz)->getJson($adres)->assertOk()->json();
             $kayit = $json['data'][0] ?? $json['data'];
             $this->assertArrayNotHasKey('adres', $kayit);
@@ -227,7 +227,7 @@ class PermissionLayersTest extends TestCase
     {
         [$duz, $k] = $this->jetonlu(['view', 'field.host', 'field.port', 'field.password']);
 
-        $kayit = $this->withToken($duz)->getJson("/api/v1/kayitlar/{$k->uuid}")->assertOk()->json('data');
+        $kayit = $this->withToken($duz)->getJson("/api/v1/records/{$k->uuid}")->assertOk()->json('data');
         $this->assertSame('10.0.0.5', $kayit['adres']);
         $this->assertSame(22, $kayit['port']);
         $this->assertSame('root', $kayit['kullanici']);

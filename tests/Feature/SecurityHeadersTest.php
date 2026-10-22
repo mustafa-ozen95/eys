@@ -51,7 +51,7 @@ class SecurityHeadersTest extends TestCase
          * Jeton yok, dolayısıyla yanıt bir hata olacak — önemi yok: sınanan
          * şey ara katmanın ne EKLEDİĞİ, uç noktanın ne döndürdüğü değil.
          */
-        $yanit = $this->get(InterfaceSession::onek().'/'.'00000000-0000-4000-8000-000000000000'.'/');
+        $yanit = $this->get(InterfaceSession::prefix().'/'.'00000000-0000-4000-8000-000000000000'.'/');
 
         $yanit->assertHeaderMissing('X-Frame-Options');
         $yanit->assertHeaderMissing('Content-Security-Policy');

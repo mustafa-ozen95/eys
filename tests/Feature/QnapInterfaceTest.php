@@ -48,7 +48,7 @@ final class QnapInterfaceTest extends TestCase
     #[Test]
     public function giris_adresinden_taninir(): void
     {
-        config(['remote.arayuz.turler' => ['qnap']]);
+        config(['remote.interface.types' => ['qnap']]);
 
         $this->assertSame(InterfaceType::Qnap, InterfaceType::icin($this->kayit()));
     }
@@ -57,7 +57,7 @@ final class QnapInterfaceTest extends TestCase
     #[Test]
     public function giris_ucu_yoksa_taninmaz(): void
     {
-        config(['remote.arayuz.turler' => ['qnap']]);
+        config(['remote.interface.types' => ['qnap']]);
 
         $this->assertNull(InterfaceType::icin($this->kayit(['login_url' => null])));
     }
@@ -66,7 +66,7 @@ final class QnapInterfaceTest extends TestCase
     #[Test]
     public function vekil_acikken_form_yolu_devre_disi(): void
     {
-        config(['remote.arayuz.turler' => ['qnap']]);
+        config(['remote.interface.types' => ['qnap']]);
 
         $this->assertFalse(PortalLogin::hazirMi($this->kayit()));
     }

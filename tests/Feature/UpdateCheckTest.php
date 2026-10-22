@@ -34,9 +34,9 @@ class UpdateCheckTest extends TestCase
 
         $this->dizin = sys_get_temp_dir().'/guncelleme-'.bin2hex(random_bytes(4));
         config([
-            'update.depo' => 'mustafa-ozen95/ornek',
-            'update.jeton' => self::JETON,
-            'update.surum' => self::CALISAN,
+            'update.repo' => 'mustafa-ozen95/ornek',
+            'update.token' => self::JETON,
+            'update.version' => self::CALISAN,
         ]);
     }
 
@@ -75,7 +75,7 @@ class UpdateCheckTest extends TestCase
 
     public function test_jeton_yoksa_acik_depoya_jetonsuz_sorulur(): void
     {
-        config(['update.jeton' => '']);
+        config(['update.token' => '']);
         $this->sahte(son: self::CALISAN);
 
         $sonuc = $this->denetim()->denetle('sınama');
@@ -87,14 +87,14 @@ class UpdateCheckTest extends TestCase
 
     public function test_jetonsuz_sorulan_ozel_ya_da_olmayan_depo_anlasilir_hata_verir(): void
     {
-        config(['update.jeton' => '']);
+        config(['update.token' => '']);
         $this->sahte(kod: 404, mesaj: 'Not Found');
 
         $sonuc = $this->denetim()->denetle('sınama');
 
         $this->assertSame('hata', $sonuc['durum']);
         $this->assertStringContainsString('404', $sonuc['aciklama']);
-        $this->assertStringContainsString('GUNCELLEME_JETONU', $sonuc['aciklama']);
+        $this->assertStringContainsString('UPDATE_TOKEN', $sonuc['aciklama']);
     }
 
     /** Ayrı ref dosyası, packed-refs, bozuk HEAD ve hiç .git olmaması. */
@@ -154,7 +154,7 @@ class UpdateCheckTest extends TestCase
         Http::assertSent(fn (Request $r): bool => str_contains($r->url(), '/compare/'.self::CALISAN.'...'.self::SON));
 
         // Panel güncellendi: eski sonuç yeni sürümü anlatmıyor, uyarı susar.
-        config(['update.surum' => self::SON]);
+        config(['update.version' => self::SON]);
         $this->assertFalse($denetim->yeniVar());
     }
 
@@ -179,7 +179,7 @@ class UpdateCheckTest extends TestCase
 
     public function test_calisan_surum_bilinmiyorsa_karsilastirilmaz(): void
     {
-        config(['update.surum' => '']);
+        config(['update.version' => '']);
         $this->sahte();
 
         $sonuc = $this->denetim()->denetle('sınama');

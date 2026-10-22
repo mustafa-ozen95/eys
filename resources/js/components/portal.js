@@ -21,11 +21,11 @@ import { on } from '../lib/dom.js';
  * Yoklama sık: pencere kökeni değiştirdiği an yakalanmalı. Geç kalırsak
  * cihazın JSON yanıtı EKRANDA KALIR ve kullanıcı ham veriyi görür.
  */
-const ARALIK = 10;
+const INTERVAL = 10;
 
-const AZAMİ_BEKLEME = 20000;
+const MAX_WAIT = 20000;
 
-const PENCERE = 'eys-portal';
+const WINDOW = 'eys-portal';
 
 /*
  * Cihaz arayüzleri SEKMEDE açılır.
@@ -50,19 +50,19 @@ const PENCERE = 'eys-portal';
  * bitmesine yetmeyebilir ve açılış 401 alır. Beklemek açılışı geciktiriyor
  * ama hata sayfasına düşmekten iyidir.
  */
-const CIKIS_BEKLEMESI = 5000;
+const LOGOUT_WAIT = 5000;
 
 /** Bu form kendi penceresini ister mi? */
-function pencereIster(form) {
-    return form.dataset.yeniPencere !== undefined || form.dataset.portalLanding !== undefined;
+function wantsWindow(form) {
+    return form.dataset.newWindow !== undefined || form.dataset.portalLanding !== undefined;
 }
 
 /** Pencere bizim kökenimizden ayrıldı mı? Ayrıldıysa yanıt gelmiş demektir. */
-function ayrildi(pencere) {
+function left(popup) {
     try {
-        const adres = pencere.location.href;
+        const url = popup.location.href;
 
-        return adres !== 'about:blank' && new URL(adres).origin !== window.location.origin;
+        return url !== 'about:blank' && new URL(url).origin !== window.location.origin;
     } catch {
         /* Okuma engellendi: pencere artık başka bir kökende. */
         return true;
@@ -83,7 +83,7 @@ function ayrildi(pencere) {
  * @param  {() => void} tik
  * @return {() => void} durdurucu
  */
-function saatKur(tik) {
+function startClock(tick) {
     /*
      * İKİSİ BİRDEN KURULUR.
      *
@@ -102,22 +102,22 @@ function saatKur(tik) {
      * bire kısılır ama çalışır), işçi de kurulabiliyorsa onun yanında
      * çalışır ve ince ayrıntıyı o yakalar. Durdurucu ikisini birden kapatır.
      */
-    const kimlik = setInterval(tik, ARALIK);
-    let isci = null;
+    const identity = setInterval(tick, INTERVAL);
+    let worker = null;
 
     try {
-        const kod = `setInterval(() => postMessage(0), ${ARALIK});`;
+        const code = `setInterval(() => postMessage(0), ${INTERVAL});`;
 
-        isci = new Worker(URL.createObjectURL(new Blob([kod], { type: 'text/javascript' })));
-        isci.onmessage = tik;
+        worker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+        worker.onmessage = tick;
     } catch {
         /* İşçi kurulamadı; sıradan zamanlayıcı zaten çalışıyor. */
-        isci = null;
+        worker = null;
     }
 
     return () => {
-        clearInterval(kimlik);
-        isci?.terminate();
+        clearInterval(identity);
+        worker?.terminate();
     };
 }
 
@@ -130,23 +130,23 @@ function saatKur(tik) {
  *                        gönderimi yarıda kesiyor (bkz. PortalLogin::
  *                        inisGecikmesi).
  */
-function devret(pencere, hedef, bekle = 0) {
-    const basladi = Date.now();
-    let ayrilmaAni = null;
+function handOver(popup, target, wait = 0) {
+    const started = Date.now();
+    let leaveMoment = null;
 
-    const durdur = saatKur(() => {
-        if (pencere.closed) {
-            durdur();
+    const stop = startClock(() => {
+        if (popup.closed) {
+            stop();
 
             return;
         }
 
-        if (ayrilmaAni === null) {
-            if (!ayrildi(pencere) && Date.now() - basladi < AZAMİ_BEKLEME) {
+        if (leaveMoment === null) {
+            if (!left(popup) && Date.now() - started < MAX_WAIT) {
                 return;
             }
 
-            ayrilmaAni = Date.now();
+            leaveMoment = Date.now();
         }
 
         /*
@@ -154,17 +154,17 @@ function devret(pencere, hedef, bekle = 0) {
          * ve tarayıcı çoğu zaman zaten arayüze düşüyor. Devir o zaman bir
          * şeyi bozmaz; düşmediyse hata sayfasından alır.
          */
-        if (Date.now() - ayrilmaAni < bekle) {
+        if (Date.now() - leaveMoment < wait) {
             return;
         }
 
-        durdur();
-        pencere.location.href = hedef;
+        stop();
+        popup.location.href = target;
     });
 }
 
 /** Fırlatma penceresini açar; gerekiyorsa devri de başlatır. */
-function hazirla(form) {
+function prepare(form) {
     /*
      * Her AÇILIŞ kendi penceresini alır; ad her seferinde yenilenir.
      *
@@ -174,14 +174,14 @@ function hazirla(form) {
      * bir oturumun üstüne düşüp 401 veriyordu.
      * Ayrı pencere, ayrı akış.
      */
-    const ad = `${PENCERE}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    const pencere = window.open('', ad);
+    const name = `${WINDOW}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const popup = window.open('', name);
 
     /*
      * Açılamadıysa (engelleyici) hiçbir şey yapılmaz: form kendi hedefine
      * gider, kullanıcı JSON sayfasında kalır ama oturumu yine açılmış olur.
      */
-    if (!pencere) {
+    if (!popup) {
         return;
     }
 
@@ -196,12 +196,12 @@ function hazirla(form) {
      * sayfasına yönlendirebilirdi.
      */
     try {
-        pencere.opener = null;
+        popup.opener = null;
     } catch {
         // Tarayıcı izin vermezse eskisi gibi devam: akış bozulmamalı.
     }
 
-    form.target = ad;
+    form.target = name;
 
     /*
      * ÖNCE CİHAZDAKİ ESKİ OTURUM KAPATILIR.
@@ -216,8 +216,8 @@ function hazirla(form) {
      * birinci taraf: çerez gerçekten temizleniyor. Gönderim ondan sonra
      * yapılır; bu yüzden confirm.js bu formu göndermez (bkz. oradaki not).
      */
-    if (form.dataset.portalOnceki) {
-        pencere.location.href = form.dataset.portalOnceki;
+    if (form.dataset.portalPrevious) {
+        popup.location.href = form.dataset.portalPrevious;
 
         /*
          * ÇIKIŞIN TAMAMLANMASI BEKLENİR.
@@ -230,23 +230,23 @@ function hazirla(form) {
          * panel sekmesi gizleniyor ve Chrome gizli sekmede setTimeout'u
          * kısıyor (aynı sorun devret() için de yaşanmıştı).
          */
-        const basladi = Date.now();
+        const started = Date.now();
 
-        const durdur = saatKur(() => {
-            if (Date.now() - basladi < CIKIS_BEKLEMESI) {
+        const stop = startClock(() => {
+            if (Date.now() - started < LOGOUT_WAIT) {
                 return;
             }
 
-            durdur();
+            stop();
 
-            if (pencere.closed) {
+            if (popup.closed) {
                 return;
             }
 
             form.submit();
 
             if (form.dataset.portalLanding) {
-                devret(pencere, form.dataset.portalLanding, Number(form.dataset.portalLandingBekle ?? 0));
+                handOver(popup, form.dataset.portalLanding, Number(form.dataset.portalLandingWait ?? 0));
             }
         });
 
@@ -255,7 +255,7 @@ function hazirla(form) {
 
     /* Devir yalnızca giriş isteğine VERİ döndüren cihazlarda gerekiyor. */
     if (form.dataset.portalLanding) {
-        devret(pencere, form.dataset.portalLanding, Number(form.dataset.portalLandingBekle ?? 0));
+        handOver(popup, form.dataset.portalLanding, Number(form.dataset.portalLandingWait ?? 0));
     }
 }
 
@@ -265,14 +265,14 @@ export function init() {
      * Sekme ancak burada açılır — kullanıcı onaylamadan (hatta vazgeçtiğinde)
      * boş sekme açan bir sürüm olmuştu.
      */
-    const secici = 'form[data-portal-landing], form[data-yeni-pencere]';
+    const selectorText = 'form[data-portal-landing], form[data-new-window]';
 
-    on('eys:onaylandi', secici, (event, form) => hazirla(form));
+    on('eys:confirmed', selectorText, (event, form) => prepare(form));
 
     /* Onay istemeyen bir form eklenirse o da çalışsın. */
-    on('submit', secici, (event, form) => {
+    on('submit', selectorText, (event, form) => {
         if (form.dataset.confirm === undefined) {
-            hazirla(form);
+            prepare(form);
         }
     });
 }

@@ -32,17 +32,17 @@ class BulkRound
      * sırasıdır. Ön yüz aynı anahtarları kullanır (bulk-progress.js).
      */
     public const ETIKETLER = [
-        'basarili' => 'Başarılı',
-        'suruyor' => 'Sürüyor',
-        'bekliyor' => 'Sırada',
-        'dogrulanamadi' => 'Doğrulanamadı',
-        'basarisiz' => 'Başarısız',
-        'baslamadi' => 'Başlamadı',
+        'success' => 'Başarılı',
+        'running' => 'Sürüyor',
+        'waiting' => 'Sırada',
+        'unverified' => 'Doğrulanamadı',
+        'failed' => 'Başarısız',
+        'unstarted' => 'Başlamadı',
     ];
 
-    private const PARTI = 'erisim:toplu-tur:';
+    private const PARTI = 'access:bulk-round:';
 
-    private const SON = 'erisim:toplu-tur-son:';
+    private const SON = 'access:bulk-round-last:';
 
     /**
      * Parti ömrü. Sonuç ekranda bu süre boyunca kalır; kullanıcı kapatmazsa
@@ -102,11 +102,11 @@ class BulkRound
      * birinin partisi sorulursa "yok" denir, varlığı bile söylenmez.
      *
      * @return array{
-     *     calisiyor: bool, toplam: int, biten: int, yuzde: int,
-     *     basarili: int, basarisiz: int, dogrulanamadi: int, baslamadi: int,
-     *     bekleyen: int, suren: ?string, metin: string,
-     *     sorunlu: list<array{ad: string, durum: string}>,
-     *     kayitlar: list<array{ad: string, durum: string}>
+     *     running: bool, total: int, done: int, percent: int,
+     *     success: int, failed: int, unverified: int, unstarted: int,
+     *     pending: int, current: ?string, text: string,
+     *     problems: list<array{name: string, status: string}>,
+     *     records: list<array{name: string, status: string}>
      * }|null
      */
     public static function durum(User $kullanici, string $parti): ?array
@@ -140,7 +140,7 @@ class BulkRound
         $sure = now()->timestamp - $baslangic;
         $zamanAsimi = $sure > count($kimlikler) * self::IS_SURESI + 60;
 
-        $sayilar = ['basarili' => 0, 'basarisiz' => 0, 'dogrulanamadi' => 0, 'baslamadi' => 0, 'bekleyen' => 0];
+        $sayilar = ['success' => 0, 'failed' => 0, 'unverified' => 0, 'unstarted' => 0, 'pending' => 0];
         $suren = null;
         $sorunlu = [];
 
@@ -161,12 +161,12 @@ class BulkRound
                  * düştü. Süre dolmadıysa bekliyor sayılır.
                  */
                 if ($zamanAsimi) {
-                    $sayilar['baslamadi']++;
-                    $sorunlu[] = ['ad' => $ad, 'durum' => 'Başlamadı'];
-                    $kayitlar[] = ['ad' => $ad, 'durum' => 'baslamadi'];
+                    $sayilar['unstarted']++;
+                    $sorunlu[] = ['name' => $ad, 'status' => 'Başlamadı'];
+                    $kayitlar[] = ['name' => $ad, 'status' => 'unstarted'];
                 } else {
-                    $sayilar['bekleyen']++;
-                    $kayitlar[] = ['ad' => $ad, 'durum' => 'bekliyor'];
+                    $sayilar['pending']++;
+                    $kayitlar[] = ['name' => $ad, 'status' => 'waiting'];
                 }
 
                 continue;
@@ -174,42 +174,42 @@ class BulkRound
 
             match ($tur->status) {
                 RotationStatus::Running => $suren ??= $ad,
-                RotationStatus::Succeeded => $sayilar['basarili']++,
-                RotationStatus::Unverified => $sayilar['dogrulanamadi']++,
-                default => $sayilar['basarisiz']++,
+                RotationStatus::Succeeded => $sayilar['success']++,
+                RotationStatus::Unverified => $sayilar['unverified']++,
+                default => $sayilar['failed']++,
             };
 
-            $kayitlar[] = ['ad' => $ad, 'durum' => match (true) {
-                $tur->status === RotationStatus::Running && $zamanAsimi => 'baslamadi',
-                $tur->status === RotationStatus::Running => 'suruyor',
-                $tur->status === RotationStatus::Succeeded => 'basarili',
-                $tur->status === RotationStatus::Unverified => 'dogrulanamadi',
-                default => 'basarisiz',
+            $kayitlar[] = ['name' => $ad, 'status' => match (true) {
+                $tur->status === RotationStatus::Running && $zamanAsimi => 'unstarted',
+                $tur->status === RotationStatus::Running => 'running',
+                $tur->status === RotationStatus::Succeeded => 'success',
+                $tur->status === RotationStatus::Unverified => 'unverified',
+                default => 'failed',
             }];
 
             if ($tur->status === RotationStatus::Running && $zamanAsimi) {
                 /* Süre dolduğu hâlde "sürüyor" diyen tur: işçi ölmüş olabilir. */
-                $sayilar['baslamadi']++;
-                $sorunlu[] = ['ad' => $ad, 'durum' => 'Yanıt yok'];
+                $sayilar['unstarted']++;
+                $sorunlu[] = ['name' => $ad, 'status' => 'Yanıt yok'];
             } elseif (! in_array($tur->status, [RotationStatus::Running, RotationStatus::Succeeded], true)) {
-                $sorunlu[] = ['ad' => $ad, 'durum' => $tur->status->label()];
+                $sorunlu[] = ['name' => $ad, 'status' => $tur->status->label()];
             }
         }
 
         $toplam = count($kimlikler);
-        $biten = $sayilar['basarili'] + $sayilar['basarisiz'] + $sayilar['dogrulanamadi'] + $sayilar['baslamadi'];
+        $biten = $sayilar['success'] + $sayilar['failed'] + $sayilar['unverified'] + $sayilar['unstarted'];
         $calisiyor = $biten < $toplam;
 
         return [
-            'calisiyor' => $calisiyor,
-            'toplam' => $toplam,
-            'biten' => $biten,
-            'yuzde' => $toplam === 0 ? 100 : (int) floor($biten / $toplam * 100),
+            'running' => $calisiyor,
+            'total' => $toplam,
+            'done' => $biten,
+            'percent' => $toplam === 0 ? 100 : (int) floor($biten / $toplam * 100),
             ...$sayilar,
-            'suren' => $calisiyor ? $suren : null,
-            'metin' => self::metin($calisiyor, $suren, $sayilar),
-            'sorunlu' => $sorunlu,
-            'kayitlar' => $kayitlar,
+            'current' => $calisiyor ? $suren : null,
+            'text' => self::metin($calisiyor, $suren, $sayilar),
+            'problems' => $sorunlu,
+            'records' => $kayitlar,
         ];
     }
 
@@ -220,7 +220,7 @@ class BulkRound
             return $suren !== null ? "Güncelleniyor: {$suren}" : 'Sıradaki kayıt bekleniyor…';
         }
 
-        $sorun = $sayilar['basarisiz'] + $sayilar['dogrulanamadi'] + $sayilar['baslamadi'];
+        $sorun = $sayilar['failed'] + $sayilar['unverified'] + $sayilar['unstarted'];
 
         return $sorun === 0 ? 'Tamamlandı, hepsi başarılı.' : "Tamamlandı, {$sorun} kayıtta sorun var.";
     }

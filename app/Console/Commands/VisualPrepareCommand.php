@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class VisualPrepareCommand extends Command
 {
-    protected $signature = 'erisim:gorsel-hazirla';
+    protected $signature = 'access:prepare-visuals';
 
     protected $description = 'Görsel (Playwright) testleri için sqlite veritabanını sıfırdan kurar';
 

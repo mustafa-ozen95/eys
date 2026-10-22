@@ -2,9 +2,9 @@
 #
 # Platformun vekili (NineDeploy/Traefik, Coolify...) kullanılıyorsa GEREKMEZ.
 # Caddy panelle aynı Docker ağında durur ve panele konteyner adıyla ulaşır
-# (varsayılan eys; ONEK değiştiyse o). Alan adını değiştirip Caddyfile'a
+# (varsayılan eys; STACK_PREFIX değiştiyse o). Alan adını değiştirip Caddyfile'a
 # ekleyin ya da import edin. Cihaz arayüzü portları (9443, 9450-9479) için
-# compose'taki arayuz-vekili servisine bakın (docker/README.md).
+# compose'taki interface-proxy servisine bakın (docker/README.md).
 
 eys.ornek.test {
 	reverse_proxy eys:80 {

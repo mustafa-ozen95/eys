@@ -20,14 +20,14 @@ use Illuminate\Validation\Rules\Password;
  */
 class CreateAdminCommand extends Command
 {
-    protected $signature = 'erisim:yonetici-ekle {--ad=} {--eposta=}';
+    protected $signature = 'admin:add {--name=} {--email=}';
 
     protected $description = 'Panele yönetici yetkili bir kullanıcı ekler';
 
     public function handle(): int
     {
-        $name = $this->option('ad') ?: $this->ask('Ad soyad');
-        $email = $this->option('eposta') ?: $this->ask('E-posta');
+        $name = $this->option('name') ?: $this->ask('Ad soyad');
+        $email = $this->option('email') ?: $this->ask('E-posta');
         $password = $this->secret('Parola (en az 12 karakter; harf, rakam ve simge)');
 
         $validator = Validator::make(

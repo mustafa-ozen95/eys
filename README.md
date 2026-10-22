@@ -16,7 +16,7 @@ What is supported, and **to what extent**: [`SUPPORT.md`](SUPPORT.md) (Turkish).
 - **Stores.** Passwords, notes and rotation credentials are stored with the
   `encrypted` cast and listed in `$hidden`: they are never printed in any list,
   JSON response or error output. The only endpoint that brings a password to the
-  screen is `POST erisim/{kayit}/parola`; it needs a separate permission, is
+  screen is `POST access/{credential}/password`; it needs a separate permission, is
   rate limited, and every reveal lands in the audit log.
 - **Lets you use it.** A portal session produces a one-time form page with the
   fields filled in, and the page submits itself to the target site. The password
@@ -65,14 +65,14 @@ password.
 
 Every row carries the digest of the previous one, and the digest is produced
 with **HMAC-SHA256**. Updates and deletes are disabled at the model level; the
-only way to delete is the `erisim:kayit-buda` command, which asks for a reason
+only way to delete is the `activity:prune` command, which asks for a reason
 and writes itself into the chain.
 
 ## Installation
 
 ```bash
 composer setup          # dependencies, .env, key, migrations, build
-php artisan erisim:yonetici-ekle --ad="Ad Soyad" --eposta=ad@ornek.test
+php artisan admin:add --name="Ad Soyad" --email=ad@ornek.test
 ```
 
 In the Docker image the scheduler already runs inside the container. Outside a
@@ -87,17 +87,17 @@ user, **not** as root; replace the installation directory):
 
 | Command | Purpose |
 | --- | --- |
-| `erisim:kasa-denetle` | Read-only check: tests the credentials of records ready for rotation by only attempting a login |
-| `erisim:kimlik-esitle` | Applies role and status changes from the center to local accounts |
-| `erisim:kayit-buda` | Prunes the audit log; asks for a reason |
-| `erisim:yonetici-ekle` | Creates the first administrator; the password is not written on the command line |
-| `erisim:gorsel-hazirla` | Builds the sqlite database for the visual tests from scratch |
+| `access:vault-check` | Read-only check: tests the credentials of records ready for rotation by only attempting a login |
+| `identity:sync` | Applies role and status changes from the center to local accounts |
+| `activity:prune` | Prunes the audit log; asks for a reason |
+| `admin:add` | Creates the first administrator; the password is not written on the command line |
+| `access:prepare-visuals` | Builds the sqlite database for the visual tests from scratch |
 
 ## Tests
 
 ```bash
 composer test                                   # full suite
-php artisan erisim:gorsel-hazirla && npx playwright test
+php artisan access:prepare-visuals && npx playwright test
 ```
 
 ## Rules

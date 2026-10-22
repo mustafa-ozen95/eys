@@ -8,16 +8,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @auth
         {{-- Ekran kilidi (bkz. session-lock.js): hareketsiz sekme bu süre sonunda oturumu kapatır. --}}
-        <meta name="oturum-suresi" content="{{ (int) config('session.lifetime') }}">
-        <meta name="oturum-cikis" content="{{ route('logout') }}">
-        <meta name="oturum-giris" content="{{ route('login') }}">
+        <meta name="session-lifetime" content="{{ (int) config('session.lifetime') }}">
+        <meta name="session-logout" content="{{ route('logout') }}">
+        <meta name="session-login" content="{{ route('login') }}">
     @endauth
 
     {{--
         Tema çerezinin alan adı. Merkez ve paneller ayrı köklerdir; üst alan
         adı verilince seçim hepsinde paylaşılır (bkz. config/theme.php).
     --}}
-    <meta name="tema-alan" content="{{ config('theme.cerez_alani') }}">
+    <meta name="theme-domain" content="{{ config('theme.cookie_domain') }}">
     <meta name="robots" content="noindex, nofollow">
 
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">

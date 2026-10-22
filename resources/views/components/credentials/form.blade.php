@@ -11,7 +11,7 @@
     devam eder. Çıkarılsaydı tür değiştirilip kaydedildiğinde eski değer
     sessizce silinirdi.
 --}}
-<div class="kayit-formu" data-kosullu-form>
+<div class="record-form" data-conditional-form>
 <x-ui.panel title="Kayıt bilgileri">
     <div class="field-row">
         <x-form.field name="group" label="Grup">
@@ -26,7 +26,7 @@
 
     {{--
         ALT GRUP: grubun içindeki bölme (ör. Yedekleme → Grup A). Liste seçili gruba
-        göre daralır (conditional-field.js · data-bagli); bölmesi olmayan grupta
+        göre daralır (conditional-field.js · data-linked); bölmesi olmayan grupta
         yalnızca "Yok" kalır. Alan hiçbir grupta bölme yoksa HİÇ çizilmez —
         tek seçenekli bir kutu soru değil gürültüdür.
     --}}
@@ -34,15 +34,15 @@
         <x-form.field name="alt_grup" label="Alt grup" hint="Grubun içindeki bölme; listede başlık olarak görünür. Yetki taşımaz.">
             <x-form.select name="alt_grup" :options="$altGrupOptions"
                            :selected="$credential?->altGrup?->uuid"
-                           data-bagli="group"
-                           data-bagli-secenekler="{{ json_encode($altGrupHaritasi) }}" />
+                           data-linked="group"
+                           data-linked-options="{{ json_encode($altGrupHaritasi) }}" />
         </x-form.field>
     @endif
 
     {{--
         SIRA: önce NE (platform), sonra NASIL (erişim türü), sonra NEREDE
         (adres). Erişim türü listesi platforma göre daralır
-        (bkz. OperatingSystem::accessTypes, conditional-field.js · data-bagli).
+        (bkz. OperatingSystem::accessTypes, conditional-field.js · data-linked).
     --}}
     <div class="field-row">
         <x-form.field name="operating_system" label="Platform"
@@ -60,8 +60,8 @@
         <x-form.field name="access_type" label="Erişim türü">
             <x-form.select name="access_type" :options="$accessTypes"
                            :selected="$credential?->access_type?->value"
-                           data-bagli="operating_system"
-                           data-bagli-secenekler="{{ json_encode($erisimHaritasi) }}" />
+                           data-linked="operating_system"
+                           data-linked-options="{{ json_encode($erisimHaritasi) }}" />
         </x-form.field>
 
         {{--
@@ -74,7 +74,7 @@
         --}}
         <x-form.field name="rdp_security" label="RDP güvenlik kipi"
                       hint="Bağlantı “SSL/TLS connection failed” diyorsa “Eski RDP güvenliği”ni seçin."
-                      data-goster="access_type:rdp">
+                      data-show="access_type:rdp">
             <x-form.select name="rdp_security"
                            :options="[
                                '' => 'Otomatik (varsayılan)',
@@ -89,7 +89,7 @@
     <div class="field-row">
         @if ($visibleFields['host'] ?? true)
             <x-form.field name="host" label="Adres" :hint="in_array('host', $lockedFields, true) ? $kilitNotu : 'IP ya da alan adı.'"
-                          data-goster="access_type:!{{ $adressizTurler }}">
+                          data-show="access_type:!{{ $adressizTurler }}">
                 <x-form.input name="host" :value="$credential?->host" maxlength="190" mono :readonly="in_array('host', $lockedFields, true)" />
             </x-form.field>
         @else
@@ -98,7 +98,7 @@
 
         @if ($visibleFields['uplink'] ?? true)
             <x-form.field name="uplink" label="Uplink" hint="Bağlı olduğu üst cihazın adresi (switch)."
-                          data-goster="access_type:!{{ $adressizTurler }}">
+                          data-show="access_type:!{{ $adressizTurler }}">
                 <x-form.input name="uplink" :value="$credential?->uplink" maxlength="190" mono />
             </x-form.field>
         @else
@@ -107,7 +107,7 @@
 
         @if ($visibleFields['port'] ?? true)
             <x-form.field name="port" label="Port" :hint="in_array('port', $lockedFields, true) ? $kilitNotu : 'Varsayılandan farklıysa.'"
-                          data-goster="access_type:!{{ $adressizTurler }}">
+                          data-show="access_type:!{{ $adressizTurler }}">
                 <x-form.input name="port" type="number" :value="$credential?->port" min="1" max="65535" mono :readonly="in_array('port', $lockedFields, true)" />
             </x-form.field>
         @else
@@ -118,7 +118,7 @@
     <div class="field-row">
         @if ($visibleFields['url'] ?? true)
             <x-form.field name="url" label="Bağlantı adresi" :hint="in_array('url', $lockedFields, true) ? $kilitNotu : 'Web arayüzünün tam adresi.'"
-                          data-goster="access_type:!{{ $konsolTurleri }}">
+                          data-show="access_type:!{{ $konsolTurleri }}">
                 <x-form.input name="url" type="url" :value="$credential?->url" maxlength="500" mono :readonly="in_array('url', $lockedFields, true)" />
             </x-form.field>
         @else
@@ -194,11 +194,11 @@
 </x-ui.panel>
 
 <x-ui.panel title="Parola güncelleme" subtitle="Panel, parolayı uzaktaki makinede değiştirebilir."
-            data-goster="{{ $guncellemeKosulu }}">
+            data-show="{{ $guncellemeKosulu }}">
     <div class="field-row">
         <x-form.field name="rotation_driver" label="Sürücü"
                       hint="Boş bırakılırsa platforma göre seçilir."
-                      data-rotation-surucu>
+                      data-rotation-driver>
             <x-form.select name="rotation_driver" :options="$rotationDrivers"
                            :selected="$credential?->rotation_driver" />
         </x-form.field>
@@ -229,7 +229,7 @@
     --}}
     <x-form.field name="rotation_credential_id" label="Güncelleme hesabı — kasadan seç"
                   hint="Parola, makineye bu kayıtla bağlanılarak değiştirilir. Seçilmezse güncelleme düğmesi çıkmaz."
-                  data-makine-hesabi="{{ json_encode($makineHesabiSurucileri) }}"
+                  data-machine-account="{{ json_encode($makineHesabiSurucileri) }}"
                   :class="in_array($surucuSecimi, $makineHesabiSurucileri, true) ? '' : 'is-hidden'">
         <x-form.select name="rotation_credential_id" :options="$rotationCredentialOptions"
                        :selected="$credential?->rotation_credential_id" />
@@ -240,14 +240,14 @@
       çoğu kendi hesabıyla döner, ayrı hesap istisnadır. Kutu kaldırılınca hesap adı temizlenir ve tur kaydın kendi
       hesabıyla bağlanır — gizli ama hâlâ geçerli bir hesap bırakılmaz.
     --}}
-    <div class="{{ filled($kasaSecimi) ? 'is-hidden' : '' }}" data-elle-hesap>
+    <div class="{{ filled($kasaSecimi) ? 'is-hidden' : '' }}" data-manual-account>
         <label class="checkbox">
-            <input type="checkbox" data-kosul="ayri_hesap"
+            <input type="checkbox" data-condition="ayri_hesap"
                    @checked(filled(old('rotation_username', $credential?->rotation_username)))>
             <span>Ayrı bir güncelleme hesabıyla bağlan</span>
         </label>
 
-        <div class="field-row kayit-formu__ic" data-goster="ayri_hesap:*" data-gizlenince-temizle>
+        <div class="field-row record-form__inner" data-show="ayri_hesap:*" data-clear-on-hide>
             <x-form.field name="rotation_username" label="Güncelleme hesabı"
                           hint="Kasada karşılığı olmayan bir hesap için.">
                 <x-form.input name="rotation_username" :value="$credential?->rotation_username" mono
@@ -268,14 +268,14 @@
     yalnızca onlarda dolu). Alanlar kutu işaretliyse görünür; kutu kaldırılınca
     temizlenir ve özellik kapanır (giriş adresi boşken özellik zaten kapalı).
 --}}
-<x-ui.panel title="Portal oturumu" data-goster="access_type:{{ $portalTurleri }}">
+<x-ui.panel title="Portal oturumu" data-show="access_type:{{ $portalTurleri }}">
     <label class="checkbox">
-        <input type="checkbox" data-kosul="portal_acik"
+        <input type="checkbox" data-condition="portal_acik"
                @checked(filled(old('login_url', $credential?->login_url)))>
         <span>Panelden tek tıkla giriş — parola ekranda görünmez</span>
     </label>
 
-    <div class="kayit-formu__ic" data-goster="portal_acik:*" data-gizlenince-temizle>
+    <div class="record-form__inner" data-show="portal_acik:*" data-clear-on-hide>
         <x-form.field name="login_url" label="Giriş formunun POST adresi"
                       :hint="in_array('login_url', $lockedFields, true) ? $kilitNotu : 'Giriş sayfası değil, formun action adresi. CSRF jetonu ya da iki adımlı doğrulama isteyen sitelerde çalışmaz.'">
             <x-form.input name="login_url" type="url" :value="$credential?->login_url" maxlength="500" mono :readonly="in_array('login_url', $lockedFields, true)" />
@@ -302,13 +302,13 @@
     sürükleyerek verilir (bkz. sorting.js); bölüm yalnız rol istisnasıdır.
 --}}
 @if ($canRestrict && $restrictableRoles->isNotEmpty())
-<details class="kayit-formu__gelismis" @if ($gelismisAcik) open @endif>
+<details class="record-form__advanced" @if ($gelismisAcik) open @endif>
     <summary>
-        <span class="kayit-formu__gelismis-baslik">Gelişmiş ayarlar</span>
+        <span class="record-form__advanced-title">Gelişmiş ayarlar</span>
         <span class="text-sm text-muted">Rol istisnaları</span>
     </summary>
 
-    <div class="kayit-formu__gelismis-govde">
+    <div class="record-form__advanced-body">
         {{--
             KAYIT BAZINDA ROL KISITI VE EK İZİNLER — yalnızca YÖNETİCİ.
 
@@ -328,14 +328,14 @@
             --}}
             <div class="field">
                 <span class="field__label">Rol istisnaları</span>
-                <table class="rol-istisna">
+                <table class="role-exception">
                     <thead>
                         <tr>
                             <th scope="col">Rol</th>
                             <th scope="col">Bu kayıt</th>
                             <th scope="col">Parola</th>
-                            <th scope="col" data-goster="access_type:{{ $konsolTurleri }}">Konsol</th>
-                            <th scope="col" data-goster="access_type:{{ $portalTurleri }}">Portal</th>
+                            <th scope="col" data-show="access_type:{{ $konsolTurleri }}">Konsol</th>
+                            <th scope="col" data-show="access_type:{{ $portalTurleri }}">Portal</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -355,12 +355,12 @@
                                            aria-label="{{ $rol->label }} parolayı görür"
                                            @checked(in_array($rol->uuid, old('granted_roles', $grantedRoleUuids), true))>
                                 </td>
-                                <td data-goster="access_type:{{ $konsolTurleri }}">
+                                <td data-show="access_type:{{ $konsolTurleri }}">
                                     <input type="checkbox" name="konsol_roles[]" value="{{ $rol->uuid }}"
                                            aria-label="{{ $rol->label }} konsol açar"
                                            @checked(in_array($rol->uuid, old('konsol_roles', $konsolRoleUuids), true))>
                                 </td>
-                                <td data-goster="access_type:{{ $portalTurleri }}">
+                                <td data-show="access_type:{{ $portalTurleri }}">
                                     <input type="checkbox" name="portal_roles[]" value="{{ $rol->uuid }}"
                                            aria-label="{{ $rol->label }} portal açar"
                                            @checked(in_array($rol->uuid, old('portal_roles', $portalRoleUuids), true))>

@@ -75,7 +75,7 @@ class PasswordRevealTest extends TestCase
         [$user, $credential] = $this->kullanici(canReveal: true);
 
         $this->actingAs($user)
-            ->get('/erisim/'.$credential->uuid.'/parola')
+            ->get('/access/'.$credential->uuid.'/password')
             ->assertMethodNotAllowed();
     }
 

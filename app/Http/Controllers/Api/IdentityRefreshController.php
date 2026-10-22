@@ -54,7 +54,7 @@ class IdentityRefreshController extends Controller
         IdentitySyncer $esitleyici,
     ): JsonResponse {
         $subject = trim((string) $request->input('subject'));
-        $sir = (string) config('identity.bildirim_sirri');
+        $sir = (string) config('identity.notify_secret');
 
         /*
          * Sabit süreli karşılaştırma: doğru imzanın ne kadarının tuttuğu
@@ -62,21 +62,21 @@ class IdentityRefreshController extends Controller
          */
         $imzali = $sir !== '' && hash_equals(
             hash_hmac('sha256', $subject, $sir),
-            (string) $request->header('X-Kimlik-Imza'),
+            (string) $request->header('X-Identity-Signature'),
         );
 
         if ($imzali && $subject !== '' && $merkez->acikMi()) {
-            $this->tazele($subject, $merkez, $esitleyici);
+            $this->refresh($subject, $merkez, $esitleyici);
         }
 
         /*
          * YANIT HER ZAMAN AYNI. "Bu kimlik burada var mı", "imza tuttu mu"
          * soruları bu uçtan öğrenilemez.
          */
-        return response()->json(['sonuc' => 'alındı']);
+        return response()->json(['result' => 'received']);
     }
 
-    private function tazele(string $subject, CenterClient $merkez, IdentitySyncer $esitleyici): void
+    private function refresh(string $subject, CenterClient $merkez, IdentitySyncer $esitleyici): void
     {
         $bag = UserIdentity::with('user')
             ->where('provider', AccountMatcher::SAGLAYICI)
@@ -92,7 +92,7 @@ class IdentityRefreshController extends Controller
             return;
         }
 
-        $anahtar = 'kimlik:tazele:'.$subject;
+        $anahtar = 'identity:refresh:'.$subject;
 
         if (! Cache::add($anahtar, true, self::BEKLEME)) {
             return;

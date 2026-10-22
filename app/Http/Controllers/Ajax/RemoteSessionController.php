@@ -62,7 +62,7 @@ class RemoteSessionController extends Controller
     public function keepAlive(Request $request): JsonResponse
     {
         $jeton = $request->string('token')->toString();
-        $ayakta = $this->sahibiMi($request, $jeton) && $this->sessions->touch($jeton);
+        $ayakta = $this->isOwner($request, $jeton) && $this->sessions->touch($jeton);
 
         /* Denetim izi de ses veriyor; zamanlayıcı bunu "hâlâ açık" sayar. */
         if ($ayakta) {
@@ -82,7 +82,7 @@ class RemoteSessionController extends Controller
     {
         $jeton = $request->string('token')->toString();
 
-        abort_unless($this->sahibiMi($request, $jeton), 404);
+        abort_unless($this->isOwner($request, $jeton), 404);
 
         $session = $this->opener->close($jeton);
 
@@ -102,7 +102,7 @@ class RemoteSessionController extends Controller
     }
 
     /** Bu jeton isteği yapan kişinin oturumuna mı ait? */
-    private function sahibiMi(Request $request, string $jeton): bool
+    private function isOwner(Request $request, string $jeton): bool
     {
         $oturum = $this->sessions->get($jeton);
 

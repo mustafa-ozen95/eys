@@ -52,7 +52,7 @@ final class GuacdEnvironmentTest extends TestCase
     public function rdp_kanal_eklentileri_imaja_kopyalanir(): void
     {
         $this->assertStringContainsString(
-            'COPY --from=guacd-derleme /usr/lib/x86_64-linux-gnu/freerdp2',
+            'COPY --from=guacd-build /usr/lib/x86_64-linux-gnu/freerdp2',
             file_get_contents(base_path('docker/Dockerfile')),
             'FreeRDP eklenti dizini imaja kopyalanmıyor: rdpdr/rdpsnd kanalları yüklenemez.'
         );

@@ -38,9 +38,9 @@ class UpdateScreenTest extends TestCase
         $this->dizin = sys_get_temp_dir().'/guncelleme-'.bin2hex(random_bytes(4));
         $this->instance(UpdateCheck::class, new UpdateCheck($this->dizin));
         config([
-            'update.depo' => 'mustafa-ozen95/ornek',
-            'update.jeton' => self::JETON,
-            'update.surum' => self::CALISAN,
+            'update.repo' => 'mustafa-ozen95/ornek',
+            'update.token' => self::JETON,
+            'update.version' => self::CALISAN,
         ]);
 
         Http::fake([
@@ -62,16 +62,16 @@ class UpdateScreenTest extends TestCase
     public function test_ekran_yalnizca_yoneticide_acilir(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('guncelleme.index'))
+            ->get(route('update.index'))
             ->assertForbidden();
 
         $this->actingAs(User::factory()->create())
-            ->post(route('guncelleme.denetle'))
+            ->post(route('update.check'))
             ->assertForbidden();
         Http::assertNothingSent();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('guncelleme.index'))
+            ->get(route('update.index'))
             ->assertOk()
             ->assertSee('aaaaaaa')
             ->assertSee('henüz yapılmadı')
@@ -83,13 +83,13 @@ class UpdateScreenTest extends TestCase
         $yonetici = User::factory()->admin()->create();
 
         $this->actingAs($yonetici)
-            ->from(route('guncelleme.index'))
-            ->post(route('guncelleme.denetle'))
-            ->assertRedirect(route('guncelleme.index'))
+            ->from(route('update.index'))
+            ->post(route('update.check'))
+            ->assertRedirect(route('update.index'))
             ->assertSessionHas('status');
 
         $this->actingAs($yonetici)
-            ->get(route('guncelleme.index'))
+            ->get(route('update.index'))
             ->assertOk()
             ->assertSee('yeni sürüm var')
             ->assertSee('Yeni özellik: güncelleme sekmesi')
@@ -104,20 +104,20 @@ class UpdateScreenTest extends TestCase
         app(UpdateCheck::class)->denetle('günlük tur');
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('hesap.profil'))
+            ->get(route('account.profile'))
             ->assertOk()
             ->assertSee('Panelin yeni sürümü var.')
             ->assertSee('3 commit geride');
 
         $this->actingAs(User::factory()->create())
-            ->get(route('hesap.profil'))
+            ->get(route('account.profile'))
             ->assertOk()
             ->assertDontSee('Panelin yeni sürümü var.');
 
-        config(['update.surum' => self::SON]);
+        config(['update.version' => self::SON]);
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('hesap.profil'))
+            ->get(route('account.profile'))
             ->assertOk()
             ->assertDontSee('Panelin yeni sürümü var.');
     }
@@ -125,9 +125,9 @@ class UpdateScreenTest extends TestCase
     public function test_kontrol_her_sabah_zamanlanmis(): void
     {
         $olay = collect(app(Schedule::class)->events())
-            ->first(fn ($olay): bool => str_contains((string) $olay->command, 'guncelleme:denetle'));
+            ->first(fn ($olay): bool => str_contains((string) $olay->command, 'update:check'));
 
-        $this->assertNotNull($olay, 'guncelleme:denetle zamanlayıcıda yok.');
+        $this->assertNotNull($olay, 'update:check zamanlayıcıda yok.');
         $this->assertSame('50 6 * * *', $olay->expression);
     }
 
@@ -138,12 +138,12 @@ class UpdateScreenTest extends TestCase
         $yonetici = User::factory()->admin()->create();
 
         $this->actingAs($yonetici)
-            ->from(route('guncelleme.index'))
-            ->post(route('guncelleme.denetle'))
+            ->from(route('update.index'))
+            ->post(route('update.check'))
             ->assertSessionHas('error');
 
         $this->actingAs($yonetici)
-            ->get(route('guncelleme.index'))
+            ->get(route('update.index'))
             ->assertSee('kontrol edilemedi')
             ->assertSee('erişilemedi');
     }

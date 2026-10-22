@@ -16,7 +16,7 @@ use Illuminate\Http\Response;
  * Cihaz arayüzü vekilinin bekçisi.
  *
  * nginx her isteği önce buraya sorar ve HEDEFİ de buradan öğrenir
- * (X-Eys-Hedef). Hedefin isteğin kendisinden değil BİZİM KAYDIMIZDAN gelmesi
+ * (X-Eys-Target). Hedefin isteğin kendisinden değil BİZİM KAYDIMIZDAN gelmesi
  * şarttır: Host Client istediği konağı `x-vsphere-proxy` başlığında yolluyor
  * ve o başlığa güvenilseydi panel, istenen her adrese bağlanan açık bir vekile
  * dönerdi. Başlık burada yalnızca "hangisini istiyorsun" sorusunun cevabıdır;
@@ -43,7 +43,7 @@ class InterfaceProxyWatcher extends Controller
          * atabilirdi. Kimlik bunun yerine vekil kökenindeki çerezle taşınır
          * ve KİM OLDUĞU kaydın kendisinden okunur.
          */
-        $kayit = $this->kayit($request);
+        $kayit = $this->record($request);
 
         if ($kayit === null) {
             return response()->noContent(Response::HTTP_FORBIDDEN);
@@ -63,8 +63,8 @@ class InterfaceProxyWatcher extends Controller
 
         $credential = Credential::query()->find($kayit['credential_id']);
 
-        /* Sorulan yetenek "arayuz": vekilde parola tarayıcıya hiç gitmiyor. */
-        if ($credential === null || $sahip->cannot('arayuz', $credential)) {
+        /* Sorulan yetenek "deviceInterface": vekilde parola tarayıcıya hiç gitmiyor. */
+        if ($credential === null || $sahip->cannot('deviceInterface', $credential)) {
             return response()->noContent(Response::HTTP_FORBIDDEN);
         }
 
@@ -78,12 +78,12 @@ class InterfaceProxyWatcher extends Controller
          */
         $tur = InterfaceType::from((string) $kayit['tur']);
 
-        $onek = $tur->yolOnekiKullanir() && InterfaceSession::ayriKoken()
-            ? InterfaceSession::cihazOneki($credential)
+        $prefix = $tur->yolOnekiKullanir() && InterfaceSession::ayriKoken()
+            ? InterfaceSession::devicePrefix($credential)
             : '';
 
         return response()->noContent()
-            ->header('X-Eys-Hedef', (string) $kayit['hedef'])
+            ->header('X-Eys-Target', (string) $kayit['hedef'])
             /*
              * OTURUMUN KENDİSİ. Vekil, cihazdan gelen her sayfaya açılış
              * betiğini bu oturumun adresiyle ekliyor; betik böylece hangi
@@ -91,7 +91,7 @@ class InterfaceProxyWatcher extends Controller
              * geri yazabiliyor. Oturumu ÇEREZDEN bulsaydı iki sekmede iki
              * arayüz açıkken yanlış oturumu bulabilirdi.
              */
-            ->header('X-Eys-Oturum', (string) $kayit['token'])
+            ->header('X-Eys-Session', (string) $kayit['token'])
             /*
              * OTURUM ÖNEKİ — cihazın YÖNLENDİRMELERİ için.
              *
@@ -101,7 +101,7 @@ class InterfaceProxyWatcher extends Controller
              * Önek burada söyleniyor; önek kullanmayan türde
              * (Rspamd) boş kalır ve kural eskisi gibi çalışır.
              */
-            ->header('X-Eys-Onek', $onek)
+            ->header('X-Eys-Prefix', $prefix)
             /*
              * CİHAZIN KENDİ <base> ETİKETİ.
              *
@@ -114,8 +114,8 @@ class InterfaceProxyWatcher extends Controller
              * yoksa cihazın kendi taban dizini — yani öneksiz kipte hiçbir şey
              * değişmiyor.
              */
-            ->header('X-Eys-Base', $onek !== '' ? $onek.'/' : $tur->cihazYolu())
-            ->header('X-Eys-Taban', $this->taban($tur, $credential, (string) $request->header('X-Original-Uri', '')))
+            ->header('X-Eys-Base', $prefix !== '' ? $prefix.'/' : $tur->cihazYolu())
+            ->header('X-Eys-Root', $this->base($tur, $credential, (string) $request->header('X-Original-Uri', '')))
             /*
              * Cihazın PORTSUZ adı. Yönlendirmeleri vekilde tutmak için gerekli:
              * cihazlar kendi adreslerini portlu da portsuz da kurabiliyor ve
@@ -123,25 +123,25 @@ class InterfaceProxyWatcher extends Controller
              * çıkıp cihazın kökenine düşüyordu (vCenter
              * "https://<cihaz-adresi>/websso/..." diyor).
              */
-            ->header('X-Eys-Konak', (string) preg_replace('/:\d+$/', '', (string) $kayit['hedef']))
+            ->header('X-Eys-Host', (string) preg_replace('/:\d+$/', '', (string) $kayit['hedef']))
             /*
              * İstek cihazın kökeninden gelmiş görünsün mü? Yalnızca isteyen
              * türde (bkz. InterfaceType::kokenYazilirMi); vekil Referer ve
              * Origin başlıklarını o zaman yeniden kuruyor.
              */
-            ->header('X-Eys-Koken', $tur->kokenYazilirMi() ? '1' : '')
+            ->header('X-Eys-Origin', $tur->kokenYazilirMi() ? '1' : '')
             /*
              * Cihaza gidecek çerez. Sunucuda açılan oturumlarda cihazın kendi
              * çerezi; ötekilerde tarayıcınınkilerden YALNIZCA cihaza ait
              * olanlar. Panelin ve vekilin çerezleri hiçbir durumda geçmez.
              */
-            ->header('X-Eys-Cerez', $this->oturumlar->cerezSuz($kayit, $request->header('Cookie')))
+            ->header('X-Eys-Cookie', $this->oturumlar->cerezSuz($kayit, $request->header('Cookie')))
             /*
              * ÇEREZ DEĞİL BAŞLIK İSTEYEN ARAYÜZÜN SIRRI (Rspamd'da parolanın
              * kendisi). Boş dönerse nginx başlığı hiç göndermez — ötekiler
              * etkilenmez.
              */
-            ->header('X-Eys-Gizli', (string) ($kayit['gizli'] ?? ''));
+            ->header('X-Eys-Secret', (string) ($kayit['gizli'] ?? ''));
     }
 
     /**
@@ -149,7 +149,7 @@ class InterfaceProxyWatcher extends Controller
      *
      * @return array<string, mixed>|null
      */
-    private function cerezKaydi(Request $request): ?array
+    private function cookieRecord(Request $request): ?array
     {
         $token = $request->cookie(InterfaceSession::COOKIE);
 
@@ -157,7 +157,7 @@ class InterfaceProxyWatcher extends Controller
     }
 
     /** İstek adresinin yolu; sorgu dizesi kararı ilgilendirmiyor. */
-    private function yol(string $adres): string
+    private function path(string $adres): string
     {
         return parse_url($adres, PHP_URL_PATH) ?: $adres;
     }
@@ -181,13 +181,13 @@ class InterfaceProxyWatcher extends Controller
      * Öneksiz istekte de doğru çalışır: kök yolların kendi konumları tabanı
      * zaten kullanmıyor, ötekiler için de cihazın taban dizini dönüyor.
      */
-    private function taban(InterfaceType $tur, Credential $credential, string $adres): string
+    private function base(InterfaceType $tur, Credential $credential, string $adres): string
     {
-        $yol = $this->yol($adres);
-        $onek = InterfaceSession::cihazOneki($credential);
+        $yol = $this->path($adres);
+        $prefix = InterfaceSession::devicePrefix($credential);
 
-        if (str_starts_with($yol, $onek)) {
-            $yol = substr($yol, strlen($onek));
+        if (str_starts_with($yol, $prefix)) {
+            $yol = substr($yol, strlen($prefix));
             $yol = $yol === '' ? '/' : $yol;
         }
 
@@ -195,7 +195,7 @@ class InterfaceProxyWatcher extends Controller
             if (str_starts_with($yol, $kok)) {
                 /*
                  * "/" döner, boş DEĞİL: nginx yolu ayırıcısız birleştiriyor
-                 * ($arayuz_yol baştaki eğik çizgiyi taşımıyor) ve boş tabanla
+                 * ($interface_path baştaki eğik çizgiyi taşımıyor) ve boş tabanla
                  * adres "https://havuzwebsso/…" oluyordu — 502.
                  */
                 return '/';
@@ -212,11 +212,11 @@ class InterfaceProxyWatcher extends Controller
      * karşılaştırılıyor (bkz. InterfaceSession::slugdanKayit). Ad doğru olsa bile
      * oturumu açan kişi olmadan işe yaramaz; kişiyi çerez söylüyor.
      */
-    private function onektenKayit(string $adres): ?Credential
+    private function recordFromPrefix(string $adres): ?Credential
     {
-        $onek = preg_quote(InterfaceSession::CIHAZ_ONEK, '#');
+        $prefix = preg_quote(InterfaceSession::DEVICE_PREFIX, '#');
 
-        if (preg_match('#^'.$onek.'/([a-z0-9-]+)(?:/|$)#i', $this->yol($adres), $eslesme) !== 1) {
+        if (preg_match('#^'.$prefix.'/([a-z0-9-]+)(?:/|$)#i', $this->path($adres), $eslesme) !== 1) {
             return null;
         }
 
@@ -227,13 +227,13 @@ class InterfaceProxyWatcher extends Controller
      * Hangi oturum soruluyor.
      *
      * Üç yol var, hepsi de kendi adresinden geliyor:
-     *  - /cihaz-oturum/<kimlik>/... : kimlik adreste,
+     *  - /device-session/<kimlik>/... : kimlik adreste,
      *  - /sdk                       : hedef `x-vsphere-proxy` başlığında,
      *  - /ui/... ve /rest/...       : ikisi de yok, çerezdeki kimlik kullanılır.
      *
      * @return array<string, mixed>|null
      */
-    private function kayit(Request $request): ?array
+    private function record(Request $request): ?array
     {
         /*
          * OTURUMU PORT SÖYLER — en güvenilir yol bu.
@@ -266,7 +266,7 @@ class InterfaceProxyWatcher extends Controller
              * aynı tarayıcıda birden çok arayüz açık olabiliyor ve çerez
              * yalnızca en son açılanı gösteriyor — aynı KİŞİYE ait olması.
              */
-            $cerezKaydi = $this->cerezKaydi($request);
+            $cerezKaydi = $this->cookieRecord($request);
 
             if ($portOturumu !== null
                 && $cerezKaydi !== null
@@ -283,7 +283,7 @@ class InterfaceProxyWatcher extends Controller
         }
 
         $adres = (string) $request->header('X-Original-Uri', '');
-        $onek = preg_quote(InterfaceSession::onek(), '#');
+        $prefix = preg_quote(InterfaceSession::prefix(), '#');
 
         $token = $request->cookie(InterfaceSession::COOKIE);
         $kayit = is_string($token) ? $this->oturumlar->bul($token) : null;
@@ -298,7 +298,7 @@ class InterfaceProxyWatcher extends Controller
          * kol da aynı kuralı uygular: çerezdeki oturum AYNI KİŞİYE ait
          * olmalı. Çerez gizli (HttpOnly) ve konak-özeldir.
          */
-        if (preg_match('#^'.$onek.'/([0-9a-f-]{36})#i', $adres, $eslesme) === 1) {
+        if (preg_match('#^'.$prefix.'/([0-9a-f-]{36})#i', $adres, $eslesme) === 1) {
             $adresteki = $this->oturumlar->bul($eslesme[1]);
 
             return $adresteki !== null
@@ -321,8 +321,8 @@ class InterfaceProxyWatcher extends Controller
          * kökten MUTLAK istiyor ("/cp/javascript/…") ve o istekler önekin
          * dışına düşüyor, ama isteği yapan sayfa önek altında.
          */
-        $cihaz = $this->onektenKayit($adres)
-            ?? $this->onektenKayit((string) $request->header('Referer', ''));
+        $cihaz = $this->recordFromPrefix($adres)
+            ?? $this->recordFromPrefix((string) $request->header('Referer', ''));
 
         if ($cihaz !== null && $kayit !== null) {
             $oturum = $this->oturumlar->kayitIcin((int) $kayit['user_id'], (int) $cihaz->getKey());
@@ -350,7 +350,7 @@ class InterfaceProxyWatcher extends Controller
          */
         $sayfa = (string) $request->header('Referer', '');
 
-        if (preg_match('#^https?://[^/]+'.$onek.'/([0-9a-f-]{36})#i', $sayfa, $eslesme) === 1) {
+        if (preg_match('#^https?://[^/]+'.$prefix.'/([0-9a-f-]{36})#i', $sayfa, $eslesme) === 1) {
             $refererli = $this->oturumlar->bul($eslesme[1]);
 
             /* Çerezi olmayan Referer ile oturum kuramaz (`$kayit === null` geçmez). */
@@ -397,7 +397,7 @@ class InterfaceProxyWatcher extends Controller
          * oturum arasında seçim yapmaya kalkmıyoruz.
          */
         $tur = InterfaceType::from((string) $kayit['tur']);
-        $sahipler = InterfaceType::yolunSahipleri($this->yol($adres));
+        $sahipler = InterfaceType::yolunSahipleri($this->path($adres));
 
         if ($sahipler !== [] && ! in_array($tur, $sahipler, true)) {
             return $this->oturumlar->turIcin((int) $kayit['user_id'], $sahipler) ?? $kayit;

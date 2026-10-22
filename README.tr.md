@@ -14,7 +14,7 @@ Neyin **ne ölçüde** desteklendiği: [`SUPPORT.md`](SUPPORT.md).
 
 - **Saklar.** Parola, not ve döndürme kimliği `encrypted` cast ile saklanır ve
   `$hidden`'dadır: hiçbir listede, JSON yanıtında ya da hata çıktısında
-  basılmaz. Parolayı ekrana getiren tek uç `POST erisim/{kayit}/parola`; ayrı
+  basılmaz. Parolayı ekrana getiren tek uç `POST access/{credential}/password`; ayrı
   yetki ister, hız sınırlıdır ve her gösterim denetim kaydına düşer.
 - **Kullandırır.** Portal oturumu, alanları doldurulmuş tek seferlik bir form
   sayfası üretir ve sayfa kendini hedef siteye gönderir. Parola kullanıcının
@@ -58,13 +58,13 @@ görmeye yeter, parolayı yalnızca `field.password` verilmiş olan açar.
 
 Her satır bir öncekinin özetini taşır ve özet **HMAC-SHA256** ile üretilir.
 Model düzeyinde güncelleme ve silme kapalıdır; silmenin tek kapısı
-`erisim:kayit-buda` komutudur ve o da gerekçe isteyip kendini zincire yazar.
+`activity:prune` komutudur ve o da gerekçe isteyip kendini zincire yazar.
 
 ## Kurulum
 
 ```bash
 composer setup          # bağımlılıklar, .env, anahtar, göçler, derleme
-php artisan erisim:yonetici-ekle --ad="Ad Soyad" --eposta=ad@ornek.test
+php artisan admin:add --name="Ad Soyad" --email=ad@ornek.test
 ```
 
 Docker imajında zamanlayıcı zaten konteynerin içinde çalışır. Konteyner
@@ -79,17 +79,17 @@ kullanıcısı ile, root ile **değil**; kurulum dizinini kendinize göre yazın
 
 | Komut | İş |
 | --- | --- |
-| `erisim:kasa-denetle` | Salt okuma denetim: döndürmeye hazır kayıtların kimliklerini yalnızca giriş deneyerek sınar |
-| `erisim:kimlik-esitle` | Merkezdeki rol ve durum değişikliklerini yerel hesaplara uygular |
-| `erisim:kayit-buda` | Denetim kaydını budar; gerekçe ister |
-| `erisim:yonetici-ekle` | İlk yöneticiyi açar; parola komut satırına yazılmaz |
-| `erisim:gorsel-hazirla` | Görsel testler için sqlite'ı sıfırdan kurar |
+| `access:vault-check` | Salt okuma denetim: döndürmeye hazır kayıtların kimliklerini yalnızca giriş deneyerek sınar |
+| `identity:sync` | Merkezdeki rol ve durum değişikliklerini yerel hesaplara uygular |
+| `activity:prune` | Denetim kaydını budar; gerekçe ister |
+| `admin:add` | İlk yöneticiyi açar; parola komut satırına yazılmaz |
+| `access:prepare-visuals` | Görsel testler için sqlite'ı sıfırdan kurar |
 
 ## Testler
 
 ```bash
 composer test                                   # tam takım
-php artisan erisim:gorsel-hazirla && npx playwright test
+php artisan access:prepare-visuals && npx playwright test
 ```
 
 ## Kurallar

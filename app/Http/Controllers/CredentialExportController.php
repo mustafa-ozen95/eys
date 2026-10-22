@@ -44,7 +44,7 @@ class CredentialExportController extends Controller implements HasMiddleware
         );
 
         if ($sonuc['yazilan'] === 0) {
-            return back()->with('error', 'Çıktıya alınacak parola yok: '.$this->elenenler($sonuc).'.');
+            return back()->with('error', 'Çıktıya alınacak parola yok: '.$this->filtered($sonuc).'.');
         }
 
         /*
@@ -52,13 +52,13 @@ class CredentialExportController extends Controller implements HasMiddleware
          * olduğunu sanmamalı; sayı ve SEBEBİ söylenir, hangileri olduğu
          * denetim kaydında zaten satır satır duruyor.
          */
-        $ek = $this->elenenler($sonuc);
+        $ek = $this->filtered($sonuc);
         $ek = $ek === '' ? '' : '; '.$ek;
 
         return response($sonuc['icerik'])
             ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->header('Content-Disposition', 'attachment; filename="'.$sonuc['ad'].'"')
-            ->header('X-Eys-Ozet', $sonuc['yazilan'].' kayıt yazıldı'.$ek)
+            ->header('X-Eys-Digest', $sonuc['yazilan'].' kayıt yazıldı'.$ek)
             /* Açık parola listesi hiçbir ara sunucuda ve tarayıcıda durmamalı. */
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
             ->header('Pragma', 'no-cache');
@@ -73,7 +73,7 @@ class CredentialExportController extends Controller implements HasMiddleware
      *
      * @param  array{yazilan: int, yetkisiz: int, parolasiz: int}  $sonuc
      */
-    private function elenenler(array $sonuc): string
+    private function filtered(array $sonuc): string
     {
         $parcalar = [];
 

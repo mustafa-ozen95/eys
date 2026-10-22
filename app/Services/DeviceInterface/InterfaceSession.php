@@ -50,7 +50,7 @@ final class InterfaceSession
      * uygulamayı hiç açtırmıyor. İki yere ayrı ayrı yazmamak için ayarın
      * kendisi de buraya bakar (bkz. config/remote.php).
      */
-    public const ONEK = '/cihaz-oturum';
+    public const PREFIX = '/device-session';
 
     /**
      * CİHAZ ADRESİNİN ÖNEKİ — panelin kendi uçlarından AYRI.
@@ -60,7 +60,7 @@ final class InterfaceSession
      * onları da yutar ve ekranda cihazın 404'ü çıkar. Ayrı önek bu
      * karışıklığı kökünden kaldırıyor.
      */
-    public const CIHAZ_ONEK = '/cihaz';
+    public const DEVICE_PREFIX = '/cihaz';
 
     /**
      * Kaydın adres parçası: "ornek-panel-2".
@@ -75,9 +75,9 @@ final class InterfaceSession
     }
 
     /** Cihazın adres öneki: /cihaz/<kaydın-adı>-<kimlik> */
-    public static function cihazOneki(Credential $credential): string
+    public static function devicePrefix(Credential $credential): string
     {
-        return self::CIHAZ_ONEK.'/'.self::kayitSlug($credential);
+        return self::DEVICE_PREFIX.'/'.self::kayitSlug($credential);
     }
 
     /**
@@ -101,9 +101,9 @@ final class InterfaceSession
     /** Devri oturumu açan tarayıcıya bağlayan kısa ömürlü çerez. */
     public const DEVIR_BAG_COOKIE = 'eys-devir-bag';
 
-    public static function onek(): string
+    public static function prefix(): string
     {
-        return rtrim((string) config('remote.arayuz.prefix'), '/');
+        return rtrim((string) config('remote.interface.prefix'), '/');
     }
 
     /**
@@ -115,7 +115,7 @@ final class InterfaceSession
      */
     public static function taban(int $port = 0): string
     {
-        $alan = trim((string) config('remote.arayuz.alan'));
+        $alan = trim((string) config('remote.interface.domain'));
 
         if ($alan === '') {
             return rtrim(url('/'), '/');
@@ -138,13 +138,13 @@ final class InterfaceSession
     /** Vekil ayrı bir kökende mi duruyor? */
     public static function ayriKoken(): bool
     {
-        return trim((string) config('remote.arayuz.alan')) !== '';
+        return trim((string) config('remote.interface.domain')) !== '';
     }
 
     /**
      * Arayüzün adresi.
      *
-     * ADRES OTURUM ÖNEKİYLE AÇILIR: /cihaz-oturum/<oturum>/<cihazın yolu>.
+     * ADRES OTURUM ÖNEKİYLE AÇILIR: /device-session/<oturum>/<cihazın yolu>.
      *
      * Önek olmadan oturumu yalnızca ÇEREZ taşır; çerez sekmeye değil
      * TARAYICIYA ait olduğu için aynı anda iki arayüz açan kullanıcının
@@ -159,10 +159,10 @@ final class InterfaceSession
      *
      * Panelin kendi kökeninde adres zaten önekliydi: orada kök panelindir.
      */
-    public static function sayfaAdresi(string $token, InterfaceType $tur, ?Credential $credential = null, int $port = 0): string
+    public static function pageUrl(string $token, InterfaceType $tur, ?Credential $credential = null, int $port = 0): string
     {
         if (! self::ayriKoken()) {
-            return self::taban().self::onek().'/'.$token.'/';
+            return self::taban().self::prefix().'/'.$token.'/';
         }
 
         /*
@@ -171,7 +171,7 @@ final class InterfaceSession
          * çerez vekilde.
          */
         if ($tur->acilisGorunumu() !== null) {
-            return self::taban().self::onek().'/sayfa';
+            return self::taban().self::prefix().'/page';
         }
 
         return self::taban($port).$tur->inisYolu();
@@ -180,21 +180,21 @@ final class InterfaceSession
     /** Sayfaya yazılan taban adres (<base href>). */
     public static function tabanYolu(string $token): string
     {
-        return self::ayriKoken() ? '/' : self::onek().'/'.$token.'/';
+        return self::ayriKoken() ? '/' : self::prefix().'/'.$token.'/';
     }
 
-    public static function kimlikAdresi(string $token): string
+    public static function identityUrl(string $token): string
     {
         return self::ayriKoken()
-            ? self::onek().'/kimlik'
-            : self::onek().'/'.$token.'/kimlik';
+            ? self::prefix().'/identity'
+            : self::prefix().'/'.$token.'/identity';
     }
 
-    public static function acilisAdresi(string $token): string
+    public static function bootUrl(string $token): string
     {
         return self::ayriKoken()
-            ? self::onek().'/acilis.js'
-            : self::onek().'/'.$token.'/acilis.js';
+            ? self::prefix().'/boot.js'
+            : self::prefix().'/'.$token.'/boot.js';
     }
 
     /**
@@ -203,14 +203,14 @@ final class InterfaceSession
      * Kimliği ÇEREZ taşır, adres değil: haber sayfa kapanırken atılıyor ve o
      * anda betiğin elinde jeton tutmak gerekmesin. Her iki kökende de aynı yol.
      */
-    public static function ayrilisAdresi(): string
+    public static function leaveUrl(): string
     {
-        return self::onek().'/ayril';
+        return self::prefix().'/leave';
     }
 
     private function devirAnahtari(string $devir): string
     {
-        return 'eys:arayuz-devir:'.$devir;
+        return 'eys:interface-handoff:'.$devir;
     }
 
     /**
@@ -228,7 +228,7 @@ final class InterfaceSession
         Cache::put($this->devirAnahtari($devir), [
             'token' => $token,
             'bag' => $bag === null ? null : hash('sha256', $bag),
-        ], (int) config('remote.arayuz.devir_omru'));
+        ], (int) config('remote.interface.handoff_ttl'));
 
         return $devir;
     }
@@ -269,12 +269,12 @@ final class InterfaceSession
 
     private function anahtar(string $token): string
     {
-        return 'eys:arayuz-oturum:'.$token;
+        return 'eys:interface-session:'.$token;
     }
 
     private function kullaniciAnahtari(int $userId, string $konak): string
     {
-        return 'eys:arayuz-konak:'.$userId.':'.mb_strtolower($konak);
+        return 'eys:interface-host:'.$userId.':'.mb_strtolower($konak);
     }
 
     public function omur(): int
@@ -364,7 +364,7 @@ final class InterfaceSession
          * DENETİM İZİ önbellekten AYRI durur: önbellekteki kayıt kısa ömürlü
          * ve sessizce düşüyor; geriye "kapandı" satırı olmayan bir oturum
          * kalırdı. Konsol oturumlarıyla aynı tablo, aynı zamanlayıcı: sesi
-         * kesilen oturumu `erisim:konsol-temizle` kapatıp kayda geçiriyor.
+         * kesilen oturumu `console:prune` kapatıp kayda geçiriyor.
          */
         ConsoleSession::create([
             'token' => $token,
@@ -390,7 +390,7 @@ final class InterfaceSession
             'tur' => $tur,
             'konak' => $kayit['konak'],
             'hedef' => $kayit['hedef'],
-            'adres' => self::onek().'/'.$token.'/',
+            'adres' => self::prefix().'/'.$token.'/',
         ];
     }
 
@@ -442,18 +442,18 @@ final class InterfaceSession
     /** Havuzun ilk portu. */
     public static function ilkPort(): int
     {
-        return (int) config('remote.arayuz.port_ilk', 0);
+        return (int) config('remote.interface.port_start', 0);
     }
 
     /** Havuzun son portu. */
     public static function sonPort(): int
     {
-        return (int) config('remote.arayuz.port_son', 0);
+        return (int) config('remote.interface.port_end', 0);
     }
 
     private function portAnahtari(int $port): string
     {
-        return 'eys:arayuz-port:'.$port;
+        return 'eys:interface-port:'.$port;
     }
 
     /**
@@ -601,7 +601,7 @@ final class InterfaceSession
         Cache::put($this->anahtar($kayit['token']), $kayit, $this->omur());
         Cache::put($this->kullaniciAnahtari((int) $kayit['user_id'], (string) $kayit['hedef']), $kayit['token'], $this->omur());
 
-        $kisit = 'eys:arayuz-ses:'.$kayit['token'];
+        $kisit = 'eys:interface-session-limit:'.$kayit['token'];
 
         if (Cache::has($kisit)) {
             return;
@@ -631,7 +631,7 @@ final class InterfaceSession
     {
         $token = (string) $kayit['token'];
 
-        Cache::forget('eys:arayuz-ses:'.$token);
+        Cache::forget('eys:interface-session-limit:'.$token);
 
         ConsoleSession::query()
             ->where('token', $token)

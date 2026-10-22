@@ -28,7 +28,7 @@ use Throwable;
  */
 class AuditVaultCommand extends Command
 {
-    protected $signature = 'erisim:kasa-denetle {--kayit= : Yalnızca bu kaydın kimliğini sınar}';
+    protected $signature = 'access:vault-check {--record= : Yalnızca bu kaydın kimliğini sınar}';
 
     protected $description = 'Otomasyona hazır kayıtların kimliklerini sınar (salt okuma)';
 
@@ -36,7 +36,7 @@ class AuditVaultCommand extends Command
     {
         $records = Credential::with('group')
             ->otomasyon()
-            ->when($this->option('kayit'), fn ($query, $uuid) => $query->where('uuid', $uuid))
+            ->when($this->option('record'), fn ($query, $uuid) => $query->where('uuid', $uuid))
             ->get()
             ->filter(fn (Credential $c): bool => $registry->blockedReason($c) === null)
             ->sortBy('id');

@@ -82,7 +82,7 @@ class ConcurrentSessionTest extends TestCase
         $this->assertStringContainsString('data-src="{{ $session[\'path\'] }}"', $sablon);
         $this->assertSame(0, preg_match('/(?<!data-)src="\{\{ \$session/', $sablon), 'çerçeve kendiliğinden yüklenmemeli');
         $sil = strpos($betik, "removeItem('GUAC_AUTH')");
-        $ac = strpos($betik, 'cerceve.src = cerceve.dataset.src');
+        $ac = strpos($betik, 'frame.src = frame.dataset.src');
         $this->assertNotFalse($sil);
         $this->assertNotFalse($ac);
         $this->assertLessThan($ac, $sil, 'jeton kaydı çerçeve açılmadan ÖNCE silinmeli');

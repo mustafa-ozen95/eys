@@ -28,19 +28,19 @@
         yanlışlıkla basılması can sıkıcı bir düğme için fazla göze batan bir
         yer. Artık kimlik göstergesinin altında, hesap işleriyle birlikte.
     --}}
-    <div class="kullanici-menu" data-menu>
-        <button type="button" class="kullanici-menu__dugme" data-menu-ac
+    <div class="user-menu" data-menu>
+        <button type="button" class="user-menu__button" data-menu-open
                 aria-haspopup="true" aria-expanded="false" aria-label="Hesap menüsü">
             <span class="topbar__avatar" aria-hidden="true">{{ $initials }}</span>
             <span class="topbar__name">{{ auth()->user()?->name }}</span>
-            <svg class="kullanici-menu__ok" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <svg class="user-menu__arrow" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
                 <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"
                       stroke-linecap="round" stroke-linejoin="round" />
             </svg>
         </button>
 
-        <div class="kullanici-menu__liste" data-menu-liste hidden>
-            <a href="{{ route('hesap.profil') }}" class="kullanici-menu__oge">Hesabım</a>
+        <div class="user-menu__list" data-menu-list hidden>
+            <a href="{{ route('account.profile') }}" class="user-menu__item">Hesabım</a>
 
             {{--
                 Merkezin hızlı erişim sayfası, YENİ SEKMEDE: panelde yapılan
@@ -49,12 +49,12 @@
                 ölü bir bağlantı göstermemek için yalnızca açıkken çizilir.
             --}}
             @if (config('identity.acik'))
-                <a href="{{ config('identity.adres') }}" class="kullanici-menu__oge" target="_blank" rel="noopener">Hızlı Erişim</a>
+                <a href="{{ config('identity.url') }}" class="user-menu__item" target="_blank" rel="noopener">Hızlı Erişim</a>
             @endif
 
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="kullanici-menu__oge kullanici-menu__oge--cikis">Çıkış</button>
+                <button type="submit" class="user-menu__item user-menu__item--logout">Çıkış</button>
             </form>
         </div>
     </div>

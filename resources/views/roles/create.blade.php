@@ -4,7 +4,7 @@
             <x-ui.page-head title="Yeni rol" />
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('roles.store') }}">
+            <form method="POST" data-inline action="{{ route('roles.store') }}">
                 @csrf
                 <x-roles.form :badges="$badges" :actions="$actions"
                               :action-labels="$actionLabels" :groups="$groups" :template="$template" />

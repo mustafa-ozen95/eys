@@ -18,22 +18,22 @@ const PAROLA = process.env.E2E_PASSWORD;
  * sunucudan geliyorsa (merkez kapalı kurulum) hiç dokunulmaz.
  */
 async function parolaFormunuAc(page) {
-    const katlanir = page.locator('details.gate__katlanir');
+    const katlanir = page.locator('details.gate__collapsible');
 
     if (await katlanir.count() && await katlanir.getAttribute('open') === null) {
-        await page.locator('summary.gate__katlanir-baslik').click();
+        await page.locator('summary.gate__collapsible-title').click();
     }
 }
 
 async function girisYap(page) {
-    await page.goto('/giris');
+    await page.goto('/login');
 
     await parolaFormunuAc(page);
 
     await page.fill('#email', EPOSTA);
     await page.fill('#password', PAROLA);
     await page.click('form button[type="submit"]');
-    await expect(page).toHaveURL(/erisim/);
+    await expect(page).toHaveURL(/access/);
 }
 
 /** Yenilemede silinecek bir iz bırakır. */
@@ -61,7 +61,7 @@ test('ust menu gecisi de yenilemez ve baslik degisir', async ({ page }) => {
     await isaretBirak(page);
 
     await page.getByRole('link', { name: 'Kayıtlar', exact: true }).click();
-    await expect(page).toHaveURL(/kayitlar|logs|kayit/);
+    await expect(page).toHaveURL(/logs/);
 
     expect(await isaret(page)).toBe('duruyor');
 
@@ -143,7 +143,7 @@ test('gecisten sonra kayit penceresi acilir', async ({ page }) => {
     await isaretBirak(page);
     await page.getByRole('link', { name: 'Yeni kayıt' }).click();
 
-    await expect(page.locator('#kayit-ekle')).toBeVisible();
+    await expect(page.locator('#record-add')).toBeVisible();
     expect(await isaret(page)).toBe('duruyor');
 });
 
@@ -152,13 +152,13 @@ test('gecisten sonra parola gosterme calisir', async ({ page }) => {
     await girisYap(page);
 
     await page.getByRole('link', { name: /^Hepsi/ }).click();
-    await page.locator('.credential-row__ad', { hasText: 'srv-a SSH' }).click();
+    await page.locator('.credential-row__name', { hasText: 'srv-a SSH' }).click();
 
-    const kutu = page.locator('[data-sir]');
+    const kutu = page.locator('[data-secret]');
     await expect(kutu).toBeVisible();
 
-    await kutu.locator('[data-sir-goster]').click();
-    await expect(kutu.locator('[data-sir-deger]')).not.toHaveText('••••••••');
+    await kutu.locator('[data-secret-show]').click();
+    await expect(kutu.locator('[data-secret-value]')).not.toHaveText('••••••••');
 });
 
 /**
@@ -213,7 +213,7 @@ test('serit en derin bolmeye iner (dar ekran), genis ekranda dokunmaz', async ({
      * dizilim yalnızca kaydın kendi adında oluşuyor.
      */
     // Kayıt seçilince en sağdaki bölme DETAY olur ve şerit oraya iner.
-    await page.locator('.credential-row__ad', { hasText: 'srv-a SSH' }).click();
+    await page.locator('.credential-row__name', { hasText: 'srv-a SSH' }).click();
     await page.waitForTimeout(400);
 
     const detay = await seritDurumu(page);

@@ -39,11 +39,11 @@ class SessionSecurityTest extends TestCase
         $eskiOzet = $kullanici->getAuthPassword();
 
         /* Başka bir tarayıcıda açık oturum: özet kullanıcınınkiyle aynı, geçerli. */
-        $this->eskiTarayici($kullanici, $eskiOzet)->get(route('hesap.profil'))->assertOk();
+        $this->eskiTarayici($kullanici, $eskiOzet)->get(route('account.profile'))->assertOk();
 
         $kullanici->update(['password' => 'Yeni-parola-123!']);
 
-        $this->eskiTarayici($kullanici->fresh(), $eskiOzet)->get(route('hesap.profil'))->assertRedirect(route('login'));
+        $this->eskiTarayici($kullanici->fresh(), $eskiOzet)->get(route('account.profile'))->assertRedirect(route('login'));
     }
 
     #[Test]
@@ -52,13 +52,13 @@ class SessionSecurityTest extends TestCase
         $kullanici = User::factory()->create();
 
         $this->actingAs($kullanici)
-            ->put(route('hesap.parola'), [
+            ->put(route('account.password'), [
                 'mevcut' => 'gecerli-parola-1!',
                 'password' => 'Yeni-parola-123!',
                 'password_confirmation' => 'Yeni-parola-123!',
             ])->assertSessionHasNoErrors();
 
-        $this->get(route('hesap.profil'))->assertOk();
+        $this->get(route('account.profile'))->assertOk();
     }
 
     #[Test]
@@ -75,23 +75,23 @@ class SessionSecurityTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertFalse(Hash::check('gecerli-parola-1!', $hedef->fresh()->password));
-        $this->eskiTarayici($hedef->fresh(), $eskiOzet)->get(route('hesap.profil'))->assertRedirect(route('login'));
+        $this->eskiTarayici($hedef->fresh(), $eskiOzet)->get(route('account.profile'))->assertRedirect(route('login'));
 
         /* Yönetici kendi oturumunda kalır; kendi parolasını sıfırlasa da. */
-        $this->actingAs($admin)->get(route('hesap.profil'))->assertOk();
+        $this->actingAs($admin)->get(route('account.profile'))->assertOk();
         $this->put(route('users.update', $admin), [
             'name' => $admin->name, 'email' => $admin->email, 'role' => $admin->role->uuid, 'status' => 'active',
             'password' => 'Yonetici-yeni-123!', 'password_confirmation' => 'Yonetici-yeni-123!',
         ])->assertSessionHasNoErrors();
-        $this->get(route('hesap.profil'))->assertOk();
+        $this->get(route('account.profile'))->assertOk();
     }
 
     private function merkezAc(): void
     {
         config([
-            'identity.acik' => true, 'identity.yapilandirildi' => true, 'identity.adres' => 'https://merkez.test',
-            'identity.istemci' => 'istemci-1', 'identity.sir' => 'sir-1',
-            'identity.donus' => 'https://kasa.test/giris/merkez/geri', 'identity.ad' => 'Merkez',
+            'identity.acik' => true, 'identity.configured' => true, 'identity.url' => 'https://merkez.test',
+            'identity.client_id' => 'istemci-1', 'identity.client_secret' => 'sir-1',
+            'identity.redirect_uri' => 'https://kasa.test/login/center/callback', 'identity.name' => 'Merkez',
         ]);
     }
 
@@ -101,12 +101,12 @@ class SessionSecurityTest extends TestCase
         $this->merkezAc();
         Http::fake([
             'merkez.test/oauth/token' => Http::response(['access_token' => 'j']),
-            'merkez.test/oauth/kullanici' => Http::response(['sub' => 'm-1', 'name' => 'Ali Demir', 'email' => 'ali@example.test', 'email_verified' => true]),
+            'merkez.test/oauth/userinfo' => Http::response(['sub' => 'm-1', 'name' => 'Ali Demir', 'email' => 'ali@example.test', 'email_verified' => true]),
         ]);
         $kullanici = User::factory()->create(['email' => 'ali@example.test']);
 
         $yanit = $this->withSession(['kimlik_durum' => 'd', 'kimlik_dogrulayici' => 'v'])
-            ->get(route('kimlik.donus', ['code' => 'k', 'state' => 'd']));
+            ->get(route('identity.callback', ['code' => 'k', 'state' => 'd']));
 
         $yanit->assertRedirect(route('credentials.index'));
         $this->assertAuthenticatedAs($kullanici);
@@ -123,14 +123,14 @@ class SessionSecurityTest extends TestCase
         $kullanici = User::factory()->create(['email' => 'ben@example.test', 'name' => 'Ben']);
 
         $this->actingAs($kullanici)
-            ->put(route('hesap.profil.kaydet'), ['name' => 'Yeni Ad', 'email' => 'yeni-calisan@example.test'])
+            ->put(route('account.profile.save'), ['name' => 'Yeni Ad', 'email' => 'yeni-calisan@example.test'])
             ->assertSessionHasNoErrors();
 
         $kullanici->refresh();
         $this->assertSame('Yeni Ad', $kullanici->name, 'Ad yine düzenlenir.');
         $this->assertSame('ben@example.test', $kullanici->email);
 
-        $this->get(route('hesap.profil'))->assertOk()->assertSee('yönetici değiştirir');
+        $this->get(route('account.profile'))->assertOk()->assertSee('yönetici değiştirir');
     }
 
     #[Test]
@@ -140,7 +140,7 @@ class SessionSecurityTest extends TestCase
         $kullanici = User::factory()->create(['email' => 'ben@example.test']);
 
         $this->actingAs($kullanici)
-            ->put(route('hesap.profil.kaydet'), ['name' => 'Ben', 'email' => 'yeni@example.test'])
+            ->put(route('account.profile.save'), ['name' => 'Ben', 'email' => 'yeni@example.test'])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('yeni@example.test', $kullanici->fresh()->email);

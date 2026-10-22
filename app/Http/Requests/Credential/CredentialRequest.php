@@ -64,7 +64,7 @@ abstract class CredentialRequest extends FormRequest
              * ALT GRUP SEÇİLEN GRUBUN İÇİNDEN OLMALI.
              *
              * Formdaki liste gruba göre daralıyor (conditional-field.js ·
-             * data-bagli) ama karar burada: başka grubun bölmesi elle
+             * data-linked) ama karar burada: başka grubun bölmesi elle
              * gönderilebilir, o zaman kayıt bir grupta durup öbür grubun
              * başlığı altında listelenirdi.
              */

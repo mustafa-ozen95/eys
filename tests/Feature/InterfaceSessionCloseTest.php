@@ -51,7 +51,7 @@ final class InterfaceSessionCloseTest extends TestCase
 
     private function turleriAc(): void
     {
-        config()->set('remote.arayuz.turler', ['esxi', 'vami', 'plesk', 'ilo']);
+        config()->set('remote.interface.types', ['esxi', 'vami', 'plesk', 'ilo']);
     }
 
     /** Cihazın giriş yanıtı: oturum çerezi verir. */
@@ -126,7 +126,7 @@ final class InterfaceSessionCloseTest extends TestCase
         $oturum = $oturumlar->ac($credential, (int) $user->id);
 
         $this->withCookies([InterfaceSession::COOKIE => $oturum['token']])
-            ->post('/cihaz-oturum/ayril')
+            ->post('/device-session/leave')
             ->assertNoContent();
 
         $satir = ConsoleSession::query()->where('token', $oturum['token'])->firstOrFail();
@@ -155,7 +155,7 @@ final class InterfaceSessionCloseTest extends TestCase
         $oturum = $oturumlar->ac($credential, (int) $user->id);
         $oturumlar->ayrildi($oturumlar->bul($oturum['token']));
 
-        Artisan::call('erisim:konsol-temizle');
+        Artisan::call('console:prune');
 
         Http::assertSent(fn ($istek) => ($istek->data()['method'] ?? null) === 'logout');
 

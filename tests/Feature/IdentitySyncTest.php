@@ -36,11 +36,11 @@ class IdentitySyncTest extends TestCase
 
         config([
             'identity.acik' => true,
-            'identity.yapilandirildi' => true,
-            'identity.adres' => 'https://merkez.test',
-            'identity.istemci' => 'istemci-1',
-            'identity.sir' => 'sir-1',
-            'identity.dogrulama_dakika' => 5,
+            'identity.configured' => true,
+            'identity.url' => 'https://merkez.test',
+            'identity.client_id' => 'istemci-1',
+            'identity.client_secret' => 'sir-1',
+            'identity.verify_minutes' => 5,
         ]);
 
         Cache::flush();
@@ -62,8 +62,8 @@ class IdentitySyncTest extends TestCase
     private function merkezSoyler(User $kullanici, array $durum): void
     {
         Http::fake([
-            'merkez.test/api/kimlik-durumu' => Http::response([
-                'kimlikler' => ['merkez-'.$kullanici->id => $durum],
+            'merkez.test/api/identity-status' => Http::response([
+                'identities' => ['merkez-'.$kullanici->id => $durum],
             ]),
         ]);
     }
@@ -71,9 +71,9 @@ class IdentitySyncTest extends TestCase
     public function test_merkezde_askiya_alinan_hesap_kapatilir(): void
     {
         $kullanici = $this->bagli();
-        $this->merkezSoyler($kullanici, ['durum' => 'askida', 'girebilir' => false, 'rol' => 'network']);
+        $this->merkezSoyler($kullanici, ['status' => 'askida', 'can_enter' => false, 'role' => 'network']);
 
-        $this->artisan('erisim:kimlik-esitle')->assertSuccessful();
+        $this->artisan('identity:sync')->assertSuccessful();
 
         $this->assertSame(UserStatus::Passive, $kullanici->fresh()->status);
     }
@@ -82,9 +82,9 @@ class IdentitySyncTest extends TestCase
     public function test_merkezde_silinen_kimlik_kapatilir(): void
     {
         $kullanici = $this->bagli();
-        $this->merkezSoyler($kullanici, ['durum' => 'yok', 'rol' => null]);
+        $this->merkezSoyler($kullanici, ['status' => 'missing', 'role' => null]);
 
-        $this->artisan('erisim:kimlik-esitle')->assertSuccessful();
+        $this->artisan('identity:sync')->assertSuccessful();
 
         $taze = $kullanici->fresh();
 
@@ -110,9 +110,9 @@ class IdentitySyncTest extends TestCase
 
         $kullanici = $this->bagli(['role_id' => $teknik->id]);
 
-        $this->merkezSoyler($kullanici, ['durum' => 'etkin', 'girebilir' => true, 'rol' => 'network']);
+        $this->merkezSoyler($kullanici, ['status' => 'etkin', 'can_enter' => true, 'role' => 'network']);
 
-        $this->artisan('erisim:kimlik-esitle')->assertSuccessful();
+        $this->artisan('identity:sync')->assertSuccessful();
 
         $taze = $kullanici->fresh();
         $kayit = Credential::factory()
@@ -132,9 +132,9 @@ class IdentitySyncTest extends TestCase
 
         $kullanici = $this->bagli(['role_id' => $teknik->id]);
 
-        $this->merkezSoyler($kullanici, ['durum' => 'etkin', 'girebilir' => true, 'rol' => 'admin']);
+        $this->merkezSoyler($kullanici, ['status' => 'etkin', 'can_enter' => true, 'role' => 'admin']);
 
-        $this->artisan('erisim:kimlik-esitle')->assertSuccessful();
+        $this->artisan('identity:sync')->assertSuccessful();
 
         $this->assertSame($teknik->id, $kullanici->fresh()->role_id);
         $this->assertFalse($kullanici->fresh()->isAdmin());
@@ -150,9 +150,9 @@ class IdentitySyncTest extends TestCase
     {
         $kullanici = $this->bagli();
 
-        Http::fake(['merkez.test/api/kimlik-durumu' => Http::response(['kimlikler' => []])]);
+        Http::fake(['merkez.test/api/identity-status' => Http::response(['identities' => []])]);
 
-        $this->artisan('erisim:kimlik-esitle')->assertSuccessful();
+        $this->artisan('identity:sync')->assertSuccessful();
 
         $this->assertTrue($kullanici->fresh()->isActive());
     }
@@ -166,10 +166,10 @@ class IdentitySyncTest extends TestCase
     public function test_erisimi_kalkan_kisi_oturumdan_atilir(): void
     {
         $kullanici = $this->bagli();
-        $this->merkezSoyler($kullanici, ['durum' => 'askida', 'girebilir' => false]);
+        $this->merkezSoyler($kullanici, ['status' => 'askida', 'can_enter' => false]);
 
         $this->actingAs($kullanici)
-            ->get(route('hesap.profil'))
+            ->get(route('account.profile'))
             ->assertRedirect(route('login'));
 
         $this->assertGuest();
@@ -183,7 +183,7 @@ class IdentitySyncTest extends TestCase
 
         Http::fake(['merkez.test/*' => Http::response('', 500)]);
 
-        $this->actingAs($kullanici)->get(route('hesap.profil'))->assertOk();
+        $this->actingAs($kullanici)->get(route('account.profile'))->assertOk();
 
         $this->assertTrue($kullanici->fresh()->isActive());
         $this->assertAuthenticatedAs($kullanici);
@@ -193,10 +193,10 @@ class IdentitySyncTest extends TestCase
     public function test_merkeze_her_istekte_sorulmaz(): void
     {
         $kullanici = $this->bagli();
-        $this->merkezSoyler($kullanici, ['durum' => 'etkin', 'girebilir' => true, 'rol' => null]);
+        $this->merkezSoyler($kullanici, ['status' => 'etkin', 'can_enter' => true, 'role' => null]);
 
-        $this->actingAs($kullanici)->get(route('hesap.profil'))->assertOk();
-        $this->actingAs($kullanici)->get(route('hesap.profil'))->assertOk();
+        $this->actingAs($kullanici)->get(route('account.profile'))->assertOk();
+        $this->actingAs($kullanici)->get(route('account.profile'))->assertOk();
 
         Http::assertSentCount(1);
     }

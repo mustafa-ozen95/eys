@@ -9,26 +9,26 @@ import { on } from '../lib/dom.js';
  * Pano API'si güvenli olmayan bağlamda ya da izin verilmediğinde çalışmaz;
  * o durumda metin seçilir ve kullanıcı kendi kopyalar.
  */
-async function kopyala(dugme) {
-    const kaynak = document.querySelector(dugme.dataset.kopyala);
+async function copy(button) {
+    const source = document.querySelector(button.dataset.copy);
 
-    if (!kaynak) {
+    if (!source) {
         return;
     }
 
-    const eskiMetin = dugme.textContent;
+    const oldText = button.textContent;
 
     try {
-        await navigator.clipboard.writeText(kaynak.value);
-        dugme.textContent = 'Kopyalandı';
+        await navigator.clipboard.writeText(source.value);
+        button.textContent = 'Kopyalandı';
     } catch {
-        kaynak.focus();
-        kaynak.select();
-        dugme.textContent = 'Seçildi, kopyalayın';
+        source.focus();
+        source.select();
+        button.textContent = 'Seçildi, kopyalayın';
     }
 
     setTimeout(() => {
-        dugme.textContent = eskiMetin;
+        button.textContent = oldText;
     }, 2000);
 }
 
@@ -37,39 +37,39 @@ async function kopyala(dugme) {
  * değerler). Kaynak düğmenin kendi kutusunda aranır; sayfada aynı bileşenden
  * birden çok bulunabileceği için kimlik verilmez.
  */
-async function metniKopyala(dugme) {
-    const kaynak = dugme.closest('.secret')?.querySelector('[data-kopya-kaynak]');
+async function copyText(button) {
+    const source = button.closest('.secret')?.querySelector('[data-copy-source]');
 
-    if (!kaynak) {
+    if (!source) {
         return;
     }
 
-    const eskiMetin = dugme.textContent;
+    const oldText = button.textContent;
 
     try {
-        await navigator.clipboard.writeText(kaynak.textContent.trim());
-        dugme.textContent = '✓';
+        await navigator.clipboard.writeText(source.textContent.trim());
+        button.textContent = '✓';
     } catch {
         /* Pano yoksa kullanıcı kendi seçsin: metin seçili bırakılır. */
-        const secim = window.getSelection();
-        const aralik = document.createRange();
+        const selection = window.getSelection();
+        const interval = document.createRange();
 
-        aralik.selectNodeContents(kaynak);
-        secim?.removeAllRanges();
-        secim?.addRange(aralik);
+        interval.selectNodeContents(source);
+        selection?.removeAllRanges();
+        selection?.addRange(interval);
     }
 
     setTimeout(() => {
-        dugme.textContent = eskiMetin;
+        button.textContent = oldText;
     }, 2000);
 }
 
 export function init() {
-    on('click', '[data-kopyala]', (event, dugme) => {
-        kopyala(dugme).catch(() => {});
+    on('click', '[data-copy]', (event, button) => {
+        copy(button).catch(() => {});
     });
 
-    on('click', '[data-kopyala-metin]', (event, dugme) => {
-        metniKopyala(dugme).catch(() => {});
+    on('click', '[data-copy-text]', (event, button) => {
+        copyText(button).catch(() => {});
     });
 }

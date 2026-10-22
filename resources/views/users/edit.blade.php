@@ -9,7 +9,7 @@
 
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('users.update', $user) }}" autocomplete="off">
+            <form method="POST" data-inline action="{{ route('users.update', $user) }}" autocomplete="off">
                 @csrf
                 @method('PUT')
 

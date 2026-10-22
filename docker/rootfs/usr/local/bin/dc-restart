@@ -13,7 +13,7 @@
 # =============================================================================
 set -u
 
-ISTEK="${UYGULAMA:-/uygulama}/storage/app/database/restart"
+ISTEK="${APP_ROOT:-/uygulama}/storage/app/database/restart"
 
 while sleep 2; do
     if [[ -e "${ISTEK}" || -L "${ISTEK}" ]]; then

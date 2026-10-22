@@ -51,7 +51,7 @@
                         subtitle="Sertifikayı yenilemek ya da yeni bir adres eklemek için.">
                 <x-slot:actions>
                     @if (true)
-                        <form method="POST" data-yerinde action="{{ route("sertifika.baslat") }}"
+                        <form method="POST" data-inline action="{{ route("certificate.start") }}"
                               data-confirm="Sunucuda yeni bir doğrulama turu açılacak ve eklenecek TXT kayıtları üretilecek."
                               data-confirm-title="Yeni tur başlat">
                             @csrf
@@ -96,9 +96,9 @@
                                         <tr>
                                             <td data-label="Ad" class="mono">{{ $kayit['ad'] }}</td>
                                             <td data-label="Değer">
-                                                <span class="mono text-sm" data-kopya-kaynak>{{ $kayit['deger'] }}</span>
+                                                <span class="mono text-sm" data-copy-source>{{ $kayit['deger'] }}</span>
                                                 <button type="button" class="btn btn--ghost btn--sm"
-                                                        data-kopyala-metin title="Panoya kopyala">Kopyala</button>
+                                                        data-copy-text title="Panoya kopyala">Kopyala</button>
                                             </td>
                                             <td data-label="Yayıldı mı">
                                                 @if ($kayit['yayildi'])
@@ -122,7 +122,7 @@
                                 gitmek başarısız bir deneme ve baştan başlayan bir tur
                                 demek olurdu.
                             --}}
-                            <form method="POST" data-yerinde action="{{ route("sertifika.tamamla") }}"
+                            <form method="POST" data-inline action="{{ route("certificate.complete") }}"
                                   data-confirm="Kayıtların yayıldığı doğrulanacak ve sertifika alınacak."
                                   data-confirm-title="Onayla ve sertifikayı al">
                                 @csrf

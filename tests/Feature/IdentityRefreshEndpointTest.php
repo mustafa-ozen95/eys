@@ -35,11 +35,11 @@ final class IdentityRefreshEndpointTest extends TestCase
         config([
             'identity.acik' => true,
             /* Ayar env()'den hesaplanıyor; testte elle açılır. */
-            'identity.yapilandirildi' => true,
-            'identity.adres' => 'https://merkez.ornek.test',
-            'identity.istemci' => 'istemci',
-            'identity.sir' => 'oauth-sirri',
-            'identity.bildirim_sirri' => self::SIR,
+            'identity.configured' => true,
+            'identity.url' => 'https://merkez.ornek.test',
+            'identity.client_id' => 'istemci',
+            'identity.client_secret' => 'oauth-sirri',
+            'identity.notify_secret' => self::SIR,
         ]);
     }
 
@@ -58,20 +58,20 @@ final class IdentityRefreshEndpointTest extends TestCase
     /** @param  array<string, mixed>  $durum */
     private function merkezSoyluyor(string $subject, array $durum): void
     {
-        Http::fake(['*/api/kimlik-durumu' => Http::response(['kimlikler' => [$subject => $durum]])]);
+        Http::fake(['*/api/identity-status' => Http::response(['identities' => [$subject => $durum]])]);
     }
 
     private function bildir(string $subject, ?string $imza = null): TestResponse
     {
-        return $this->withHeaders(['X-Kimlik-Imza' => $imza ?? hash_hmac('sha256', $subject, self::SIR)])
-            ->postJson(route('api.kimlik.tazele'), ['subject' => $subject]);
+        return $this->withHeaders(['X-Identity-Signature' => $imza ?? hash_hmac('sha256', $subject, self::SIR)])
+            ->postJson(route('api.identity.refresh'), ['subject' => $subject]);
     }
 
     #[Test]
     public function imzali_bildirim_merkezdeki_durumu_uygular(): void
     {
         $bag = $this->kimlik(UserStatus::Passive);
-        $this->merkezSoyluyor($bag->subject, ['durum' => 'etkin', 'girebilir' => true, 'rol' => null]);
+        $this->merkezSoyluyor($bag->subject, ['status' => 'etkin', 'can_enter' => true, 'role' => null]);
 
         $this->bildir($bag->subject)->assertOk();
 
@@ -100,7 +100,7 @@ final class IdentityRefreshEndpointTest extends TestCase
     #[Test]
     public function sir_tanimsizken_bildirim_kabul_edilmez(): void
     {
-        config(['identity.bildirim_sirri' => null]);
+        config(['identity.notify_secret' => null]);
         Http::fake();
 
         $bag = $this->kimlik(UserStatus::Passive);
@@ -133,7 +133,7 @@ final class IdentityRefreshEndpointTest extends TestCase
     public function yanit_bilgi_sizdirmaz(): void
     {
         $bag = $this->kimlik();
-        $this->merkezSoyluyor($bag->subject, ['durum' => 'etkin', 'girebilir' => true, 'rol' => null]);
+        $this->merkezSoyluyor($bag->subject, ['status' => 'etkin', 'can_enter' => true, 'role' => null]);
 
         $varOlan = $this->bildir($bag->subject)->getContent();
 

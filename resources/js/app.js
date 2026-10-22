@@ -2,21 +2,21 @@ import * as bulk from './components/bulk.js';
 import * as columns from './components/columns.js';
 import * as confirmDialog from './components/confirm.js';
 import * as copy from './components/copy.js';
-import * as dondurmeIlerleme from './components/rotation-progress.js';
+import * as rotationProgress from './components/rotation-progress.js';
 import * as dialog from './components/dialog.js';
 import * as keyboard from './components/keyboard.js';
-import * as kosulluAlan from './components/conditional-field.js';
-import * as kullaniciMenu from './components/user-menu.js';
+import * as conditionalField from './components/conditional-field.js';
+import * as userMenu from './components/user-menu.js';
 import * as navigation from './components/navigation.js';
-import * as oturumKilidi from './components/session-lock.js';
+import * as sessionLock from './components/session-lock.js';
 import * as portal from './components/portal.js';
 import * as remoteSession from './components/remote-session.js';
-import * as rotationHesabi from './components/rotation-account.js';
+import * as rotationAccount from './components/rotation-account.js';
 import * as secretReveal from './components/secret-reveal.js';
-import * as siralama from './components/sorting.js';
+import * as ordering from './components/sorting.js';
 import * as theme from './components/theme.js';
 import * as toast from './components/toast.js';
-import * as topluIlerleme from './components/bulk-progress.js';
+import * as bulkRoundProgress from './components/bulk-progress.js';
 
 /**
  * Uygulama girişi.
@@ -37,8 +37,8 @@ import * as topluIlerleme from './components/bulk-progress.js';
  */
 theme.init();
 
-function herCizimde() {
-    dialog.acilacaklariAc();
+function everyRender() {
+    dialog.openPending();
     toast.init();
     keyboard.prepare();
 
@@ -49,19 +49,19 @@ function herCizimde() {
      * Her çizimde: panel sayfa yenilenmeden değişiyor ve çubuk yeni gelen
      * içerikte duruyor. Bir kez kurulsaydı ikinci kaydın turu izlenmezdi.
      */
-    dondurmeIlerleme.init();
+    rotationProgress.init();
 
     /* Toplu turun şeridi de yeni gelen içerikte duruyor; aynı sebeple her çizimde. */
-    topluIlerleme.init();
+    bulkRoundProgress.init();
 
     /*
      * Kayıt penceresindeki alanlar her çizimde yeniden geliyor; olay da
      * alanın kendisine bağlanıyor, bir kez kurulsa ikinci kayıtta çalışmazdı.
      */
-    rotationHesabi.init();
+    rotationAccount.init();
 
     /* Kayıt formundaki koşullu alanlar da her çizimde yeni gelen formda. */
-    kosulluAlan.init();
+    conditionalField.init();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -72,14 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
     portal.init();
     remoteSession.init();
     secretReveal.init();
-    siralama.init();
+    ordering.init();
     keyboard.init();
-    kullaniciMenu.init();
+    userMenu.init();
     navigation.init();
     /* Ekran kilidi: hareketsiz sekme oturumu kapatır (bkz. session-lock.js). Bir kez. */
-    oturumKilidi.init();
+    sessionLock.init();
 
-    herCizimde();
+    everyRender();
 });
 
-document.addEventListener('eys:sayfa', herCizimde);
+document.addEventListener('eys:page', everyRender);

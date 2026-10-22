@@ -39,7 +39,7 @@ class AuditHygieneTest extends TestCase
         $this->assertNotNull($jeton->revoked_at);
         $this->assertFalse($jeton->isUsable());
         $this->assertSame($eskiOzet, $jeton->token_hash, 'İptal edilmişin sırrı değişmemeli.');
-        $this->actingAs($admin)->get(route('api-tokens.show', $jeton))->assertOk()->assertDontSee('type="submit" form="jeton-sir-yenile"', false);
+        $this->actingAs($admin)->get(route('api-tokens.show', $jeton))->assertOk()->assertDontSee('type="submit" form="token-secret-rotate"', false);
     }
 
     #[Test]

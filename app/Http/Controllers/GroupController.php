@@ -39,7 +39,7 @@ class GroupController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:create,App\Models\CredentialGroup', only: ['index', 'create', 'store', 'sirala']),
+            new Middleware('can:create,App\Models\CredentialGroup', only: ['index', 'create', 'store', 'reorder']),
             new Middleware('can:update,group', only: ['edit', 'update']),
         ];
     }
@@ -64,7 +64,7 @@ class GroupController extends Controller implements HasMiddleware
             'query' => $request->string('q')->value(),
             /* Hepsi KAPALI gelir; yalnız ?acik= ile istenen açık: alt grup işinden dönüşte. */
             'acikGrup' => $request->string('acik')->value() ?: null,
-            'pencere' => $this->altGrupPenceresi($request, $groups),
+            'pencere' => $this->subGroupWindow($request, $groups),
         ]);
     }
 
@@ -76,7 +76,7 @@ class GroupController extends Controller implements HasMiddleware
      * @param  Collection<int, CredentialGroup>  $groups
      * @return array{baslik: string, action: string, method: string, ad: ?string, grupAdi: string}|null
      */
-    private function altGrupPenceresi(Request $request, Collection $groups): ?array
+    private function subGroupWindow(Request $request, Collection $groups): ?array
     {
         $pencere = $request->string('pencere')->value();
 
@@ -85,7 +85,7 @@ class GroupController extends Controller implements HasMiddleware
 
             return $group === null ? null : [
                 'baslik' => "{$group->name} · yeni alt grup",
-                'action' => route('groups.alt.store', $group),
+                'action' => route('groups.sub.store', $group),
                 'method' => 'POST',
                 'ad' => null,
                 'grupAdi' => $group->name,
@@ -97,7 +97,7 @@ class GroupController extends Controller implements HasMiddleware
 
             return $altGrup === null ? null : [
                 'baslik' => "{$altGrup->group->name} · {$altGrup->name}",
-                'action' => route('groups.alt.update', [$altGrup->group, $altGrup]),
+                'action' => route('groups.sub.update', [$altGrup->group, $altGrup]),
                 'method' => 'PUT',
                 'ad' => $altGrup->name,
                 'grupAdi' => $altGrup->group->name,
@@ -190,7 +190,7 @@ class GroupController extends Controller implements HasMiddleware
      * Gelen dizideki uuid'ler 1'den başlayarak numaralanır; listede olmayan
      * grup (kişisel taşıyıcı, başka sayfadaki) olduğu gibi kalır.
      */
-    public function sirala(Request $request): RedirectResponse
+    public function reorder(Request $request): RedirectResponse
     {
         $veri = $request->validate([
             'sira' => ['required', 'array'],

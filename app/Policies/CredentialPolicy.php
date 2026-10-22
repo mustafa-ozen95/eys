@@ -157,7 +157,7 @@ class CredentialPolicy
      *
      * Kaydı GÖRMEK yine şart: göremediğiniz bir cihazın arayüzünü açamazsınız.
      */
-    public function arayuz(User $user, Credential $credential): bool
+    public function deviceInterface(User $user, Credential $credential): bool
     {
         return $this->can($user, 'session', $credential)
             && $this->can($user, 'view', $credential);

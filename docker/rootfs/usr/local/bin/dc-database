@@ -13,7 +13,7 @@
  *   dc-database yaz <aşama> [açıklama]     aşamayı ilerlet
  *
  * Panel kullanıcısıyla koşar (gosu): dosyalar onundur. APP_KEY ortamdan gelir.
- * Kardeş panellerde aynı dosya; uygulama dizini UYGULAMA ile değişir.
+ * Kardeş panellerde aynı dosya; uygulama dizini APP_ROOT ile değişir.
  */
 
 declare(strict_types=1);
@@ -21,7 +21,7 @@ declare(strict_types=1);
 use App\Services\Database\ConnectionFile;
 use Illuminate\Encryption\Encrypter;
 
-$kok = getenv('UYGULAMA') ?: '/uygulama';
+$kok = getenv('APP_ROOT') ?: '/uygulama';
 require $kok.'/vendor/autoload.php';
 
 $anahtar = (string) getenv('APP_KEY');

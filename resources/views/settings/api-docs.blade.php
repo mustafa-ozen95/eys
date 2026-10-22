@@ -17,7 +17,7 @@
 
                     <pre class="code-block mono"><code>curl -H "Authorization: Bearer {{ $prefix }}_&lt;sır&gt;" \
      -H "Accept: application/json" \
-     {{ $baseUrl }}/kayitlar</code></pre>
+     {{ $baseUrl }}/records</code></pre>
 
                     <dl class="facts">
                         <div class="facts__row">

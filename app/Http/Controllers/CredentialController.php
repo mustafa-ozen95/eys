@@ -64,7 +64,7 @@ class CredentialController extends Controller implements HasMiddleware
      * Yalnızca yönetici; satırlar da tek tek yetkilendirilir. Bölümün
      * dışına taşıma yok: alt gruptaki kayıt ana gruba sürüklenemez.
      */
-    public function sirala(Request $request): RedirectResponse
+    public function reorder(Request $request): RedirectResponse
     {
         /* Sürükleme yalnızca yöneticinin işi. */
         abort_unless($request->user()?->isAdmin(), 403);

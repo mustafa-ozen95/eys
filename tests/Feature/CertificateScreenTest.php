@@ -69,11 +69,11 @@ class CertificateScreenTest extends TestCase
     public function ekran_yalnizca_ayar_yetkisi_olana_acilir(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('sertifika.index'))
+            ->get(route('certificate.index'))
             ->assertForbidden();
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('sertifika.index'))
+            ->get(route('certificate.index'))
             ->assertOk()
             ->assertSee('Şu anki sertifika');
     }
@@ -87,7 +87,7 @@ class CertificateScreenTest extends TestCase
         ]));
 
         $this->actingAs(User::factory()->admin()->create())
-            ->get(route('sertifika.index'))
+            ->get(route('certificate.index'))
             ->assertOk()
             ->assertSee('_acme-challenge.panel-b.ornek.test')
             ->assertSee('abc123')
@@ -112,9 +112,9 @@ class CertificateScreenTest extends TestCase
         $this->instance(CertificateType::class, $sahte);
 
         $this->actingAs(User::factory()->admin()->create())
-            ->from(route('sertifika.index'))
-            ->post(route('sertifika.tamamla'))
-            ->assertRedirect(route('sertifika.index'))
+            ->from(route('certificate.index'))
+            ->post(route('certificate.complete'))
+            ->assertRedirect(route('certificate.index'))
             ->assertSessionHasErrors('sertifika');
 
         $this->assertNull($sahte->sonEylem, 'Sunucuya istek gitmemeliydi.');
@@ -130,7 +130,7 @@ class CertificateScreenTest extends TestCase
         $this->instance(CertificateType::class, $sahte);
 
         $this->actingAs(User::factory()->admin()->create())
-            ->post(route('sertifika.tamamla'))
+            ->post(route('certificate.complete'))
             ->assertRedirect();
 
         $this->assertSame('tamamla', $sahte->sonEylem);
@@ -144,7 +144,7 @@ class CertificateScreenTest extends TestCase
         $this->instance(CertificateType::class, $sahte);
 
         $this->actingAs(User::factory()->admin()->create())
-            ->post(route('sertifika.baslat'))
+            ->post(route('certificate.start'))
             ->assertRedirect();
 
         $this->assertSame('baslat', $sahte->sonEylem);
@@ -166,9 +166,9 @@ class CertificateScreenTest extends TestCase
         $once = ActivityLog::count();
 
         $this->actingAs($yonetici)
-            ->from(route('sertifika.index'))
-            ->post(route('sertifika.baslat'))
-            ->assertRedirect(route('sertifika.index'))
+            ->from(route('certificate.index'))
+            ->post(route('certificate.start'))
+            ->assertRedirect(route('certificate.index'))
             ->assertSessionHasErrors('sertifika')
             ->assertSessionMissing('status');
 
@@ -187,9 +187,9 @@ class CertificateScreenTest extends TestCase
         $once = ActivityLog::count();
 
         $this->actingAs($yonetici)
-            ->from(route('sertifika.index'))
-            ->post(route('sertifika.tamamla'))
-            ->assertRedirect(route('sertifika.index'))
+            ->from(route('certificate.index'))
+            ->post(route('certificate.complete'))
+            ->assertRedirect(route('certificate.index'))
             ->assertSessionHasErrors('sertifika')
             ->assertSessionMissing('status');
 
@@ -204,9 +204,9 @@ class CertificateScreenTest extends TestCase
         $this->instance(CertificateType::class, $this->sahte([], birakildi: false));
 
         $yanit = $this->actingAs(User::factory()->admin()->create())
-            ->from(route('sertifika.index'))
+            ->from(route('certificate.index'))
             ->followingRedirects()
-            ->post(route('sertifika.baslat'))
+            ->post(route('certificate.start'))
             ->assertOk();
 
         $this->assertSame(1, substr_count($yanit->getContent(), 'İstek sunucuya iletilemedi'));

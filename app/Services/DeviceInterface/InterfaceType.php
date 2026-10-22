@@ -49,7 +49,7 @@ enum InterfaceType: string
          * dönmek, o kaydın eski yoluna (formla giriş) dönmesi demektir; yarım
          * bir vekil çalışan bir girişi bozmamalı.
          */
-        return $tur !== null && in_array($tur->value, (array) config('remote.arayuz.turler'), true)
+        return $tur !== null && in_array($tur->value, (array) config('remote.interface.types'), true)
             ? $tur
             : null;
     }
@@ -251,8 +251,8 @@ enum InterfaceType: string
              *     (location.pathname !== "/" ? location.pathname : "")
              *
              * Yani sayfa kökte DEĞİLSE taban o yola kilitleniyor ve API
-             * çağrıları oraya ekleniyor: sayfa /cihaz-oturum/sayfa adresinde
-             * açıldığında arayüz "/cihaz-oturum/sayfastat" ister ve 404 alır;
+             * çağrıları oraya ekleniyor: sayfa /device-session/page adresinde
+             * açıldığında arayüz "/device-session/sayfastat" ister ve 404 alır;
              * ekranda "Cannot get server status: HTTP 404" yazar.
              *
              * Kökte açılınca istek "/stat" oluyor ve vekil onu cihazın
@@ -343,9 +343,9 @@ enum InterfaceType: string
              *
              * Bu liste yalnızca "açılış betiği" demek değil; dolu olması
              * arayüzün SAYFASINI PANELİN VERMESİ demek (bkz. adres()). O kipte
-             * sayfa /cihaz-oturum/sayfa adresinde duruyor ve iLO'nun GÖRELİ
+             * sayfa /device-session/page adresinde duruyor ve iLO'nun GÖRELİ
              * istekleri panele düşüyor: "html/application.html" →
-             * /cihaz-oturum/html/application.html → panelin 404 sayfası
+             * /device-session/html/application.html → panelin 404 sayfası
              * (arayüz hiç açılmaz).
              *
              * iLO'nun konsol düğmesine gereken betik ortak açılış betiğine
@@ -361,7 +361,7 @@ enum InterfaceType: string
              * Parolayı vekil başlığa koyduğu için o istek zaten 200 dönüyor.
              *
              * Betik eklemek üstelik zararlı: betikli açılış sayfayı
-             * /cihaz-oturum/sayfa adresine taşıyor, arayüz de tabanını
+             * /device-session/page adresine taşıyor, arayüz de tabanını
              * location.pathname'den kurduğu için bütün API çağrıları oraya
              * yapışıp 404 olur (bkz. inisYolu).
              */
@@ -549,7 +549,7 @@ enum InterfaceType: string
     /**
      * ADRESTE OTURUM ÖNEKİ KULLANILIR MI?
      *
-     * Önek (/cihaz-oturum/<oturum>/…) sekmeleri ayırmanın tek güvenilir
+     * Önek (/device-session/<oturum>/…) sekmeleri ayırmanın tek güvenilir
      * yolu: çerez tarayıcıya ait, adres sekmeye. İki Plesk'i ancak bu ayırır.
      *
      * RSPAMD DIŞARIDA — arayüzün kendi kodu buna izin vermiyor. js/main.js
@@ -577,10 +577,10 @@ enum InterfaceType: string
      * Önekten SONRA gelen iniş yolu.
      *
      * Önek altındaki adres cihazın TABAN dizinine göre yazılır; tabanı vekil
-     * ekliyor (X-Eys-Taban). vCenter'da taban zaten "/ui/" olduğu için önekten
+     * ekliyor (X-Eys-Root). vCenter'da taban zaten "/ui/" olduğu için önekten
      * sonrası boş kalır; QNAP'ta "cgi-bin/main.html" olur.
      *
-     * Aksi hâlde taban iki kez eklenirdi: /cihaz-oturum/<oturum>/ui/ adresi
+     * Aksi hâlde taban iki kez eklenirdi: /device-session/<oturum>/ui/ adresi
      * cihazda /ui/ui/ diye aranırdı.
      */
     public function onekInisYolu(): string
@@ -675,8 +675,8 @@ enum InterfaceType: string
     public static function yolunSahipleri(string $yol): array
     {
         foreach (self::cases() as $tur) {
-            foreach ($tur->sahiplendigiYollar() as $onek) {
-                if (str_starts_with($yol, $onek)) {
+            foreach ($tur->sahiplendigiYollar() as $prefix) {
+                if (str_starts_with($yol, $prefix)) {
                     return $tur->vsphereMi()
                         ? [self::Vcenter, self::Esxi, self::Vami]
                         : [$tur];

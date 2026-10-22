@@ -103,7 +103,7 @@ bilmediği** bir parolayla bırakır.
 Her sürücünün en az bir test dosyası vardır. Testler sahte
 uçlarla koşar: gerçek bir ESXi ya da iLO gerektirmez, bu yüzden **"testi var"
 ile "sizin sürümünüzde denendi" aynı şey değildir.** Yeni bir cihaz sınıfını
-üretime almadan önce `erisim:kasa-denetle` ile salt okuma denetimi yapın —
+üretime almadan önce `access:vault-check` ile salt okuma denetimi yapın —
 yalnızca giriş dener, hiçbir şey değiştirmez.
 
 ## Uzak oturum — tarayıcıdan
@@ -150,7 +150,7 @@ her SOAP çağrısına istemcinin ürettiği bir CSRF jetonu koyuyor, VAMI oturu
 jetonunu `localStorage`'da tutuyor. Panelin dışarıdan attığı bir form girişi
 ikisini de kuramaz. Çözüm arayüzü **panelin kendi kökeninden** vermek.
 
-Vekil arkasında açılan arayüzler (`ARAYUZ_TURLERI`):
+Vekil arkasında açılan arayüzler (`INTERFACE_TYPES`):
 
 | Arayüz | Giriş nerede yapılıyor | Parola tarayıcıya gider mi |
 | --- | --- | --- |
@@ -203,7 +203,7 @@ Arayüz onlarca varlık istiyor; havuzsuz sayfanın açılması çok uzar ve iLO
 Havuzlar kasadan üretiliyor:
 
 ```
-php artisan erisim:interface-pools        # yapılandırmayı yazdırır
+php artisan access:interface-pools        # yapılandırmayı yazdırır
 /usr/local/bin/interface-pools yaz        # /etc/nginx/conf.d altına yazar
 ```
 
@@ -225,7 +225,7 @@ bunu `Invalid login attempt` diye söylüyor).
   ile haber veriyor. Bu haber oturumu **kapatmaz**, "sesi kesildi" diye
   işaretler — aynı olay sayfa yenilenirken de tetikleniyor ve tek bir F5
   oturumu kapatmamalı.
-* **Süre doldu:** `erisim:konsol-temizle` dakikada bir koşuyor ve sesi kesileli
+* **Süre doldu:** `console:prune` dakikada bir koşuyor ve sesi kesileli
   `REMOTE_SESSION_TTL + 120` saniye geçmiş oturumları kapatıyor.
 
 ## Toplu parola çıktısı
@@ -269,7 +269,7 @@ gidebilirdi.
 kendi arayüzünü veriyor ve panel onu bilerek çerçeveye alıyor; üstelik vekil
 ayrı kökende durabiliyor (ayrı port da ayrı kökendir). Kilidi oraya da
 koysaydık bütün cihaz arayüzleri kapanırdı. Muafiyet rotanın kendisinden
-okunur — o uçlar zaten `cihaz-arayuzu` grubunda — yani yeni bir uç eklendiğinde
+okunur — o uçlar zaten `device-interface` grubunda — yani yeni bir uç eklendiğinde
 ayrıca bir listeye yazmak gerekmez.
 
 Bir yanıt kendi başlığını yazdıysa **ezilmez**: portal fırlatma sayfası bilerek

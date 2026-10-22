@@ -68,7 +68,7 @@
             @if ($tasinabilir)
                 <x-ui.panel title="Uzak veritabanına taşı"
                             subtitle="Hedef veritabanını ve kullanıcısını önce uzak sunucuda açın; veritabanı boş olmalı.">
-                    <form method="POST" action="{{ route('veritabani.sina') }}">
+                    <form method="POST" action="{{ route('database.test') }}">
                         @csrf
                         <div class="field-row">
                             <x-form.field name="host" label="Sunucu">
@@ -131,7 +131,7 @@
                             baştan yapıyor.
                         --}}
                         <div class="form-actions">
-                            <form method="POST" action="{{ route('veritabani.tasi') }}"
+                            <form method="POST" action="{{ route('database.migrate') }}"
                                   data-confirm="Panel yeniden başlayacak; şu anki veritabanı {{ $sinanan['adres'] }} hedefine kopyalanacak ve panel bundan sonra orada çalışacak. Kopya bitene kadar panele erişilemez, oturumlar kapanır. Doğrulamak için veritabanı adını yazın."
                                   data-confirm-title="Veritabanını taşı"
                                   data-confirm-variant="danger"

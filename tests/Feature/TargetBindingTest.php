@@ -322,7 +322,7 @@ class TargetBindingTest extends TestCase
          * (bmc) tanınır ve tür açık olmalı. 'linux' yazılsaydı hiçbir kayıt
          * havuza girmez, sınama boş bir çıktıyı denetlerdi.
          */
-        config(['remote.arayuz.turler' => ['ilo']]);
+        config(['remote.interface.types' => ['ilo']]);
 
         $grup = CredentialGroup::factory()->create();
         Credential::factory()->for($grup, 'group')->create([
@@ -337,14 +337,14 @@ class TargetBindingTest extends TestCase
             ]);
         }
 
-        Artisan::call(InterfacePoolsCommand::class === '' ? '' : 'erisim:interface-pools');
+        Artisan::call(InterfacePoolsCommand::class === '' ? '' : 'access:interface-pools');
         $metin = Artisan::output();
 
         $this->assertStringContainsString('    server 192.0.2.202:2266;', $metin);
         $this->assertStringNotContainsString('}server', $metin);
         $this->assertStringNotContainsString('server {', $metin);
         $this->assertDoesNotMatchRegularExpression('/server\s+[^;\n]*[{}"][^;\n]*;/', $metin);
-        $this->assertStringContainsString('map $arayuz_hedef $arayuz_havuz', $metin);
+        $this->assertStringContainsString('map $interface_target $interface_pool', $metin);
         /* Metindeki her "server X;" satırı yalnızca konak:port taşır. */
         preg_match_all('/^    server (.+);$/m', $metin, $m);
         foreach ($m[1] as $hedef) {
@@ -355,7 +355,7 @@ class TargetBindingTest extends TestCase
     #[Test]
     public function adla_kayitli_hedef_havuza_girmez_istek_aninda_cozulur(): void
     {
-        config(['remote.arayuz.turler' => ['ilo']]);
+        config(['remote.interface.types' => ['ilo']]);
 
         $grup = CredentialGroup::factory()->create();
         foreach (['192.0.2.202', 'ilo.ornek.test'] as $konak) {
@@ -368,7 +368,7 @@ class TargetBindingTest extends TestCase
         $resolv = (string) tempnam(sys_get_temp_dir(), 'resolv');
         file_put_contents($resolv, "# yorum\nnameserver 127.0.0.11\nnameserver fd00::53\nnameserver 1.2.3.4;}\noptions ndots:0\n");
 
-        Artisan::call('erisim:interface-pools', ['--resolv' => $resolv]);
+        Artisan::call('access:interface-pools', ['--resolv' => $resolv]);
         $metin = Artisan::output();
 
         /*
@@ -386,11 +386,11 @@ class TargetBindingTest extends TestCase
 
         /* Çözücü yoksa satır yazılmaz; eşleme yine durur, nginx yine açılır. */
         file_put_contents($resolv, "options ndots:0\n");
-        Artisan::call('erisim:interface-pools', ['--resolv' => $resolv]);
+        Artisan::call('access:interface-pools', ['--resolv' => $resolv]);
         $cozucusuz = Artisan::output();
         unlink($resolv);
 
         $this->assertDoesNotMatchRegularExpression('/^resolver /m', $cozucusuz);
-        $this->assertStringContainsString('map $arayuz_hedef $arayuz_havuz', $cozucusuz);
+        $this->assertStringContainsString('map $interface_target $interface_pool', $cozucusuz);
     }
 }

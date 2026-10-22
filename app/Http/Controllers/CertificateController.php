@@ -38,7 +38,7 @@ class CertificateController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:viewAny,'.Setting::class, only: ['index']),
-            new Middleware('can:update,'.Setting::class, only: ['baslat', 'tamamla']),
+            new Middleware('can:update,'.Setting::class, only: ['start', 'complete']),
         ];
     }
 
@@ -55,10 +55,10 @@ class CertificateController extends Controller implements HasMiddleware
     }
 
     /** Yeni tur: sunucu ACME siparişini açar ve TXT kayıtlarını yazar. */
-    public function baslat(): RedirectResponse
+    public function start(): RedirectResponse
     {
         if (! $this->sertifika->istekBirak('baslat')) {
-            return $this->iletilemedi();
+            return $this->notDelivered();
         }
 
         $this->activity->record(ActivityAction::Updated, 'Yeni sertifika turu başlatıldı.');
@@ -72,7 +72,7 @@ class CertificateController extends Controller implements HasMiddleware
      * Yayılmamış bir kayıtla sağlayıcıya gitmek başarısız bir deneme demek;
      * tur baştan başlar ve kullanıcı sebebini anlamaz.
      */
-    public function tamamla(): RedirectResponse
+    public function complete(): RedirectResponse
     {
         $eksik = collect($this->sertifika->yayilmaDurumu())
             ->reject(fn (array $k): bool => $k['yayildi'])
@@ -86,7 +86,7 @@ class CertificateController extends Controller implements HasMiddleware
         }
 
         if (! $this->sertifika->istekBirak('tamamla')) {
-            return $this->iletilemedi();
+            return $this->notDelivered();
         }
 
         $this->activity->record(ActivityAction::Updated, 'Sertifika alma isteği gönderildi.');
@@ -100,7 +100,7 @@ class CertificateController extends Controller implements HasMiddleware
      * root'a ait olduğunda sekme tam olarak böyle sessizce hiçbir şey
      * yapmaz.
      */
-    private function iletilemedi(): RedirectResponse
+    private function notDelivered(): RedirectResponse
     {
         return back()->withErrors([
             'sertifika' => 'İstek sunucuya iletilemedi: panel istek dizinine (/etc/dc/sertifika-panel) yazamıyor. Sunucu yöneticisine bildirin.',

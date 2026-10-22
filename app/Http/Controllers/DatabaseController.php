@@ -38,7 +38,7 @@ class DatabaseController extends Controller implements HasMiddleware
     /** Sınanan bağlantı bu kadar süre taşınabilir; sonra yeniden sınanır. */
     private const SINAMA_OMRU = 900;
 
-    private const OTURUM_ANAHTARI = 'veritabani.sinanan';
+    private const OTURUM_ANAHTARI = 'database.tested';
 
     private const KAYNAKLAR = [
         'ortam' => ['etiket' => 'Kurulum ayarı', 'aciklama' => 'Bağlantı kurulumun ortam değişkenlerinden (DB_*) geliyor; varsayılanı compose\'taki db servisi.'],
@@ -66,13 +66,13 @@ class DatabaseController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:viewAny,'.Setting::class, only: ['index']),
-            new Middleware('can:update,'.Setting::class, only: ['sina', 'tasi']),
+            new Middleware('can:update,'.Setting::class, only: ['test', 'migrate']),
         ];
     }
 
     public function index(Request $istek): View
     {
-        $sinanan = $this->sinanan($istek);
+        $sinanan = $this->tested($istek);
         $durum = $this->dosya->durum();
         $bilgi = $this->veritabani->bilgi();
 
@@ -91,7 +91,7 @@ class DatabaseController extends Controller implements HasMiddleware
             // Süren ya da biten bir taşıma varken yeni taşıma formu gösterilmez.
             'tasinabilir' => $bilgi['kaynak'] === 'ortam'
                 && ! in_array($durum['durum'] ?? null, ['tasinacak', 'tasiniyor', 'deneniyor', 'etkin'], true),
-            'sonuclar' => session('veritabani.sonuclar'),
+            'sonuclar' => session('database.results'),
             'sinanan' => $sinanan === null ? null : [
                 ...array_diff_key($sinanan, ['password' => true]),
                 'adres' => $sinanan['username'].'@'.$sinanan['host'].':'.$sinanan['port'].'/'.$sinanan['database'],
@@ -99,7 +99,7 @@ class DatabaseController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function sina(Request $istek): RedirectResponse
+    public function test(Request $istek): RedirectResponse
     {
         $hedef = ConnectionFile::temizle($istek->validate([
             'host' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9.\-]+$/'],
@@ -128,15 +128,15 @@ class DatabaseController extends Controller implements HasMiddleware
 
         return back()
             ->withInput($istek->except('password'))
-            ->with('veritabani.sonuclar', $sonuclar)
+            ->with('database.results', $sonuclar)
             ->with($tamam ? 'status' : 'error', $tamam
                 ? 'Sınamalar geçti. Taşımak için aşağıdaki düğmeyi kullanın.'
                 : 'Hedef taşımaya uygun değil; ayrıntılar aşağıda.');
     }
 
-    public function tasi(Request $istek): RedirectResponse
+    public function migrate(Request $istek): RedirectResponse
     {
-        $hedef = $this->sinanan($istek);
+        $hedef = $this->tested($istek);
 
         if ($hedef === null) {
             return back()->withErrors(['veritabani' => 'Önce bağlantıyı sınayın (sınama 15 dakika geçerli).']);
@@ -152,7 +152,7 @@ class DatabaseController extends Controller implements HasMiddleware
             $istek->session()->forget(self::OTURUM_ANAHTARI);
 
             return back()
-                ->with('veritabani.sonuclar', $sonuclar)
+                ->with('database.results', $sonuclar)
                 ->withErrors(['veritabani' => 'Sınamalar artık geçmiyor; taşıma başlatılmadı.']);
         }
 
@@ -197,7 +197,7 @@ class DatabaseController extends Controller implements HasMiddleware
     }
 
     /** @return array{host: string, port: int, database: string, username: string, password: string}|null */
-    private function sinanan(Request $istek): ?array
+    private function tested(Request $istek): ?array
     {
         $sifreli = $istek->session()->get(self::OTURUM_ANAHTARI);
 

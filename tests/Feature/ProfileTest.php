@@ -34,7 +34,7 @@ class ProfileTest extends TestCase
     #[Test]
     public function profil_oturumsuz_acilmaz(): void
     {
-        $this->get(route('hesap.profil'))->assertRedirect(route('login'));
+        $this->get(route('account.profile'))->assertRedirect(route('login'));
     }
 
     #[Test]
@@ -43,7 +43,7 @@ class ProfileTest extends TestCase
         $kullanici = $this->kullanici();
 
         $this->actingAs($kullanici)
-            ->put(route('hesap.profil.kaydet'), ['name' => 'Yeni Ad', 'email' => 'yeni@ornek.test'])
+            ->put(route('account.profile.save'), ['name' => 'Yeni Ad', 'email' => 'yeni@ornek.test'])
             ->assertSessionHas('status');
 
         $kullanici->refresh();
@@ -58,7 +58,7 @@ class ProfileTest extends TestCase
         $this->kullanici(['email' => 'dolu@ornek.test']);
 
         $this->actingAs($this->kullanici(['email' => 'benim@ornek.test']))
-            ->put(route('hesap.profil.kaydet'), ['name' => 'Ad', 'email' => 'dolu@ornek.test'])
+            ->put(route('account.profile.save'), ['name' => 'Ad', 'email' => 'dolu@ornek.test'])
             ->assertSessionHasErrors('email');
     }
 
@@ -74,7 +74,7 @@ class ProfileTest extends TestCase
         $kullanici = $this->kullanici();
         $onceki = $kullanici->role_id;
 
-        $this->actingAs($kullanici)->put(route('hesap.profil.kaydet'), [
+        $this->actingAs($kullanici)->put(route('account.profile.save'), [
             'name' => 'Ad',
             'email' => 'kisi@ornek.test',
             'role_id' => 1,
@@ -89,7 +89,7 @@ class ProfileTest extends TestCase
     {
         $kullanici = $this->kullanici();
 
-        $this->actingAs($kullanici)->put(route('hesap.parola'), [
+        $this->actingAs($kullanici)->put(route('account.password'), [
             'mevcut' => 'yanlis',
             'password' => 'yeni-parola-42',
             'password_confirmation' => 'yeni-parola-42',
@@ -103,7 +103,7 @@ class ProfileTest extends TestCase
     {
         $kullanici = $this->kullanici();
 
-        $this->actingAs($kullanici)->put(route('hesap.parola'), [
+        $this->actingAs($kullanici)->put(route('account.password'), [
             'mevcut' => 'parola-1234',
             'password' => 'yeni-parola-42',
             'password_confirmation' => 'yeni-parola-42',
@@ -118,7 +118,7 @@ class ProfileTest extends TestCase
     {
         $kullanici = $this->kullanici();
 
-        $this->actingAs($kullanici)->put(route('hesap.parola'), [
+        $this->actingAs($kullanici)->put(route('account.password'), [
             'mevcut' => 'parola-1234',
             'password' => 'kisa1',
             'password_confirmation' => 'kisa1',
@@ -133,6 +133,6 @@ class ProfileTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->get(route('credentials.index'))
             ->assertOk()
-            ->assertSee(route('hesap.profil'), escape: false);
+            ->assertSee(route('account.profile'), escape: false);
     }
 }

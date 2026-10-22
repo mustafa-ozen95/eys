@@ -7,8 +7,8 @@
     hatayla birlikte yeniden açılır.
 --}}
 @if ($pencere)
-    <x-ui.modal id="alt-grup-penceresi" :title="$pencere['baslik']" open>
-        <form method="POST" action="{{ $pencere['action'] }}" data-yerinde autocomplete="off">
+    <x-ui.modal id="sub-group-window" :title="$pencere['baslik']" open>
+        <form method="POST" action="{{ $pencere['action'] }}" data-inline autocomplete="off">
             @csrf
             @if ($pencere['method'] !== 'POST')
                 @method($pencere['method'])

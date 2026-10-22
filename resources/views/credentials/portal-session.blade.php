@@ -23,7 +23,7 @@
     Alanlar ve gönderim kipi kayıttan değil TANIMLAYICIDAN gelir: kimi panel
     alan=değer ister, kimi JSON (bkz. PortalLogin).
 --}}
-<form id="oturum" method="POST" action="{{ $login->action }}"
+<form id="session-form" method="POST" action="{{ $login->action }}"
       @if ($login->enctype) enctype="{{ $login->enctype }}" @endif>
     @foreach ($login->fields as $name => $value)
         <input type="hidden" name="{{ $name }}" value="{{ $value }}">

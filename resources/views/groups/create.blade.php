@@ -5,7 +5,7 @@
 
             <x-ui.flash />
 
-            <form method="POST" data-yerinde action="{{ route('groups.store') }}">
+            <form method="POST" data-inline action="{{ route('groups.store') }}">
                 @csrf
                 <x-groups.form :kinds="$kinds" />
 

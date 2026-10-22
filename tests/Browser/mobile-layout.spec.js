@@ -16,25 +16,25 @@ const EPOSTA = process.env.E2E_EMAIL;
 const PAROLA = process.env.E2E_PASSWORD;
 
 async function girisYap(page) {
-    await page.goto('/giris');
+    await page.goto('/login');
 
-    const katlanir = page.locator('details.gate__katlanir');
+    const katlanir = page.locator('details.gate__collapsible');
 
     if (await katlanir.count() && await katlanir.getAttribute('open') === null) {
-        await page.locator('summary.gate__katlanir-baslik').click();
+        await page.locator('summary.gate__collapsible-title').click();
     }
 
     await page.fill('#email', EPOSTA);
     await page.fill('#password', PAROLA);
     await page.click('form button[type="submit"]');
-    await expect(page).toHaveURL(/erisim/);
+    await expect(page).toHaveURL(/access/);
 }
 
 const SAYFALAR = [
-    ['erişim bilgileri', '/erisim'],
-    ['gruplar', '/panel/gruplar'],
-    ['kullanıcılar', '/panel/kullanicilar'],
-    ['kayıtlar', '/panel/kayitlar'],
+    ['erişim bilgileri', '/access'],
+    ['gruplar', '/panel/groups'],
+    ['kullanıcılar', '/panel/users'],
+    ['kayıtlar', '/panel/logs'],
 ];
 
 for (const [ad, adres] of SAYFALAR) {
@@ -57,7 +57,7 @@ for (const [ad, adres] of SAYFALAR) {
 
 test('şeritteki sayaç tek satırda kalır', async ({ page }) => {
     await girisYap(page);
-    await page.goto('/erisim');
+    await page.goto('/access');
 
     const sayac = page.locator('.bulk__all');
     await expect(sayac).toBeVisible();
@@ -76,7 +76,7 @@ test('şeritteki sayaç tek satırda kalır', async ({ page }) => {
  */
 test('süzgeç düğmesi yanındaki alanla aynı boyda', async ({ page }) => {
     await girisYap(page);
-    await page.goto('/erisim');
+    await page.goto('/access');
 
     const alan = await page.locator('.column__head .select').first().boundingBox();
     const dugme = await page.getByRole('button', { name: 'Filtrele' }).boundingBox();
@@ -94,7 +94,7 @@ test('süzgeç düğmesi yanındaki alanla aynı boyda', async ({ page }) => {
  */
 test('satır eylemleri sağa yaslanır', async ({ page }) => {
     await girisYap(page);
-    await page.goto('/panel/gruplar');
+    await page.goto('/panel/groups');
 
     const satir = page.locator('.table tbody tr').first();
     const eylemler = satir.locator('.table__row-actions');
@@ -112,7 +112,7 @@ test('satır eylemleri sağa yaslanır', async ({ page }) => {
 
 test('tablo hücreleri etiketsiz boş şerit açmaz', async ({ page }) => {
     await girisYap(page);
-    await page.goto('/panel/kayitlar');
+    await page.goto('/panel/logs');
 
     /* Etiketi olan her hücre etiketini GÖSTERİR; olmayan şerit açmaz. */
     const bosSerit = await page.evaluate(() => {

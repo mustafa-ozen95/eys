@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\DB;
  *
  * İki ölçüt vardır ve birlikte de verilebilir:
  *
- *   --korumasiz  Zincirden ÖNCE yazılmış, özeti olmayan satırlar. Bunlar
+ *   --unprotected  Zincirden ÖNCE yazılmış, özeti olmayan satırlar. Bunlar
  *                doğrulanamaz; değişmediklerine dair elimizde kanıt yoktur.
- *   --gun=N      N günden eski satırlar. Zincirin başı kesildiği için kalan
+ *   --days=N      N günden eski satırlar. Zincirin başı kesildiği için kalan
  *                ilk satırın "öncekisi" çapa olarak saklanır; yoksa her
  *                budamadan sonra doğrulama zinciri kırık gösterirdi.
  */
@@ -32,20 +32,20 @@ class PruneActivityLogCommand extends Command
 {
     use ConfirmableTrait;
 
-    protected $signature = 'erisim:kayit-buda
-                            {--korumasiz : Zincirden önce yazılmış, özetsiz satırları siler}
-                            {--gun= : Bu kadar günden eski satırları siler}
-                            {--gerekce= : Kayda yazılacak gerekçe}
+    protected $signature = 'activity:prune
+                            {--unprotected : Zincirden önce yazılmış, özetsiz satırları siler}
+                            {--days= : Bu kadar günden eski satırları siler}
+                            {--reason= : Kayda yazılacak gerekçe}
                             {--force : Üretimde onay sorma}';
 
     protected $description = 'Denetim kaydındaki eski satırları siler ve zinciri yeni başlangıcına çapalar';
 
     public function handle(ActivityChain $chain, ActivityRecorder $recorder): int
     {
-        $days = $this->option('gun');
+        $days = $this->option('days');
 
-        if (! $this->option('korumasiz') && $days === null) {
-            $this->error('En az bir ölçüt verin: --korumasiz ya da --gun=N.');
+        if (! $this->option('unprotected') && $days === null) {
+            $this->error('En az bir ölçüt verin: --unprotected ya da --days=N.');
 
             return self::INVALID;
         }
@@ -60,7 +60,7 @@ class PruneActivityLogCommand extends Command
             $deleted += $this->pruneOlderThan((int) $days, $chain);
         }
 
-        if ($this->option('korumasiz')) {
+        if ($this->option('unprotected')) {
             $deleted += $this->pruneUnprotected();
         }
 
@@ -159,14 +159,14 @@ class PruneActivityLogCommand extends Command
 
     private function reason(?string $days): string
     {
-        $reason = $this->option('gerekce');
+        $reason = $this->option('reason');
 
         if (is_string($reason) && $reason !== '') {
             return $reason;
         }
 
         return trim(implode(' ', [
-            $this->option('korumasiz') ? 'Zincirden önce yazılmış korumasız satırlar budandı.' : '',
+            $this->option('unprotected') ? 'Zincirden önce yazılmış korumasız satırlar budandı.' : '',
             $days !== null ? "Saklama süresi ({$days} gün) dolan satırlar budandı." : '',
         ]));
     }

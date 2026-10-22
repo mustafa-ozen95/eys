@@ -25,18 +25,18 @@ süresi kısaysa oturum sessizce düşer: vekilde bu panel için uzun (ör. 3600
 süresi verin.
 
 **Cihaz arayüzleri** (ESXi, VAMI) panelle aynı adın ayrı portlarında açılır: ortak köken
-9443, oturum başına 9450-9479 (`ARAYUZ_ALANI`, `ARAYUZ_PORT_ILK/SON`). Platform vekilleri
-yalnız 80/443 dinlediği için bu portları compose'taki `arayuz-vekili` karşılar
+9443, oturum başına 9450-9479 (`INTERFACE_DOMAIN`, `INTERFACE_PORT_START/SON`). Platform vekilleri
+yalnız 80/443 dinlediği için bu portları compose'taki `interface-proxy` karşılar
 (varsayılan kapalı):
 
-    ARAYUZ_ALANI=eys.ornek.test:9443
-    ARAYUZ_VEKILI_KOPYA=1
+    INTERFACE_DOMAIN=eys.ornek.test:9443
+    INTERFACE_PROXY_REPLICAS=1
 
 ve `eys_interface-certificate` hacmine panelin sertifikası `tls.crt` + `tls.key` (ad aynı
 olduğu için panelin sertifikası geçerli). Vekil TLS'i bitirip panelin 9080'ine verir;
 ACME yapmaz, sertifikayı kurulum koyar ve yeniler. Port aralığını değiştirmek üç yeri
 birden değiştirir: `docker/interface-proxy.Caddyfile`, compose'taki yayın aralığı ve
-`ARAYUZ_PORT_ILK/SON`.
+`INTERFACE_PORT_START/SON`.
 
 
 ## Servisler ve hacimler
@@ -44,15 +44,15 @@ birden değiştirir: `docker/interface-proxy.Caddyfile`, compose'taki yayın ara
 | Servis | Ne |
 |---|---|
 | `panel` | nginx, php-fpm, kuyruk işçisi, zamanlayıcı, ttyd, (sır verilmişse) guacd + Tomcat |
-| `db` | MariaDB 11.4; `VT_KOPYA=0` ile kalkmaz (dışarıdaki veritabanı) |
+| `db` | MariaDB 11.4; `DB_REPLICAS=0` ile kalkmaz (dışarıdaki veritabanı) |
 | `redis` | önbellek, oturum, kuyruk; kalıcılık kapalı (yeniden başlatmada oturumlar düşer, veri düşmez) |
-| `arayuz-vekili` | cihaz arayüzü portları (yukarıda); varsayılan kapalı |
+| `interface-proxy` | cihaz arayüzü portları (yukarıda); varsayılan kapalı |
 
-Adlar `ONEK` ile başlar (varsayılan `eys`): `eys_storage` (`storage/app`: APP_KEY
+Adlar `STACK_PREFIX` ile başlar (varsayılan `eys`): `eys_storage` (`storage/app`: APP_KEY
 verilmediyse, ilk parola, Ayarlar → Veritabanı bağlantısı), `eys_database`,
-`eys_logs`, `eys_interface-certificate`. Aynı sunucuda ikinci kurulum `ONEK`'i değiştirir.
+`eys_logs`, `eys_interface-certificate`. Aynı sunucuda ikinci kurulum `STACK_PREFIX`'i değiştirir.
 
-`AG_YALITIMI=true` konteynerleri cihazlardan, KYM'den ve dışarıdan yalıtır (deneme ya da
+`NETWORK_ISOLATED=true` konteynerleri cihazlardan, KYM'den ve dışarıdan yalıtır (deneme ya da
 taşıma kurulumu canlı cihazların parolasını döndürmesin; ayrıca `ROTATION_ENABLED=false`).
 
 
@@ -130,35 +130,35 @@ Konteynerde `schedule:work` supervisord altında durur; unutulacak bir yer yok.
 
 | İş | Sıklık | Ne yapar |
 | --- | --- | --- |
-| `erisim:kimlik-esitle` | 5 dakika | Merkezde erişimi kalkan burada da kaybetsin |
-| `erisim:kasa-denetle` | zamanlanmaz, elle | Döndürmeye hazır görünen kayıtların kimliklerini sınar (yalnızca okur; bkz. routes/console.php) |
-| `erisim:konsol-temizle` | 1 dakika | Tarayıcısı çöken oturumun kapanışını yazar |
+| `identity:sync` | 5 dakika | Merkezde erişimi kalkan burada da kaybetsin |
+| `access:vault-check` | zamanlanmaz, elle | Döndürmeye hazır görünen kayıtların kimliklerini sınar (yalnızca okur; bkz. routes/console.php) |
+| `console:prune` | 1 dakika | Tarayıcısı çöken oturumun kapanışını yazar |
 
 ## Güncelleme kontrolü
 
 Ayarlar → Güncelleme (yalnız yönetici) çalışan sürümü GitHub'da main dalının **son başarılı
 imaj derlemesiyle** karşılaştırır: kaç commit geride, hangi commit'ler yeni. Yön de ölçülür;
 çalışan sürüm son derlemeden yeniyse "güncelleme" denmez. Kontrol her sabah 06:50'de kendiliğinden
-yapılır (`guncelleme:denetle`). Yeni sürüm varsa yöneticiler panelin üstünde uyarı görür.
+yapılır (`update:check`). Yeni sürüm varsa yöneticiler panelin üstünde uyarı görür.
 Ekran **yalnızca bakar**; güncelleme aşağıdaki yoldan, yedekle yapılır.
 
-- Çalışan sürüm imaja derlemede yazılır (`ARG SURUM` → `UYGULAMA_SURUMU`; iş akışı commit'i verir).
+- Çalışan sürüm imaja derlemede yazılır (`ARG APP_VERSION` → `APP_VERSION`; iş akışı commit'i verir).
 - Depo açık: jeton gerekmez, GitHub'a jetonsuz sorulur (sınır IP başına saatte 60 istek). Depo
-  özelse `GUNCELLEME_JETONU` salt okunur bir jeton olmalı (fine-grained, yalnız panel depoları,
+  özelse `UPDATE_TOKEN` salt okunur bir jeton olmalı (fine-grained, yalnız panel depoları,
   Contents ve Actions: read). Erişilemezse kontrol "hata" der, panelin başka yeri etkilenmez.
-- Çalışan sürüm derlemede imaja yazılır (`ARG SURUM`, iş akışı commit'i verir). Derlemeye commit
+- Çalışan sürüm derlemede imaja yazılır (`ARG APP_VERSION`, iş akışı commit'i verir). Derlemeye commit
   vermeyen platformlarda (NineDeploy gibi) bağlamdaki `.git`'ten okunur (`docker/version-read.sh`;
   `.dockerignore` yalnız `HEAD` ve ref'leri alır).
 - Panel GitHub'a çıkamıyorsa (kapalı ağ) kontrol "erişilemedi" der.
 
 ## Kimlik Yönetim Merkezi ile giriş
 
-`KIMLIK_ACIK=true` ise panel kendi giriş formu yerine merkeze yönlendirir.
+`IDENTITY_ENABLED=true` ise panel kendi giriş formu yerine merkeze yönlendirir.
 İstemci kimliği ve sırrı merkezdeki "İstemciler" ekranından alınır; dönüş
 adresi oradaki kayıtla **birebir** aynı olmalıdır.
 
 Merkez şirket içi bir adresteyse ve sertifikası genel bir otoriteden değilse
-`KIMLIK_KOK` ile merkezin kök sertifikası gösterilir. Doğrulamayı kapatma
+`IDENTITY_CA_CERT` ile merkezin kök sertifikası gösterilir. Doğrulamayı kapatma
 seçeneği **yoktur**: jeton takası sırasında araya giren biri istemci sırrını
 okurdu.
 
@@ -170,7 +170,7 @@ açılışta kullanıcı ve veritabanı bununla kurulur. Açılışta panel veri
 üç dakika bekler, gelmezse açılmaz (konteyner yeniden dener).
 
 Dışarıdaki ya da platformun yönettiği bir MariaDB/MySQL: `DB_*`'ı ona çevirin ve
-`VT_KOPYA=0` deyin. Göçler yine açılışta koşar: verilen kullanıcının şema
+`DB_REPLICAS=0` deyin. Göçler yine açılışta koşar: verilen kullanıcının şema
 değiştirme yetkisi olmalı.
 
 Oturumun saat dilimi konteynerin saatidir (`DB_TIMEZONE`, varsayılan `+03:00`): UTC'de

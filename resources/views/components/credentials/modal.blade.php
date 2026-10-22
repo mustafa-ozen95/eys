@@ -42,11 +42,11 @@
         Form normal gönderiliyordu ve tarayıcı tam sayfa yenilemesi yapıyordu:
         ekran beyaza düşüyor, tema ve betikler baştan yükleniyor, açık olan
         sağ panel ile kaydırma konumu kayboluyordu. Panelde bunun karşılığı
-        zaten var — `data-yerinde` formu fetch ile gönderiyor ve dönen sayfayı
+        zaten var — `data-inline` formu fetch ile gönderiyor ve dönen sayfayı
         gövdede değiştiriyor (bkz. navigation.js). Doğrulama hatasında da
         aynı yol işliyor: sunucu pencereyi geri açan sayfayı üretiyor.
     --}}
-    <form method="POST" action="{{ $action }}" autocomplete="off" data-yerinde>
+    <form method="POST" action="{{ $action }}" autocomplete="off" data-inline>
         @csrf
 
         @if ($method !== 'POST')

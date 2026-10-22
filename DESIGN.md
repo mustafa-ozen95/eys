@@ -45,7 +45,7 @@ Giriş ekranı bütün panellerde aynı dosyadır; panelin kimliği **config'ten
 
 ```php
 config('app.name')      // KYM · EYS · NYS · SYS · SYD
-config('app.aciklama')  // "Erişim Yönetim Sistemi", "Switch Yedek Deposu"…
+config('app.description')  // "Erişim Yönetim Sistemi", "Switch Yedek Deposu"…
 ```
 
 Bir metni doğrudan şablona yazmak, o dosyayı diğerlerinden ayırır. Panele

@@ -14,14 +14,14 @@
 #
 #  Servisler: panel (nginx + php-fpm + işçi + zamanlayıcı; ttyd, guacd ve
 #  Tomcat de içeride, kod onları localhost'ta varsayıyor), db (MariaDB), redis
-#  (önbellek, oturum, kuyruk; kalıcılık kapalı), arayuz-vekili (cihaz
+#  (önbellek, oturum, kuyruk; kalıcılık kapalı), interface-proxy (cihaz
 #  arayüzlerinin 9443 ve 9450-9479 TLS portları; varsayılan kapalı).
 #
 #  Dışarıdaki ya da platformun yönettiği bir veritabanı: DB_HOST ve kimlik
-#  bilgilerini verin, VT_KOPYA=0 ile db servisi hiç kalkmaz.
+#  bilgilerini verin, DB_REPLICAS=0 ile db servisi hiç kalkmaz.
 #
-#  Adlar: konteyner ve hacimler ONEK ile başlar (varsayılan eys). Aynı
-#  sunucuda ikinci kurulum ONEK'i değiştirir.
+#  Adlar: konteyner ve hacimler STACK_PREFIX ile başlar (varsayılan eys). Aynı
+#  sunucuda ikinci kurulum STACK_PREFIX'i değiştirir.
 # =============================================================================
 
 services:
@@ -29,15 +29,15 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    image: ${ONEK:-eys}:yerel
-    container_name: ${ONEK:-eys}
+    image: ${STACK_PREFIX:-eys}:local
+    container_name: ${STACK_PREFIX:-eys}
     restart: unless-stopped
     # Kapanış NE KADAR SÜRÜYORSA o kadar beklenir; buradaki değer bir hedef
     # değil, asla devreye girmemesi gereken bir TAVANDIR. Parola döndüren bir
     # iş sürerken kapanış dakikalara çıkabilir; kesilmiş bir döndürme,
     # panelin bilmediği bir parola demektir.
     stop_grace_period: 1h
-    # 80: panel. 9080: cihaz arayüzü kökeni (arayuz-vekili ya da sunucudaki
+    # 80: panel. 9080: cihaz arayüzü kökeni (interface-proxy ya da sunucudaki
     # vekil 9443 ve 9450-9479'u buraya verir).
     expose: ["80", "9080"]
     # Tanımsız değişken konteynere GEÇMEZ (boş değer de değil): varsayılanlar
@@ -62,28 +62,28 @@ services:
       - ADMIN_EMAIL
       - ADMIN_NAME
       - ADMIN_PASSWORD
-      - ORNEK_VERI
+      - SAMPLE_DATA
       - LOGIN_THROTTLE
       - ACTIVITY_CHAIN_KEY
       - ROTATION_ENABLED
       - GUACAMOLE_SECRET
       - GUACAMOLE_USER
-      - ARAYUZ_ALANI
-      - ARAYUZ_TURLERI
-      - ARAYUZ_PORT_ILK
-      - ARAYUZ_PORT_SON
-      - KIMLIK_ACIK
-      - KIMLIK_ADRES
-      - KIMLIK_ISTEMCI
-      - KIMLIK_ISTEMCI_SIR
-      - KIMLIK_DONUS
-      - KIMLIK_BILDIRIM_SIR
-      - KIMLIK_AD
-      - KIMLIK_KOK
-      - KIMLIK_DOGRULAMA_DAKIKA
-      - KIMLIK_YONETICI_DEVRI
-      - TEMA_ALANI
-      - GUNCELLEME_JETONU
+      - INTERFACE_DOMAIN
+      - INTERFACE_TYPES
+      - INTERFACE_PORT_START
+      - INTERFACE_PORT_END
+      - IDENTITY_ENABLED
+      - IDENTITY_URL
+      - IDENTITY_CLIENT_ID
+      - IDENTITY_CLIENT_SECRET
+      - IDENTITY_REDIRECT_URI
+      - IDENTITY_NOTIFY_SECRET
+      - IDENTITY_NAME
+      - IDENTITY_CA_CERT
+      - IDENTITY_VERIFY_MINUTES
+      - IDENTITY_ADMIN_TAKEOVER
+      - THEME_COOKIE_DOMAIN
+      - UPDATE_TOKEN
       - MAIL_MAILER
       - MAIL_HOST
       - MAIL_PORT
@@ -112,11 +112,11 @@ services:
 
   db:
     image: mariadb:11.4
-    container_name: ${ONEK:-eys}-db
+    container_name: ${STACK_PREFIX:-eys}-db
     restart: unless-stopped
     # 0: dışarıdaki ya da platformun veritabanı kullanılıyor (DB_HOST).
     deploy:
-      replicas: ${VT_KOPYA:-1}
+      replicas: ${DB_REPLICAS:-1}
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     environment:
       MARIADB_DATABASE: ${DB_DATABASE:-eys}
@@ -135,7 +135,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: ${ONEK:-eys}-redis
+    container_name: ${STACK_PREFIX:-eys}-redis
     restart: unless-stopped
     # Kalıcılık KAPALI: burada yalnız önbellek, oturum ve kuyruk durur.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
@@ -150,19 +150,19 @@ services:
   # ---------------------------------------------------------------------------
   #  Vekillenen cihaz arayüzleri (ESXi, VAMI...) panelle AYNI adın AYRI
   #  portlarında açılır; platform vekilleri yalnız 80/443 dinlediği için bu
-  #  portları burası karşılar. Açmak: ARAYUZ_VEKILI_KOPYA=1, ARAYUZ_ALANI
+  #  portları burası karşılar. Açmak: INTERFACE_PROXY_REPLICAS=1, INTERFACE_DOMAIN
   #  (ad:9443) ve `interface-certificate` hacmine panelin sertifikası
   #  (tls.crt, tls.key). Sunucuda bu portları başka bir vekil (ör. Caddy)
   #  karşılıyorsa kapalı kalır.
-  arayuz-vekili:
+  interface-proxy:
     build:
       context: .
       dockerfile: docker/interface-proxy.Dockerfile
-    image: ${ONEK:-eys}-arayuz-vekili:yerel
-    container_name: ${ONEK:-eys}-arayuz-vekili
+    image: ${STACK_PREFIX:-eys}-interface-proxy:local
+    container_name: ${STACK_PREFIX:-eys}-interface-proxy
     restart: unless-stopped
     deploy:
-      replicas: ${ARAYUZ_VEKILI_KOPYA:-0}
+      replicas: ${INTERFACE_PROXY_REPLICAS:-0}
     ports:
       - "9443:9443"
       - "9450-9479:9450-9479"
@@ -176,14 +176,14 @@ networks:
     # Ağ yalıtımı: true iken konteynerler cihazlara, KYM'ye ve dışarıya
     # bağlanamaz (taşıma ya da deneme kurulumunda canlı cihazların parolası
     # döndürülmesin). Port yayınları da o zaman dışarıdan erişilmez.
-    internal: ${AG_YALITIMI:-false}
+    internal: ${NETWORK_ISOLATED:-false}
 
 volumes:
   storage:
-    name: ${ONEK:-eys}_storage
+    name: ${STACK_PREFIX:-eys}_storage
   logs:
-    name: ${ONEK:-eys}_logs
+    name: ${STACK_PREFIX:-eys}_logs
   database:
-    name: ${ONEK:-eys}_database
+    name: ${STACK_PREFIX:-eys}_database
   interface-certificate:
-    name: ${ONEK:-eys}_interface-certificate
+    name: ${STACK_PREFIX:-eys}_interface-certificate

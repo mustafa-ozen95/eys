@@ -69,7 +69,7 @@ class VerifyIdentityStatus
             ]);
         }
 
-        $anahtar = 'kimlik:dogrulama:'.$kullanici->getKey();
+        $anahtar = 'identity:verify:'.$kullanici->getKey();
 
         if (Cache::has($anahtar)) {
             return $next($request);
@@ -97,7 +97,7 @@ class VerifyIdentityStatus
             $this->esitleyici->uygula($kullanici, (array) $durumlar[$bag->subject]);
         }
 
-        Cache::put($anahtar, true, now()->addMinutes((int) config('identity.dogrulama_dakika')));
+        Cache::put($anahtar, true, now()->addMinutes((int) config('identity.verify_minutes')));
 
         /*
          * Erişimi kalkan kişi İSTEĞİN ORTASINDA dışarı alınır; bir sonraki

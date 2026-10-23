@@ -302,11 +302,13 @@ Route::middleware('auth')->group(function (): void {
         Route::post('settings/database/migrate', [DatabaseController::class, 'migrate'])->name('database.migrate');
 
         /*
-         * GÜNCELLEME. Yalnızca bakar: çalışan sürüm GitHub'daki son başarılı
-         * derlemeyle karşılaştırılır (bkz. UpdateCheck).
+         * GÜNCELLEME. Çalışan sürüm GitHub'daki son başarılı derlemeyle
+         * karşılaştırılır (bkz. UpdateCheck); yeni sürüm varsa apply platformun
+         * deploy hook'unu tetikler (bkz. UpdateApply).
          */
         Route::get('settings/update', [UpdateController::class, 'index'])->name('update.index');
         Route::post('settings/update', [UpdateController::class, 'check'])->name('update.check');
+        Route::post('settings/update/apply', [UpdateController::class, 'apply'])->name('update.apply');
 
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');

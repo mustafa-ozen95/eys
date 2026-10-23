@@ -29,8 +29,8 @@ use Throwable;
  * sınırı IP başına saatte 60 istek; günde bir tur ve elle basılan düğme
  * için yeter). Özel depo jeton ister; jetonsuz sorulan özel depo 404 döner.
  *
- * YALNIZCA BAKAR, KURMAZ. Güncelleme sunucudan, onaylı yapılır; panel
- * kendini güncelleyebilseydi, ele geçen bir panel sunucuyu yönetebilirdi.
+ * YALNIZCA BAKAR, KURMAZ. Kurulumu platform yapar; panel en çok platformun
+ * deploy hook'unu tetikler (bkz. UpdateApply).
  *
  * Sonuç depolama hacminde durur (storage/app/update/state.json): günlük
  * tur yazar, ekran ve uyarı şeridi okur. Jeton sonuçta ve iletilerde geçmez.

@@ -7,7 +7,8 @@
 |
 | Çalışan sürüm, deponun main dalındaki son başarılı imaj derlemesiyle
 | karşılaştırılır (bkz. App\Services\Update\UpdateCheck).
-| Yalnızca bakar; güncelleme sunucudan, onaylı yapılır.
+| Yeni sürüm varsa yönetici "Şimdi güncelle" ile platformun deploy hook'unu
+| tetikler (bkz. App\Services\Update\UpdateApply).
 |
 */
 
@@ -25,6 +26,13 @@ return [
      * hiçbir yeri etkilenmez.
      */
     'token' => env('UPDATE_TOKEN'),
+
+    /*
+     * Platformun deploy hook adresi (NineDeploy: Service → Settings → Deploy
+     * hook). Tanımsızsa "Şimdi güncelle" düğmesi çıkmaz. İçindeki jeton
+     * deploy yetkisidir: gizli değişken olarak verilir, ekranda görünmez.
+     */
+    'hook' => env('UPDATE_HOOK_URL'),
 
     /*
      * İmaja derlemede yazılır: Dockerfile'da ARG APP_VERSION → ENV APP_VERSION.

@@ -52,10 +52,23 @@
                     @endif
                 </dl>
 
-                <form method="POST" action="{{ route('update.check') }}" class="form-actions">
-                    @csrf
-                    <button type="submit" class="btn btn--primary">Şimdi kontrol et</button>
-                </form>
+                <div class="form-actions">
+                    <form method="POST" action="{{ route('update.check') }}">
+                        @csrf
+                        <button type="submit" class="btn">Şimdi kontrol et</button>
+                    </form>
+                    @if ($guncellenebilir)
+                        <form method="POST" action="{{ route('update.apply') }}"
+                              data-confirm="Panel {{ $son['son_kisa'] }} sürümüne güncellenecek. Platform yeni imajı kurarken panel birkaç dakika kapanıp açılır."
+                              data-confirm-title="Paneli güncelle">
+                            @csrf
+                            <button type="submit" class="btn btn--primary">Şimdi güncelle</button>
+                        </form>
+                    @endif
+                </div>
+                @if ($hookYok && $son && $son['durum'] === 'yeni')
+                    <p class="text-sm text-muted">Güncelleme düğmesi için kurulumda UPDATE_HOOK_URL (platformun deploy hook adresi) tanımlanmalı.</p>
+                @endif
             </x-ui.panel>
 
             @if ($son && ! empty($son['commitler']))
@@ -92,7 +105,7 @@
                     <li>Kontrol her sabah kendiliğinden yapılır; düğme aynı kontrolü hemen yapar. Yeni sürüm varsa yöneticiler panelin üstünde uyarı görür.</li>
                     <li>Karşılaştırma, deponun main dalındaki son başarılı imaj derlemesiyle yapılır. Derlemesi bitmemiş ya da düşmüş bir commit kurulamaz; yeni sürüm sayılmaz.</li>
                     <li>Yön de ölçülür: çalışan sürüm son derlemeden yeniyse bu "güncelleme" değil, geri alma olurdu; ekran bunu ayrıca söyler.</li>
-                    <li>Bu ekran yalnızca bakar. Güncellemenin kendisi sunucudan, yedek alınarak ve onayla yapılır.</li>
+                    <li>Yeni sürüm varsa "Şimdi güncelle" görünür: platformun deploy hook'unu tetikler, kurulumu platform yapar. Panel yalnızca deponun main dalını yeniden kurdurabilir, sunucuda başka bir şey çalıştıramaz.</li>
                 </ul>
             </x-ui.panel>
         </div>

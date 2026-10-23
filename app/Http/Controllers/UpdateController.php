@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityAction;
 use App\Models\Setting;
+use App\Services\ActivityRecorder;
 use App\Services\Settings\SettingsTabs;
+use App\Services\Update\UpdateApply;
 use App\Services\Update\UpdateCheck;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,16 +16,18 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 /**
  * Güncelleme kontrolü: çalışan sürüm ve GitHub'daki son başarılı derleme.
  *
- * Yalnızca BAKAR. Kontrol her sabah kendiliğinden yapılır (update:check);
- * düğme aynı kontrolü hemen yapar. Güncellemenin kendisi sunucudan yapılır.
+ * Kontrol her sabah kendiliğinden yapılır (update:check); düğme aynı
+ * kontrolü hemen yapar. Yeni sürüm varsa "Şimdi güncelle" platformun deploy
+ * hook'unu tetikler (UpdateApply); kurulumu platform yapar.
  *
  * Yetkilendirme: ayarları görebilen ekranı görür, değiştirebilen kontrol
- * başlatır (Setting politikası; Veritabanı sekmesiyle aynı).
+ * ya da güncelleme başlatır (Setting politikası; Veritabanı sekmesiyle aynı).
  */
 class UpdateController extends Controller implements HasMiddleware
 {
@@ -39,6 +44,8 @@ class UpdateController extends Controller implements HasMiddleware
     public function __construct(
         private SettingsTabs $sekmeler,
         private UpdateCheck $denetim,
+        private UpdateApply $guncelleme,
+        private ActivityRecorder $kayit,
     ) {}
 
     /** @return array<int, Middleware> */
@@ -46,7 +53,7 @@ class UpdateController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:viewAny,'.Setting::class, only: ['index']),
-            new Middleware('can:update,'.Setting::class, only: ['check']),
+            new Middleware('can:update,'.Setting::class, only: ['check', 'apply']),
         ];
     }
 
@@ -76,6 +83,8 @@ class UpdateController extends Controller implements HasMiddleware
                 'eski' => ($son['calisan'] ?? null) !== $calisan,
             ],
             'durum' => $son === null ? null : self::DURUMLAR[$son['durum']],
+            'guncellenebilir' => $this->guncelleme->mumkun(),
+            'hookYok' => ! $this->guncelleme->hazir(),
         ]);
     }
 
@@ -89,6 +98,19 @@ class UpdateController extends Controller implements HasMiddleware
             'hata' => 'Kontrol edilemedi: '.($sonuc['aciklama'] ?? ''),
             default => 'Kontrol edildi: '.($sonuc['aciklama'] ?? ''),
         });
+    }
+
+    public function apply(): RedirectResponse
+    {
+        try {
+            $sonuc = $this->guncelleme->baslat();
+        } catch (RuntimeException $e) {
+            return back()->with('error', 'Güncelleme başlatılamadı: '.$e->getMessage());
+        }
+
+        $this->kayit->record(ActivityAction::UpdateStarted, 'Panel güncellemesi başlatıldı: '.$sonuc);
+
+        return back()->with('status', 'Güncelleme başlatıldı ('.$sonuc.'). Panel birkaç dakika içinde yeni sürümle yeniden açılır; bu sırada sayfa kısa bir süre yanıt vermeyebilir.');
     }
 
     private static function zaman(?string $iso): ?string

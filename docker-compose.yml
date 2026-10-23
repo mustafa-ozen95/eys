@@ -84,6 +84,7 @@ services:
       - IDENTITY_ADMIN_TAKEOVER
       - THEME_COOKIE_DOMAIN
       - UPDATE_TOKEN
+      - UPDATE_HOOK_URL
       - MAIL_MAILER
       - MAIL_HOST
       - MAIL_PORT

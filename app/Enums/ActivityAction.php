@@ -46,6 +46,9 @@ enum ActivityAction: string
     /* Denetim satırı silmek de bir işlemdir ve kaydı zincire yazılır. */
     case Pruned = 'pruned';
 
+    /* Panel güncellemesi başlatıldı (platformun deploy hook'u tetiklendi). */
+    case UpdateStarted = 'update_started';
+
     public function label(): string
     {
         return match ($this) {
@@ -63,6 +66,7 @@ enum ActivityAction: string
             self::LoggedIn => 'Giriş yapıldı',
             self::LoginFailed => 'Başarısız giriş',
             self::Pruned => 'Kayıt budandı',
+            self::UpdateStarted => 'Güncelleme başlatıldı',
         };
     }
 
@@ -76,7 +80,7 @@ enum ActivityAction: string
             self::Deleted, self::LoginFailed, self::RotationFailed, self::Pruned => BadgeVariant::Red,
             self::Rotated => BadgeVariant::Cyan,
             self::PortalSession, self::ConsoleOpened => BadgeVariant::Orange,
-            self::DeviceOperation => BadgeVariant::Blue,
+            self::DeviceOperation, self::UpdateStarted => BadgeVariant::Blue,
             self::ConsoleClosed => BadgeVariant::Gray,
             self::LoggedIn => BadgeVariant::Gray,
         };

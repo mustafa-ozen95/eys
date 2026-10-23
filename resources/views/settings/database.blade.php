@@ -2,7 +2,7 @@
     <div class="page">
         <div class="page__inner page__inner--wide">
             <x-ui.page-head title="Ayarlar"
-                            subtitle="Panelin veritabanı: nerede duruyor ve uzak bir sunucuya taşınması." />
+                            subtitle="Panelin veritabanı: nerede duruyor, uzak bir sunucuya taşınması ya da mevcut bir veritabanına bağlanması." />
 
             <x-ui.tabs :items="$sections" />
 
@@ -37,7 +37,7 @@
             </x-ui.panel>
 
             @if ($durum)
-                <x-ui.panel title="Son taşıma">
+                <x-ui.panel :title="($durum['islem'] ?? 'tasi') === 'baglan' ? 'Son bağlanma' : 'Son taşıma'">
                     <dl class="facts">
                         <div class="facts__row">
                             <dt class="facts__key">Durum</dt>
@@ -66,10 +66,13 @@
             @endif
 
             @if ($tasinabilir)
-                <x-ui.panel title="Uzak veritabanına taşı"
-                            subtitle="Hedef veritabanını ve kullanıcısını önce uzak sunucuda açın; veritabanı boş olmalı.">
+                <x-ui.panel title="Uzak veritabanına taşı ya da bağlan"
+                            subtitle="Taşı: hedef veritabanını ve kullanıcısını önce uzak sunucuda açın; veritabanı boş olmalı. Bağlan: eski kurulumun dolu veritabanını yeni kuruluma bağlar, kopyalamaz.">
                     <form method="POST" action="{{ route('database.test') }}">
                         @csrf
+                        <x-form.field name="islem" label="İşlem">
+                            <x-form.select name="islem" :options="$islemler" :selected="$sinanan['islem'] ?? 'tasi'" />
+                        </x-form.field>
                         <div class="field-row">
                             <x-form.field name="host" label="Sunucu">
                                 <x-form.input name="host" :value="$sinanan['host'] ?? null" mono required maxlength="255"
@@ -89,6 +92,16 @@
                             <x-form.field name="password" label="Parola" hint="Saklanmaz; sınama ve taşıma için kullanılır.">
                                 <x-form.input name="password" type="password" required maxlength="200" autocomplete="new-password" />
                             </x-form.field>
+                        </div>
+                        <div class="field">
+                            <label class="checkbox">
+                                <input type="checkbox" name="anahtar_onay" value="1" @checked(old('anahtar_onay'))>
+                                <span>Bağlan için: eski kurulumun APP_KEY ve AUDIT_KEY değerleri bu kurulumda da tanımlı.</span>
+                            </label>
+                            <span class="field__hint">Şifreli alanlar APP_KEY'e, denetim zinciri AUDIT_KEY'e bağlı; farklıysa veriler okunamaz ve zincir kırık görünür. Taşı için gerekmez.</span>
+                            @error('anahtar_onay')
+                                <span class="field__error">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn">Bağlantıyı sına</button>
@@ -124,7 +137,18 @@
                         </div>
                     @endif
 
-                    @if ($sinanan)
+                    @if ($sinanan && $sinanan['islem'] === 'baglan')
+                        <div class="form-actions">
+                            <form method="POST" action="{{ route('database.migrate') }}"
+                                  data-confirm="Panel yeniden başlayacak ve bundan sonra {{ $sinanan['adres'] }} veritabanındaki mevcut veriyle çalışacak. Şu anki veritabanı kopyalanmaz, olduğu gibi bırakılır. Oturumlar kapanır. Doğrulamak için veritabanı adını yazın."
+                                  data-confirm-title="Mevcut veritabanına bağlan"
+                                  data-confirm-variant="danger"
+                                  data-confirm-verify="{{ $sinanan['database'] }}">
+                                @csrf
+                                <button type="submit" class="btn btn--primary">{{ $sinanan['adres'] }} veritabanına bağlan</button>
+                            </form>
+                        </div>
+                    @elseif ($sinanan)
                         {{--
                             Taşı ayrı bir form: sınanan bağlantı oturumda duruyor,
                             parola yeniden istenmiyor. Sunucu sınamaları yine de
@@ -149,6 +173,7 @@
                     <li>Taşıma panel kapalıyken yapılır: panel yeniden başlar, açılışta şu anki veritabanı hedefe kopyalanır. Kopya alınırken kimse yazmadığı için veri tutarlıdır.</li>
                     <li>Kopyadan sonra her tablonun satır sayısı iki tarafta karşılaştırılır. Tutmazsa ya da bir adım başarısız olursa panel şu anki veritabanıyla açılır ve sebep bu sekmede görünür.</li>
                     <li>Taşıma tamamlandıktan sonra panel yalnızca uzak veritabanını kullanır. Uzak sunucu kapanırsa panel açılmayı bekler; eski veritabanı taşıma anındaki hâliyle durduğu için ona kendiliğinden dönülmez.</li>
+                    <li>Bağlan, yeni bir kurulumu eski kurulumun dolu veritabanına geçirir; kopya yapılmaz. Hedef bu panelin olmalı (göç kayıtları tutmalı) ve bu sürümden yeni olmamalı; bekleyen göçler açılışta hedefte uygulanır, olmazsa panel şu anki veritabanıyla açılır.</li>
                     <li>Bağlantı panelin depolama hacminde, uygulama anahtarıyla şifreli durur ve kurulumdaki DB_* ayarlarının yerine geçer.</li>
                     <li>Uzak veritabanının yedeğini o sunucunun yöneticisi alır; panelin hacim yedeği artık veritabanını içermez.</li>
                 </ul>

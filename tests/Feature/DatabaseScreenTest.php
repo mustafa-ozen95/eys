@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Database\ConnectionFile;
 use App\Services\Database\RemoteDatabase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -69,6 +70,9 @@ class DatabaseScreenTest extends TestCase
         {
             public int $sinama = 0;
 
+            /** @var list<string> */
+            public array $islemler = [];
+
             public function __construct(ConnectionFile $dosya, private array $sirayla, private string $kaynak)
             {
                 parent::__construct($dosya);
@@ -80,8 +84,9 @@ class DatabaseScreenTest extends TestCase
                     'username' => 'syd', 'surum' => '10.11.14-MariaDB', 'boyut' => 2_500_000, 'tablo' => 48, 'ozel' => 0];
             }
 
-            public function sina(array $hedef): array
+            public function sina(array $hedef, string $islem = 'tasi'): array
             {
+                $this->islemler[] = $islem;
                 $gecti = $this->sirayla[min($this->sinama++, count($this->sirayla) - 1)];
 
                 return [
@@ -282,5 +287,98 @@ class DatabaseScreenTest extends TestCase
         $this->actingAs($this->yonetici())
             ->get(route('certificate.index'))
             ->assertSee(route('database.index'));
+    }
+
+    #[Test]
+    public function baglan_anahtar_onayi_ister(): void
+    {
+        $sahte = $this->sahte([true]);
+
+        $this->actingAs($this->yonetici())
+            ->from(route('database.index'))
+            ->post(route('database.test'), [...self::HEDEF, 'islem' => 'baglan'])
+            ->assertSessionHasErrors('anahtar_onay');
+
+        $this->assertSame(0, $sahte->sinama, 'Onaysız sınama koşmamalıydı.');
+    }
+
+    /** Yeni kurulum eski kurulumun dolu veritabanına: kopya yok, aşama "baglanacak"; onay penceresi veritabanı adını ister. */
+    #[Test]
+    public function baglan_istegi_birakir_kopyalamaz(): void
+    {
+        $sahte = $this->sahte([true]);
+        $yonetici = $this->yonetici();
+        $adres = self::HEDEF['username'].'@'.self::HEDEF['host'].':'.self::HEDEF['port'].'/'.self::HEDEF['database'];
+
+        $this->actingAs($yonetici)
+            ->from(route('database.index'))
+            ->followingRedirects()
+            ->post(route('database.test'), [...self::HEDEF, 'islem' => 'baglan', 'anahtar_onay' => '1'])
+            ->assertOk()
+            ->assertSee('Bağlanmak için aşağıdaki düğmeyi kullanın')
+            ->assertSee($adres.' veritabanına bağlan')
+            ->assertSee('data-confirm-title="Mevcut veritabanına bağlan"', false)
+            ->assertSee('data-confirm-verify="'.self::HEDEF['database'].'"', false)
+            ->assertDontSee('hedefine taşı')
+            ->assertDontSee(self::HEDEF['password']);
+
+        $this->actingAs($yonetici)
+            ->from(route('database.index'))
+            ->post(route('database.migrate'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', fn (string $m): bool => str_contains($m, 'Bağlanma istendi'));
+
+        $this->assertSame(['baglan', 'baglan'], $sahte->islemler, 'Bağlan düğmesi de sınamaları bağlan olarak yeniden yapmalı.');
+        $this->assertSame(self::HEDEF, $this->dosya->baglanti());
+        $this->assertSame('baglanacak', $this->dosya->asama());
+        $this->assertSame('baglan', $this->dosya->durum()['islem']);
+        $this->assertFileExists($this->dizin.'/restart');
+        $kayit = ActivityLog::query()->where('summary', 'like', 'Mevcut veritabanına bağlanma istendi:%')->sole();
+        $this->assertStringContainsString($adres, $kayit->summary);
+        $this->assertStringNotContainsString(self::HEDEF['password'], $kayit->summary);
+
+        $this->actingAs($yonetici)
+            ->get(route('database.index'))
+            ->assertSee('Son bağlanma')
+            ->assertSee('bağlanma istendi, yeniden başlatma bekleniyor')
+            ->assertDontSee('Bağlantıyı sına');
+    }
+
+    /** Taşı da onay penceresiyle: veritabanı adı yazılmadan gönderilmez. */
+    #[Test]
+    public function tasi_varsayilan_islem_ve_onay_penceresi(): void
+    {
+        $sahte = $this->sahte([true]);
+
+        $this->actingAs($this->yonetici())
+            ->from(route('database.index'))
+            ->followingRedirects()
+            ->post(route('database.test'), self::HEDEF)
+            ->assertSee('data-confirm-title="Veritabanını taşı"', false)
+            ->assertSee('data-confirm-verify="'.self::HEDEF['database'].'"', false);
+
+        $this->assertSame(['tasi'], $sahte->islemler);
+    }
+
+    /** Bağlanılacak hedef bu panelin olmalı ve bu sürümden yeni olmamalı. */
+    #[Test]
+    public function goc_karsilastirmasi(): void
+    {
+        $yerel = ['2026_01_01_a', '2026_01_02_b', '2026_01_03_c'];
+
+        $this->assertSame(['ortak' => 3, 'bilinmeyen' => 0, 'bekleyen' => 0], RemoteDatabase::gocKarsilastir($yerel, $yerel));
+        $this->assertSame(['ortak' => 2, 'bilinmeyen' => 0, 'bekleyen' => 1], RemoteDatabase::gocKarsilastir(['2026_01_01_a', '2026_01_02_b'], $yerel));
+        $this->assertSame(['ortak' => 3, 'bilinmeyen' => 1, 'bekleyen' => 0], RemoteDatabase::gocKarsilastir([...$yerel, '2026_02_01_yeni'], $yerel));
+        $this->assertSame(['ortak' => 0, 'bilinmeyen' => 2, 'bekleyen' => 3], RemoteDatabase::gocKarsilastir(['baska_a', 'baska_b'], $yerel));
+    }
+
+    /** Yerel liste "migrate"in gördüğüyle aynı: çalışan şema bu sürümden yeni sayılmamalı. */
+    #[Test]
+    public function yerel_goc_listesi_calisan_semayla_ortusur(): void
+    {
+        $yerel = (fn (): array => $this->yerelGocler())->call(app(RemoteDatabase::class));
+        $calisan = DB::table('migrations')->pluck('migration')->all();
+
+        $this->assertSame(['ortak' => count($calisan), 'bilinmeyen' => 0, 'bekleyen' => 0], RemoteDatabase::gocKarsilastir($calisan, $yerel));
     }
 }

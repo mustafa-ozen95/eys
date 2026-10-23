@@ -286,6 +286,42 @@ vt_tasi() {
     return "${sonuc}"
 }
 
+# BAĞLAN: yeni kurulum eski kurulumun DOLU veritabanına geçer; kopya yapılmaz.
+# Panel sınamıştı (bu panelin göçleri, sürüm, yetki); burada açılış anındaki
+# hâli bir kez daha bakılır: hedef boşalmış ya da göç kaydı kaybolmuşsa
+# geçilmez. Bekleyen göçler "deneniyor" adımında hedefte koşar; koşmazsa
+# ortamın veritabanına dönülür (ona yazılmamıştır).
+vt_baglan() {
+    local cnf=/run/dc-vt-hedef.cnf hatadosya=/run/dc-vt.hata sonuc=0 n m
+
+    vt_oku || { VT_NEDEN="Bağlantı dosyası okunamadı."; return 1; }
+    if [[ "${VT_BAG[DB_HOST]}" == "${DB_HOST}" && "${VT_BAG[DB_PORT]}" == "${DB_PORT}" && "${VT_BAG[DB_DATABASE]}" == "${DB_DATABASE}" ]]; then
+        VT_NEDEN="Hedef, panelin şu anki veritabanının kendisi (${DB_HOST}:${DB_PORT}/${DB_DATABASE})."
+        return 1
+    fi
+    ( umask 077; vt istemci > "${cnf}" ) || { rm -f "${cnf}"; VT_NEDEN="Bağlantı dosyası okunamadı."; return 1; }
+
+    local -a uzak=("--defaults-extra-file=${cnf}" --connect-timeout=10 "--database=${VT_BAG[DB_DATABASE]}")
+    bilgi "Bağlanma: hedef bekleniyor (${VT_BAG[DB_HOST]}:${VT_BAG[DB_PORT]})..."
+    if ! mariadb_bekle "${cnf}"; then
+        VT_NEDEN="Hedef veritabanına (${VT_BAG[DB_HOST]}:${VT_BAG[DB_PORT]}) bağlanılamadı."
+        sonuc=1
+    elif ! n="$(mariadb "${uzak[@]}" -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()" 2>"${hatadosya}")"; then
+        VT_NEDEN="Hedef okunamadı: $(vt_ilk_satir "${hatadosya}")"
+        sonuc=1
+    elif [[ "${n}" == "0" ]]; then
+        VT_NEDEN="Hedef veritabanı boş; bağlanacak veri yok. Boş hedefe Taşı ile kopyalayın."
+        sonuc=1
+    elif ! m="$(mariadb "${uzak[@]}" -N -B -e "SELECT COUNT(*) FROM migrations" 2>"${hatadosya}")"; then
+        VT_NEDEN="Hedefte göç kaydı (migrations) okunamadı; bu panelin veritabanı değil: $(vt_ilk_satir "${hatadosya}")"
+        sonuc=1
+    else
+        VT_OZET="Mevcut veritabanına bağlanıldı (${n} tablo, ${m} göç kaydı); kopya yapılmadı."
+    fi
+    rm -f "${cnf}" "${hatadosya}"
+    return "${sonuc}"
+}
+
 # Bu açılış zaten istenen yeniden başlatmadır; kalmış bir istek (konteyner
 # döngü görmeden durdurulduysa) bir kez daha boşuna başlatırdı.
 rm -f "${VT_DIZIN}/restart"
@@ -300,7 +336,7 @@ case "${VT_ASAMA}" in
         # Panel uzak veritabanına henüz yazmadı; ortamın veritabanıyla devam
         # etmek veri kaybettirmez.
         uyari "Önceki açılış veritabanı taşımasının ortasında kapanmış; ortamın veritabanıyla devam ediliyor."
-        vt yaz basarisiz "Önceki açılış taşımanın ortasında kapandı; panel ortamın veritabanıyla açıldı. Uzak veritabanını boşaltıp yeniden deneyin."
+        vt yaz basarisiz "Önceki açılış taşımanın ortasında kapandı; panel ortamın veritabanıyla açıldı. Taşımada uzak veritabanını boşaltıp yeniden deneyin; bağlanmada hedefteki veriye dokunmadan yeniden deneyin."
         VT_ASAMA=basarisiz
         ;;
     tasinacak)
@@ -312,6 +348,18 @@ case "${VT_ASAMA}" in
             bilgi "Taşıma: ${VT_OZET}"
         else
             uyari "Taşıma yapılmadı: ${VT_NEDEN:-bilinmeyen sebep}"
+            vt yaz basarisiz "${VT_NEDEN:-Bilinmeyen sebep.}"
+            VT_ASAMA=basarisiz
+        fi
+        ;;
+    baglanacak)
+        bilgi "Mevcut veritabanına bağlanılıyor..."
+        if vt_baglan; then
+            vt yaz deneniyor "${VT_OZET}"
+            VT_ASAMA=deneniyor
+            bilgi "Bağlanma: ${VT_OZET}"
+        else
+            uyari "Bağlanılmadı: ${VT_NEDEN:-bilinmeyen sebep}"
             vt yaz basarisiz "${VT_NEDEN:-Bilinmeyen sebep.}"
             VT_ASAMA=basarisiz
         fi
@@ -450,11 +498,11 @@ if [[ "${VT_ASAMA}" == "deneniyor" ]]; then
     # veri kaybettirmez. Çıkış kodu yeniden başlatmayı tetikler, bir sonraki
     # açılış "basarisiz"ı görüp ortamın veritabanıyla açılır.
     if ! gosu eys env CACHE_STORE=file "${PHP}" artisan migrate --force --isolated; then
-        vt yaz basarisiz "Uzak veritabanıyla ilk açılışta göçler koşmadı; panel ortamın veritabanıyla açıldı. Uzak veritabanını boşaltıp yeniden deneyin." || true
+        vt yaz basarisiz "Uzak veritabanıyla ilk açılışta göçler koşmadı; panel ortamın veritabanıyla açıldı. Taşımada uzak veritabanını boşaltıp yeniden deneyin; bağlanmada hedefteki veriye dokunmayın, konteyner günlüğündeki göç hatasına bakın." || true
         hata "Uzak veritabanında göçler koşmadı; taşıma geri alındı, panel ortamın veritabanıyla yeniden açılacak."
     fi
     vt yaz etkin
-    bilgi "Veritabanı taşıması tamamlandı: panel artık uzak veritabanında."
+    bilgi "Veritabanı geçişi tamamlandı: panel artık uzak veritabanında."
 else
     gosu eys env CACHE_STORE=file "${PHP}" artisan migrate --force --isolated
 fi

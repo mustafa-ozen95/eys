@@ -96,9 +96,9 @@
                         <div class="field">
                             <label class="checkbox">
                                 <input type="checkbox" name="anahtar_onay" value="1" @checked(old('anahtar_onay'))>
-                                <span>Bağlan için: eski kurulumun APP_KEY ve AUDIT_KEY değerleri bu kurulumda da tanımlı.</span>
+                                <span>Eski kurulumun anahtarlarını bu kuruluma da verdim</span>
                             </label>
-                            <span class="field__hint">Şifreli alanlar APP_KEY'e, denetim zinciri AUDIT_KEY'e bağlı; farklıysa veriler okunamaz ve zincir kırık görünür. Taşı için gerekmez.</span>
+                            <span class="field__hint">Yalnızca «Bağlan» için gerekir. Eski kurulumdaki APP_KEY ve AUDIT_KEY değerlerini bu kurulumun ortam değişkenlerine aynen yazın. Farklı olursa bağlandıktan sonra şifreli bilgiler (parolalar, jetonlar) açılamaz ve denetim kaydı bozuk görünür.</span>
                             @error('anahtar_onay')
                                 <span class="field__error">{{ $message }}</span>
                             @enderror

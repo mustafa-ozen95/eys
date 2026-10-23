@@ -124,7 +124,7 @@ class DatabaseController extends Controller implements HasMiddleware
             'islem' => ['nullable', 'in:tasi,baglan'],
             'anahtar_onay' => ['accepted_if:islem,baglan'],
         ], [
-            'anahtar_onay.accepted_if' => 'Bağlanmadan önce eski kurulumun APP_KEY ve AUDIT_KEY değerlerinin bu kurulumda tanımlı olduğunu onaylayın.',
+            'anahtar_onay.accepted_if' => 'Bağlanmak için eski kurulumun APP_KEY ve AUDIT_KEY değerlerini bu kuruluma verin ve «Eski kurulumun anahtarlarını bu kuruluma da verdim» kutusunu işaretleyin.',
             'host.regex' => 'Konak adı ya da IPv4 adresi girin.',
             'database.regex' => 'Veritabanı adında yalnızca harf, rakam, alt çizgi ve tire olabilir.',
         ]));

@@ -86,7 +86,7 @@ enum OperatingSystem: string
     public function accessTypes(): array
     {
         return match ($this) {
-            self::Linux => [AccessType::Ssh, AccessType::Vnc, AccessType::Web, AccessType::Panel,
+            self::Linux => [AccessType::Ssh, AccessType::Rdp, AccessType::Vnc, AccessType::Web, AccessType::Panel,
                 AccessType::Database, AccessType::Ftp, AccessType::Backup, AccessType::Other],
             self::Windows => [AccessType::Rdp, AccessType::Ssh, AccessType::Vnc, AccessType::RemoteTool,
                 AccessType::Web, AccessType::Panel, AccessType::Database, AccessType::Ftp,

@@ -260,7 +260,7 @@ final class InterfaceMultiTabTest extends TestCase
     public function sahiplik_listesi_olculmus_yollarla_sinirli(): void
     {
         $this->assertSame(
-            ['/sdk', '/ui/', '/websso/', '/apigw', '/webconsole-ticket/'],
+            ['/sdk', '/ui/', '/websso/', '/apigw', '/webconsole-ticket/', '/ticket/', '/dyndata.js'],
             InterfaceType::Vcenter->sahiplendigiYollar(),
         );
 

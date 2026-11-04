@@ -75,4 +75,39 @@ final class InterfaceRootPathsTest extends TestCase
     {
         $this->assertContains('/webconsole-ticket/', InterfaceType::Vcenter->kokYollari());
     }
+
+    /**
+     * ESXi VM KONSOLU: Host Client canlı bağlantıyı sayfanın kendi adresinde
+     * kökteki /ticket/<bilet>'e kuruyor. Taban (/ui/) eklenirse ESXi 404
+     * döndürür ve konsol açılmaz. /dyndata.js de kökte.
+     *
+     * Yollar yalnızca ESXi'de cevap veriyor (ESXi 503/200; vCenter, iLO,
+     * Plesk 404); bu yüzden iki sekme açıkken de vSphere ailesine gider.
+     */
+    #[Test]
+    public function esxi_konsol_bileti_kok_yollarinda(): void
+    {
+        $this->assertContains('/ticket/', InterfaceType::Esxi->kokYollari());
+        $this->assertContains('/dyndata.js', InterfaceType::Esxi->kokYollari());
+        $this->assertSame(
+            [InterfaceType::Vcenter, InterfaceType::Esxi, InterfaceType::Vami],
+            InterfaceType::yolunSahipleri('/ticket/52a1b2c3d4e5f607'),
+        );
+    }
+
+    /**
+     * Tarayıcı uygulama bildirimini ÇEREZSİZ çekiyor; bekçi çerezsiz isteği
+     * reddettiği için Plesk'te "Manifest fetch ... failed, code 403" çıkıyordu.
+     * Cihaz arayüzü kökeninde bildirim bekçiye gitmeden boş verilir.
+     */
+    #[Test]
+    public function uygulama_bildirimi_bekciye_gitmez(): void
+    {
+        $nginx = file_get_contents(base_path('docker/rootfs/etc/nginx/conf.d/eys.conf'));
+
+        $this->assertMatchesRegularExpression(
+            '#location = /manifest\.webmanifest \{[^}]*return 200 \'\{\}\';#',
+            $nginx,
+        );
+    }
 }

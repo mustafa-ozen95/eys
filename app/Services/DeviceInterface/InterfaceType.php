@@ -291,7 +291,19 @@ enum InterfaceType: string
     public function kokYollari(): array
     {
         return match ($this) {
-            self::Esxi => ['/sdk', '/ui/'],
+            /*
+             * /ticket/ ve /dyndata.js SONRADAN eklendi.
+             *
+             * /ticket/<bilet>: VM KONSOLUNUN CANLI BAĞLANTISI. Host Client
+             * konsolu "wss://<konak>:<port>/ticket/<bilet>" adresine bağlıyor
+             * (konak ve port sayfanın kendi adresi). Taban eklenince
+             * /ui/ticket/... oluyor ve ESXi 404 döndürüyor — konsol açılmıyor
+             * (ölçüldü: vekilden 404; cihazda aynı yol bilet geçersizken 503).
+             *
+             * /dyndata.js: Host Client kökten istiyor; cihazda 200, /ui/
+             * altında 404.
+             */
+            self::Esxi => ['/sdk', '/ui/', '/ticket/', '/dyndata.js'],
             self::Vami => ['/rest/'],
             /*
              * vSphere Client kökü baştan aşağı kullanıyor. /apigw ve /cp/
@@ -654,8 +666,12 @@ enum InterfaceType: string
              * KALAN LİSTE CİHAZLARA KARŞI TARANDI (vCenter, Plesk, iLO, QNAP):
              * her yol yalnızca bir ailede cevap veriyor.
              */
+            /*
+             * /ticket/ ve /dyndata.js ESXi'nin (bkz. kokYollari). Ölçüldü:
+             * ESXi 503/200; vCenter, iLO, Plesk 404.
+             */
             self::Vcenter, self::Esxi, self::Vami => [
-                '/sdk', '/ui/', '/websso/', '/apigw', '/webconsole-ticket/',
+                '/sdk', '/ui/', '/websso/', '/apigw', '/webconsole-ticket/', '/ticket/', '/dyndata.js',
             ],
 
             /*

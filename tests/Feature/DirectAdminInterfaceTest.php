@@ -167,8 +167,10 @@ final class DirectAdminInterfaceTest extends TestCase
     public function koken_yalnizca_bu_turde_yeniden_kurulur(): void
     {
         $this->assertTrue(InterfaceType::DirectAdmin->kokenYazilirMi());
+        /* vCenter canlı bağlantıyı (websocket) Origin'e bakarak kabul ediyor. */
+        $this->assertTrue(InterfaceType::Vcenter->kokenYazilirMi());
 
-        foreach ([InterfaceType::Plesk, InterfaceType::Ilo, InterfaceType::Esxi, InterfaceType::Vami, InterfaceType::Vcenter] as $tur) {
+        foreach ([InterfaceType::Plesk, InterfaceType::Ilo, InterfaceType::Esxi, InterfaceType::Vami] as $tur) {
             $this->assertFalse($tur->kokenYazilirMi(), $tur->value.' için köken yazılmamalı.');
         }
     }

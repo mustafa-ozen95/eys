@@ -205,12 +205,19 @@ enum InterfaceType: string
      * istekte bakıyor ve panelin kökenini gördüğünde "Referer check has
      * failed" diyor — giriş çalışsa bile içinde gezilemez.
      *
+     * vCENTER WEBSOCKET'TE BAKIYOR: canlı bağlantılar (/ui/live-updates,
+     * /ui/app-fabric/fabric) Origin cihazın kökeni değilse 403 alıyor
+     * (ölçüldü, vCenter 8.0.3: Origin https://<cihaz> → 101, panelin kökeni
+     * ya da başlıksız → 403). Sıradan istekler geçtiği için arayüz açılıyor
+     * ama görev listesi ve ekrandaki veriler kendiliğinden tazelenmiyordu —
+     * ancak "yenile" ile geliyordu.
+     *
      * Yalnızca isteyen türde açılır: çalışan bir arayüzü, ihtiyacı olmayan
      * bir düzeltmeyle bozmanın anlamı yok.
      */
     public function kokenYazilirMi(): bool
     {
-        return $this === self::DirectAdmin;
+        return in_array($this, [self::DirectAdmin, self::Vcenter], true);
     }
 
     /**

@@ -98,7 +98,8 @@ final class InterfaceRootPathsTest extends TestCase
     /**
      * Tarayıcı uygulama bildirimini ÇEREZSİZ çekiyor; bekçi çerezsiz isteği
      * reddettiği için Plesk'te "Manifest fetch ... failed, code 403" çıkıyordu.
-     * Cihaz arayüzü kökeninde bildirim bekçiye gitmeden boş verilir.
+     * Cihaz arayüzü kökeninde bildirim bekçiye gitmeden verilir. Boş nesne
+     * ("{}") olmaz: Chrome onu "Syntax error" diye reddediyor.
      */
     #[Test]
     public function uygulama_bildirimi_bekciye_gitmez(): void
@@ -106,7 +107,7 @@ final class InterfaceRootPathsTest extends TestCase
         $nginx = file_get_contents(base_path('docker/rootfs/etc/nginx/conf.d/eys.conf'));
 
         $this->assertMatchesRegularExpression(
-            '#location = /manifest\.webmanifest \{[^}]*return 200 \'\{\}\';#',
+            '#location = /manifest\.webmanifest \{[^}]*return 200 \'\{"name":"EYS"\}\';#',
             $nginx,
         );
     }

@@ -1,4 +1,4 @@
-import { on } from '../lib/dom.js';
+import { $$, on } from '../lib/dom.js';
 
 /**
  * Sayfa geçişleri — tarayıcı yenilemeden.
@@ -60,6 +60,39 @@ function buildSignature(doc) {
         .join('|');
 }
 
+/**
+ * Listelerin kaydırma konumu — AYNI LİSTE yeniden çizilince korunur.
+ *
+ * Gövde baştan yazıldığı için her sütun en üstten başlıyordu: listenin
+ * altlarındaki bir kayda tıklayan kişi, detay açılırken listeyi en başta
+ * buluyor, tıkladığı satırı yeniden arıyordu.
+ *
+ * "Aynı liste" satırların bağlantılarından anlaşılır: kayıt seçmek
+ * satırların adresini değiştirmez (her satır kendi kaydını gösterir), grup
+ * ya da arama değişince ise bütün satırlar değişir ve liste baştan başlar.
+ * Bağlantısız gövde (boş liste) korunmaz.
+ */
+function listScrolls(root) {
+    return $$('.column__body', root).map((body) => ({
+        signature: listSignature(body),
+        top: body.scrollTop,
+    }));
+}
+
+function listSignature(body) {
+    return $$('a[href]', body).map((link) => link.getAttribute('href')).join('|');
+}
+
+function restoreListScrolls(scrolls) {
+    $$('.column__body').forEach((body, index) => {
+        const old = scrolls[index];
+
+        if (old && old.top > 0 && old.signature !== '' && old.signature === listSignature(body)) {
+            body.scrollTop = old.top;
+        }
+    });
+}
+
 function render(text, url, historyMode) {
     const fresh = new DOMParser().parseFromString(text, 'text/html');
 
@@ -94,7 +127,11 @@ function render(text, url, historyMode) {
         existing.content = icon;
     }
 
+    const scrolls = listScrolls(document);
+
     document.body.innerHTML = fresh.body.innerHTML;
+
+    restoreListScrolls(scrolls);
 
     if (historyMode === 'push') {
         window.history.pushState({ eys: true }, '', url);

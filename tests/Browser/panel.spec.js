@@ -139,6 +139,25 @@ test('listenin son satiri ekranin dibine yapismaz', async ({ page }) => {
     expect(alan.y + alan.height - (sonSatir.y + sonSatir.height)).toBeGreaterThan(24);
 });
 
+test('alttaki kayit secilince liste en uste kaymaz', async ({ page }) => {
+    await girisYap(page);
+
+    /*
+     * Kayıt seçmek gövdeyi yeniden çiziyor; liste en başa dönüyor, tıklanan
+     * satır ekrandan çıkıyordu (bkz. navigation.js · listScrolls).
+     */
+    const govde = page.locator('.column--fill .column__body');
+    await govde.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    const once = await govde.evaluate((el) => el.scrollTop);
+    test.skip(once === 0, 'Liste kaydırılacak kadar uzun değil.');
+
+    await page.locator('.column--fill .credential-row__link').last().click();
+    await expect(page).toHaveURL(/kayit=/);
+    await expect(page.locator('.detail')).toBeVisible();
+
+    expect(await govde.evaluate((el) => el.scrollTop)).toBe(once);
+});
+
 /**
  * Portal oturumu: SEKME ONAYDAN SONRA açılır.
  *

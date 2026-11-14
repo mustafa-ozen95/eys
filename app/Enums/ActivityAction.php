@@ -49,6 +49,12 @@ enum ActivityAction: string
     /* Panel güncellemesi başlatıldı (platformun deploy hook'u tetiklendi). */
     case UpdateStarted = 'update_started';
 
+    /* Linux makinede sistem güncellemesi kuruldu ya da kurulamadı (apt/dnf). */
+    case OsUpdate = 'os_update';
+
+    /* Bir makinenin güncelleme kilidi açıldı ya da kapatıldı. */
+    case OsUpdateLock = 'os_update_lock';
+
     public function label(): string
     {
         return match ($this) {
@@ -67,6 +73,8 @@ enum ActivityAction: string
             self::LoginFailed => 'Başarısız giriş',
             self::Pruned => 'Kayıt budandı',
             self::UpdateStarted => 'Güncelleme başlatıldı',
+            self::OsUpdate => 'Sistem güncellemesi',
+            self::OsUpdateLock => 'Güncelleme kilidi',
         };
     }
 
@@ -82,6 +90,8 @@ enum ActivityAction: string
             self::PortalSession, self::ConsoleOpened => BadgeVariant::Orange,
             self::DeviceOperation, self::UpdateStarted => BadgeVariant::Blue,
             self::ConsoleClosed => BadgeVariant::Gray,
+            self::OsUpdate => BadgeVariant::Purple,
+            self::OsUpdateLock => BadgeVariant::Orange,
             self::LoggedIn => BadgeVariant::Gray,
         };
     }

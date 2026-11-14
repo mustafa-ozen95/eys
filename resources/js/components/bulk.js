@@ -47,8 +47,26 @@ function refresh() {
      * kayıtlar" diye sorulan bir onay, kullanıcının neyi onayladığını
      * bilmediği bir onaydır.
      */
+    const name = chosen[0]?.getAttribute('aria-label') ?? '';
+
+    /*
+     * Formun kendi cümlesi varsa o kullanılır ({n} = sayı, {name} = tek
+     * seçimde kayıt). Aynı şerit sistem güncellemesinde de duruyor ve orada
+     * "parola değiştirilecek" demek yanlış olurdu.
+     */
+    const one = form.dataset.bulkConfirmOne;
+    const many = form.dataset.bulkConfirmMany;
+
+    if (one && many) {
+        form.dataset.confirm = (chosen.length === 1 ? one : many)
+            .replace('{n}', String(chosen.length))
+            .replace('{name}', name);
+
+        return;
+    }
+
     form.dataset.confirm = chosen.length === 1
-        ? `1 kaydın parolası UZAKTAKİ MAKİNEDE değiştirilecek: ${chosen[0].getAttribute('aria-label') ?? ''}`
+        ? `1 kaydın parolası UZAKTAKİ MAKİNEDE değiştirilecek: ${name}`
         : `Seçili ${chosen.length} kaydın parolası UZAKTAKİ MAKİNELERDE değiştirilecek.`;
 }
 

@@ -30,6 +30,8 @@ return [
         'export' => 'Parolaları dosyaya çıkar',
         'session' => 'Portal oturumu aç',
         'connect' => 'Konsol aç (SSH / uzak masaüstü)',
+        'os_update' => 'Sistem güncellemesi kur (Linux)',
+        'os_update_lock' => 'Güncelleme kilidini değiştir',
     ],
 
     /*
@@ -145,6 +147,21 @@ return [
                  * kapsamaz: göstermeden kullanmak da bir erişimdir.
                  */
                 'connect',
+
+                /*
+                 * Sistem güncellemesi kurmak CİHAZI DEĞİŞTİRİR (apt/dnf):
+                 * "Düzenle" de "Parola güncelle" de bunu kapsamaz. Bekleyen
+                 * güncellemeleri denetlemek de bu yetkiyle yapılır; makineye
+                 * bağlanmak görüntülemekten öte bir iştir.
+                 */
+                'os_update',
+
+                /*
+                 * Kilit, kritik sunucuyu kurulumdan korur. Kurulum yetkisi
+                 * kilidi açmayı kapsamaz: kurmak isteyen kişi korumayı kendi
+                 * kaldıramasın.
+                 */
+                'os_update_lock',
             ],
         ],
     ],

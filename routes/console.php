@@ -68,3 +68,19 @@ Schedule::command('console:prune')
  * Güncelleme'deki düğme aynı kontrolü hemen yapar.
  */
 Schedule::command('update:check')->dailyAt('06:50');
+
+/*
+ * BEKLEYEN SİSTEM GÜNCELLEMELERİ — Ayarlar → Sistem güncellemeleri'ndeki aralıkla.
+ *
+ * "Panel cihaza kendiliğinden bağlanmasın" kuralının BİLİNÇLİ ve DAR
+ * istisnası: makineye bağlanır, paket listesini OKUR, hiçbir şey kurmaz
+ * (bkz. OsUpdateScripts::denetim). Kurulum asla zamanlanmaz. Aralık 0
+ * yapılırsa komut hiçbir makineye bağlanmaz.
+ *
+ * Saatte bir koşar; yalnızca son denetimi aralıktan eski makineleri, aralarına
+ * süre koyarak sıraya alır.
+ */
+Schedule::command('os-update:check')
+    ->hourly()
+    ->withoutOverlapping(30)
+    ->runInBackground();

@@ -9,6 +9,7 @@ use App\Enums\OperatingSystem;
 use App\Enums\UserStatus;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
+use App\Models\OsUpdateState;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -109,6 +110,43 @@ class VisualTestSeeder extends Seeder
             'rotation_enabled' => false,
             'position' => 1,
         ]);
+
+        /*
+         * Sistem güncellemeleri ekranı (os-updates.spec.js): biri kritik
+         * güncelleme bekliyor, öteki KİLİTLİ. Kilitli satırın kutusu kapalı
+         * gelmeli; senaryo bunu adıyla arıyor.
+         */
+        $this->guncellemeDurumu('srv-a SSH', [
+            'package_manager' => 'apt',
+            'critical_count' => 2,
+            'normal_count' => 5,
+            'packages' => [
+                ['name' => 'openssl', 'version' => '3.0.13-0ubuntu3.5', 'critical' => true],
+                ['name' => 'libssl3t64', 'version' => '3.0.13-0ubuntu3.5', 'critical' => true],
+                ['name' => 'firefox', 'version' => '133.0', 'critical' => false],
+            ],
+            'reboot_required' => true,
+            'checked_at' => now()->subHours(2),
+        ]);
+
+        $this->guncellemeDurumu('srv-a Yedek SSH', [
+            'package_manager' => 'apt',
+            'critical_count' => 0,
+            'normal_count' => 0,
+            'packages' => [],
+            'checked_at' => now()->subHour(),
+            'locked' => true,
+            'lock_reason' => 'Üretim yedek sunucusu',
+            'locked_at' => now()->subDay(),
+        ]);
+    }
+
+    /** @param  array<string, mixed>  $veri */
+    private function guncellemeDurumu(string $ad, array $veri): void
+    {
+        $kayit = Credential::query()->where('name', $ad)->firstOrFail();
+
+        OsUpdateState::updateOrCreate(['credential_id' => $kayit->id], $veri);
     }
 
     /** @param  array<string, mixed>  $veri */

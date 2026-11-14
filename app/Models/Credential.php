@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Tek bir erişim kaydı: "srv-a → SSH", "Grup A → iLO" gibi.
@@ -100,6 +101,16 @@ class Credential extends Model
             'port' => 'integer',
             'position' => 'integer',
         ];
+    }
+
+    /**
+     * Sistem güncellemesi durumu (yalnızca SSH'lı Linux kayıtlarında olur).
+     *
+     * @return HasOne<OsUpdateState, $this>
+     */
+    public function osUpdateState(): HasOne
+    {
+        return $this->hasOne(OsUpdateState::class);
     }
 
     /** @return HasMany<PasswordRotation, $this> */

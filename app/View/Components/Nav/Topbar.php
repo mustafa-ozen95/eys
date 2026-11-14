@@ -40,6 +40,8 @@ class Topbar extends Component
     {
         $candidates = [
             ['label' => 'Erişim bilgileri', 'route' => 'credentials.index', 'ability' => 'viewAny', 'model' => Credential::class],
+            /* Linux sistem güncellemeleri; kurma ya da kilit yetkisi olana görünür. */
+            ['label' => 'Güncellemeler', 'route' => 'os-updates.index', 'ability' => 'osUpdatePage', 'model' => Credential::class],
             ['label' => 'Gruplar', 'route' => 'groups.index', 'ability' => 'create', 'model' => CredentialGroup::class],
             ['label' => 'Kullanıcılar', 'route' => 'users.index', 'ability' => 'viewAny', 'model' => User::class],
             /*

@@ -8,14 +8,17 @@
     İlk çizim sunucudan gelir; tur sürerken yoklama devralır ve AYNI sınıf
     adlarıyla yeniden çizer (bkz. bulk-progress.js). Sayıların hepsi tur
     kayıtlarından okunur; gösterge tahmin etmez.
+
+    Sistem güncellemesi de AYNI göstergeyi kullanır (OsUpdateRound::kart):
+    başlık ve uçlar $tur içinden gelir, yoksa parola güncellemesininkiler.
 --}}
 <section class="bulk-round bulk-round--{{ $tur['result'] }}"
-         role="status" aria-live="polite" aria-label="Toplu parola güncelleme"
+         role="status" aria-live="polite" aria-label="{{ $tur['title'] ?? 'Toplu parola güncelleme' }}"
          data-bulk-round-root
          data-bulk-round-percent="{{ $tur['status']['percent'] }}"
          @if ($tur['status']['running'])
              data-bulk-round-progress
-             data-bulk-round-progress-url="{{ route('credentials.rotate.bulk.progress', $tur['round']) }}"
+             data-bulk-round-progress-url="{{ $tur['progressUrl'] ?? route('credentials.rotate.bulk.progress', $tur['round']) }}"
          @endif>
     <div class="bulk-round__head">
         <div class="bulk-round__ring" aria-hidden="true">
@@ -31,7 +34,7 @@
         </div>
 
         <div class="bulk-round__title">
-            <span class="bulk-round__top">Toplu parola güncelleme</span>
+            <span class="bulk-round__top">{{ $tur['title'] ?? 'Toplu parola güncelleme' }}</span>
             <span class="bulk-round__main">
                 <strong data-bulk-round-done>{{ $tur['status']['done'] }}</strong><span class="bulk-round__total">/{{ $tur['status']['total'] }} makine</span>
                 <span class="bulk-round__status" data-bulk-round-text>{{ $tur['status']['running'] ? '' : $tur['status']['text'] }}</span>
@@ -46,7 +49,7 @@
 
         @unless ($tur['status']['running'])
             {{-- Kapatmak turlara dokunmaz; yalnızca kartı ekrandan kaldırır. --}}
-            <form method="POST" action="{{ route('credentials.rotate.bulk.dismiss', $tur['round']) }}" class="bulk-round__close" data-inline>
+            <form method="POST" action="{{ $tur['dismissUrl'] ?? route('credentials.rotate.bulk.dismiss', $tur['round']) }}" class="bulk-round__close" data-inline>
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn--sm btn--ghost" aria-label="Göstergeyi kapat">Kapat</button>

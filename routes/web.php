@@ -23,6 +23,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\ErrorLogController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\InterfaceSessionController;
+use App\Http\Controllers\OsUpdateController;
 use App\Http\Controllers\PortalSessionController;
 use App\Http\Controllers\RemoteSessionPageController;
 use App\Http\Controllers\RoleController;
@@ -246,6 +247,20 @@ Route::middleware('auth')->group(function (): void {
      */
     Route::post('access/bulk-export', CredentialExportController::class)
         ->name('credentials.export');
+
+    /*
+     * Linux sistem güncellemeleri (apt/dnf). Kayıt kimlikleri gövdede (uuid);
+     * kilit kaydın uuid'siyle. Denetim yalnızca okur, kurulum ve kilit
+     * gerekçe ister (bkz. OsUpdateController).
+     */
+    Route::controller(OsUpdateController::class)->prefix('system-updates')->name('os-updates.')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('check', 'check')->name('check');
+        Route::post('apply', 'apply')->name('apply');
+        Route::post('{credential}/lock', 'lock')->name('lock');
+        Route::get('round/{parti}/status', 'status')->whereUuid('parti')->name('round.status');
+        Route::delete('round/{parti}', 'dismiss')->whereUuid('parti')->name('round.dismiss');
+    });
 
     /*
      * Portal oturumu: parolayı kullanıcıya göstermeden hedef sitenin giriş

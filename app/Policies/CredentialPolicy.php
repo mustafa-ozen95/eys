@@ -164,6 +164,37 @@ class CredentialPolicy
     }
 
     /**
+     * Linux makineye sistem güncellemesi kurmak (ve bekleyenleri denetlemek).
+     *
+     * Cihazı değiştirir: ayrı yetki ister, "Düzenle" kapsamaz. Kilit ayrıca
+     * uygulanır (OsUpdateTargets::kilit) — yetki kilidi aşmaz.
+     */
+    public function osUpdate(User $user, Credential $credential): bool
+    {
+        return $this->can($user, 'os_update', $credential)
+            && $this->can($user, 'view', $credential);
+    }
+
+    public function osUpdateAny(User $user): bool
+    {
+        return $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
+    }
+
+    /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. */
+    public function osUpdateLock(User $user, Credential $credential): bool
+    {
+        return $this->can($user, 'os_update_lock', $credential)
+            && $this->can($user, 'view', $credential);
+    }
+
+    /** "Sistem güncellemeleri" ekranı: iki yetkiden biri yeter. */
+    public function osUpdatePage(User $user): bool
+    {
+        return $this->osUpdateAny($user)
+            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_update_lock');
+    }
+
+    /**
      * Konsol (SSH / uzak masaüstü) açma yetkisi.
      *
      * Dış dünyaya etki eden bir işlem; ne "görüntüle" ne de "parolayı gör"

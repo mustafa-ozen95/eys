@@ -40,6 +40,12 @@ return [
     /* Toplu güncelleme: tek istek onlarca makineye dokunabilir. */
     'rotate_bulk' => (int) env('LIMIT_ROTATE_BULK', 3),
 
+    /* Sistem güncellemesi kurulumu: tek istek elli makineye paket kurdurabilir. */
+    'os_update' => (int) env('LIMIT_OS_UPDATE', 3),
+
+    /* Bekleyen güncelleme denetimi: makinelere bağlanır ama yazmaz. */
+    'os_update_check' => (int) env('LIMIT_OS_UPDATE_CHECK', 6),
+
     /* Yarım kalmış turu onarma — aynı gerekçeyle sınırsız. */
     'rotate_repair' => (int) env('LIMIT_ROTATE_REPAIR', 0),
 

@@ -90,6 +90,24 @@ return [
             ],
         ],
 
+        'os_update' => [
+            'label' => 'Sistem güncellemeleri',
+            'description' => 'SSH bilgisi olan Linux kayıtlarında bekleyen paket güncellemelerinin denetimi. '
+                .'Denetim yalnızca okur; kurulum her zaman bir kişinin onayıyla başlar.',
+            'settings' => [
+
+                'os_update.check_hours' => [
+                    'label' => 'Otomatik denetim',
+                    'hint' => 'Panel bu aralıkla makinelere bağlanıp bekleyen güncellemeleri okur; hiçbir şey kurmaz. '
+                        .'Kapalıyken denetim yalnızca "Şimdi denetle" ile yapılır.',
+                    'type' => 'select',
+                    'options' => ['0' => 'Kapalı', '4' => '4 saatte bir', '12' => '12 saatte bir', '24' => 'Günde bir'],
+                    'rules' => ['required', 'in:0,4,12,24'],
+                ],
+
+            ],
+        ],
+
         'security' => [
             'label' => 'Güvenlik',
             'description' => 'Oturum ve giriş davranışı.',

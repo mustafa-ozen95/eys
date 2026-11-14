@@ -14,8 +14,10 @@ use App\Models\ActivityLog;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\OsUpdateState;
+use App\Models\Role;
 use App\Models\SubGroup;
 use App\Models\User;
+use App\Services\ActivityRecorder;
 use App\Services\OsUpdate\OsUpdater;
 use App\Services\OsUpdate\OsUpdateRound;
 use App\Services\OsUpdate\OsUpdateScripts;
@@ -126,7 +128,74 @@ class OsUpdateTest extends TestCase
 
         $this->actingAs($user)->get(route('os-updates.index'))
             ->assertOk()
-            ->assertSeeInOrder(['Sunucular', '1 makine', 'Sunucu-1', 'Teknik PCler', '2 makine', 'PC-1', 'PC-2']);
+            /* Solda gruplar sırayla, ortada (Hepsi) satırlar grup başlıkları altında. */
+            ->assertSeeInOrder(['Hepsi', 'Sunucular', 'Teknik PCler', 'Sunucular', 'Sunucu-1', 'Teknik PCler', 'PC-1', 'PC-2']);
+
+        /* Grup seçilince yalnızca o grubun makineleri. */
+        $this->actingAs($user)->get(route('os-updates.index', ['grup' => $ikinci->uuid]))
+            ->assertOk()
+            ->assertSee('PC-1')
+            ->assertDontSee('Sunucu-1');
+    }
+
+    /** Sol sütunda grup sırası sürüklenir; yalnızca grupları sıralayabilene (Gruplar ekranıyla aynı uç). */
+    #[Test]
+    public function grup_surukleme_yalnizca_siralayabilene(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $this->makine($group, 'srv-kutu', '10.0.9.9');
+
+        $html = $this->actingAs($user)->get(route('os-updates.index'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('data-order="'.route('groups.reorder').'"', $html, 'yetkisiz sürükleyemez');
+        $this->assertStringNotContainsString('data-order-id', $html);
+
+        $html = $this->actingAs($this->yonetici())->get(route('os-updates.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-order="'.route('groups.reorder').'"', $html);
+        $this->assertMatchesRegularExpression('/draggable="true" data-order-id="'.$group->uuid.'"/', $html);
+    }
+
+    /**
+     * Makineye tıklayınca sağdaki kartta güncelleme geçmişi: kurulum ve kilit
+     * girdileri. Görmediği kaydın adresi verilse de kart açılmaz.
+     */
+    #[Test]
+    public function secili_makinenin_kartinda_guncelleme_gecmisi_gorunur(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $makine = $this->makine($group, 'srv-gecmis', '10.0.9.10');
+        $kayit = app(ActivityRecorder::class);
+        $kayit->record(ActivityAction::OsUpdate, 'Sistem güncellemesi kuruldu (kritik)', $makine, 'Aylık bakım', $user);
+        $kayit->record(ActivityAction::OsUpdateLock, 'Güncelleme kilidi kondu', $makine, 'Üretim', $user);
+
+        /* Başka makinenin girdisi bu kartta görünmez. */
+        $baska = $this->makine($group, 'srv-baska', '10.0.9.11');
+        $kayit->record(ActivityAction::OsUpdate, 'Başka makinenin kurulumu', $baska, 'X', $user);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $makine->uuid]))
+            ->assertOk()
+            ->assertSee('Güncelleme geçmişi')
+            ->assertSeeInOrder(['Güncelleme kilidi kondu', 'Sistem güncellemesi kuruldu (kritik)', 'Aylık bakım'])
+            ->assertDontSee('Başka makinenin kurulumu')
+            ->assertSee('aria-selected="true"', false);
+
+        /* Yetkisi olmadığı grubun makinesi: kart açılmaz, adı sızmaz. */
+        $yabanciGrup = CredentialGroup::factory()->create();
+        $yabanci = $this->makine($yabanciGrup, 'srv-yabanci', '10.0.9.12');
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $yabanci->uuid]))
+            ->assertOk()
+            ->assertDontSee('srv-yabanci')
+            ->assertDontSee('Güncelleme geçmişi');
+    }
+
+    private function yonetici(): User
+    {
+        $rol = Role::query()->where('is_admin', true)->first()
+            ?? Role::create(['slug' => 'admin', 'label' => 'Yönetici', 'badge' => 'gray', 'is_admin' => true]);
+
+        return User::factory()->create(['role_id' => $rol->getKey()]);
     }
 
     /** Teknik PC'ler: RDP (xrdp) ile kayıtlı Linux makineler geliyor, SSH 22'den; Windows RDP gelmiyor. */

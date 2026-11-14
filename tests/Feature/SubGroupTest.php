@@ -304,6 +304,26 @@ class SubGroupTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * Listenin yalnız bir kısmı gönderilince (arama sonucu, sistem
+     * güncellemeleri ekranı) gönderilenler kendi aralarında yer değiştirir;
+     * gönderilmeyenlerin yeri değişmez.
+     */
+    #[Test]
+    public function grup_sirasi_kismi_listeyle_degisince_digerlerinin_yeri_korunur(): void
+    {
+        $a = CredentialGroup::factory()->create(['name' => 'A', 'position' => 1]);
+        CredentialGroup::factory()->create(['name' => 'B', 'position' => 2]);
+        $c = CredentialGroup::factory()->create(['name' => 'C', 'position' => 3]);
+        CredentialGroup::factory()->create(['name' => 'D', 'position' => 4]);
+
+        $this->actingAs($this->yonetici())
+            ->put(route('groups.reorder'), ['sira' => [$c->uuid, $a->uuid]])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['C', 'B', 'A', 'D'], CredentialGroup::query()->where('is_personal', false)->ordered()->pluck('name')->all());
+    }
+
     #[Test]
     public function alt_grup_adresi_baska_grubun_altindan_cozulmez(): void
     {

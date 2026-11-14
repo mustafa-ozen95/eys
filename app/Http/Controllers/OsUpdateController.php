@@ -41,7 +41,12 @@ class OsUpdateController extends Controller implements HasMiddleware
 
     public function index(Request $request, OsUpdateListing $listing): View
     {
-        return view('os-updates.index', $listing->build($request->user()));
+        /* Seçim adresten; yalnızca kullanıcının gördüğü gruplar/makineler arasında aranır. */
+        return view('os-updates.index', $listing->build(
+            $request->user(),
+            $request->string('grup')->value() ?: null,
+            $request->string('kayit')->value() ?: null,
+        ));
     }
 
     public function check(CheckOsUpdateRequest $request, OsUpdateLauncher $launcher): RedirectResponse

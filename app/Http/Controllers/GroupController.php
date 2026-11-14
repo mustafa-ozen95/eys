@@ -21,7 +21,6 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -225,16 +224,7 @@ class GroupController extends Controller implements HasMiddleware
             'sira.*' => ['string', 'uuid'],
         ]);
 
-        $gruplar = CredentialGroup::query()->where('is_personal', false)->pluck('id', 'uuid');
-        $numara = 1;
-
-        DB::transaction(function () use ($veri, $gruplar, &$numara): void {
-            foreach ($veri['sira'] as $uuid) {
-                if ($gruplar->has($uuid)) {
-                    CredentialGroup::query()->whereKey($gruplar[$uuid])->update(['position' => $numara++]);
-                }
-            }
-        });
+        CredentialGroup::yenidenSirala($veri['sira']);
 
         $this->activity->record(ActivityAction::Updated, 'Gruplar yeniden sıralandı');
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OsUpdate;
 
 use App\Models\Credential;
+use App\Models\CredentialGroup;
 use App\Models\OsUpdateState;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -14,10 +15,23 @@ use Illuminate\Support\Collection;
  */
 class OsUpdateListing
 {
-    public function __construct(private OsUpdateTargets $targets) {}
+    /** Sol sütundaki "Hepsi": gruptan bağımsız, bütün makineler. */
+    public const ALL_GROUPS = 'hepsi';
 
-    /** @return array<string, mixed> */
-    public function build(User $user): array
+    /** Grubu olmayan makinelerin sol sütundaki anahtarı. */
+    private const GRUPSUZ = 'grupsuz';
+
+    public function __construct(private OsUpdateTargets $targets, private OsUpdateDetail $detail) {}
+
+    /**
+     * Erişim bilgileri ekranının düzeni: solda gruplar (en üstte Hepsi),
+     * ortada seçili grubun makineleri, sağda seçili makinenin kartı.
+     * Seçim adreste taşınır (?grup=, ?kayit=); yalnızca kullanıcının
+     * görebildiği makineler arasından çözülür.
+     *
+     * @return array<string, mixed>
+     */
+    public function build(User $user, ?string $grup = null, ?string $kayit = null): array
     {
         $kilitler = $this->targets->kilitliMakineler();
 
@@ -28,23 +42,39 @@ class OsUpdateListing
 
         $satirlar = $kayitlar->map(fn (Credential $kayit): array => $this->satir($kayit, $user, $kilitler));
 
-        $sayilar = [
-            'makine' => $satirlar->count(),
-            'kritik' => $satirlar->where('critical', '>', 0)->count(),
-            'bekleyen' => $satirlar->where('pending', '>', 0)->count(),
-            'kilitli' => $satirlar->where('locked', true)->count(),
-            'yenidenBaslat' => $satirlar->where('reboot', true)->count(),
-        ];
+        /* Sıra Gruplar ekranıyla ortak; sürükleme yalnızca grupları sıralayabilene. */
+        $sirala = $user->can('create', CredentialGroup::class);
+        $gruplar = $this->bolumler($kayitlar, $satirlar, $sirala);
+        $secilenGrup = collect($gruplar)->firstWhere('param', $grup);
+
+        /* Hepsi görünümünde satırlar grup başlıkları altında; grup seçiliyken düz liste. */
+        $bolumler = $secilenGrup === null ? $gruplar : [[...$secilenGrup, 'name' => null]];
+        $liste = collect($bolumler)->flatMap(fn (array $bolum): array => $bolum['rows']);
+
+        $secilen = filled($kayit) ? $kayitlar->firstWhere('uuid', $kayit) : null;
 
         return [
-            'rows' => $satirlar,
-            'sections' => $this->bolumler($kayitlar, $satirlar),
-            'figures' => $sayilar,
-            'selectable' => $satirlar->where('selectable', true)->count(),
+            'groups' => $gruplar,
+            'allCount' => $satirlar->count(),
+            'allGroups' => self::ALL_GROUPS,
+            'selectedGroup' => $secilenGrup,
+            'groupParam' => $secilenGrup['param'] ?? ($grup === self::ALL_GROUPS ? self::ALL_GROUPS : null),
+            'listTitle' => $secilenGrup['name'] ?? 'Hepsi',
+            'listSummary' => $this->bolumOzeti($liste),
+            'sections' => $bolumler,
+            'rows' => $liste,
+            'canOrder' => $sirala,
+            'selectable' => $liste->where('selectable', true)->count(),
             'checkable' => $satirlar->where('canApply', true)->count(),
             'checkText' => $this->denetimMetni((int) config('os_update.check_hours', 4)),
             'modes' => [OsUpdateScripts::KRITIK => 'Yalnızca kritik', OsUpdateScripts::TUMU => 'Tüm güncellemeler'],
             'rounds' => OsUpdateRound::kartlar($user),
+            'selected' => $secilen === null ? null : $this->detail->build(
+                $user,
+                $secilen,
+                $satirlar->firstWhere('uuid', $secilen->uuid),
+                $kayitlar,
+            ),
         ];
     }
 
@@ -53,20 +83,53 @@ class OsUpdateListing
      *
      * @param  Collection<int, Credential>  $kayitlar
      * @param  Collection<int, array<string, mixed>>  $satirlar
-     * @return list<array{name: string, count: int, rows: list<array<string, mixed>>}>
+     * @return list<array<string, mixed>>
      */
-    private function bolumler(Collection $kayitlar, Collection $satirlar): array
+    private function bolumler(Collection $kayitlar, Collection $satirlar, bool $sirala): array
     {
         return $kayitlar->zip($satirlar)
             ->groupBy(fn ($cift): int => (int) $cift[0]->credential_group_id)
             ->sortBy(fn ($ciftler) => [$ciftler->first()[0]->group?->position ?? PHP_INT_MAX, $ciftler->first()[0]->group?->name])
-            ->map(fn ($ciftler): array => [
-                'name' => (string) ($ciftler->first()[0]->group?->name ?? 'Grupsuz'),
-                'count' => $ciftler->count(),
-                'rows' => $ciftler->map(fn ($cift): array => $cift[1])->values()->all(),
-            ])
+            ->map(function ($ciftler) use ($sirala): array {
+                $satirlar = $ciftler->map(fn ($cift): array => $cift[1])->values();
+                $grup = $ciftler->first()[0]->group;
+                $sirayaGirer = $sirala && $grup !== null && ! $grup->is_personal;
+
+                return [
+                    'param' => $grup?->uuid ?? self::GRUPSUZ,
+                    'orderId' => $sirayaGirer ? $grup->uuid : null,
+                    'draggable' => $sirayaGirer ? 'true' : null,
+                    'name' => (string) ($grup?->name ?? 'Grupsuz'),
+                    'count' => $satirlar->count(),
+                    'critical' => $satirlar->where('critical', '>', 0)->count(),
+                    'rows' => $satirlar->all(),
+                ];
+            })
             ->values()
             ->all();
+    }
+
+    /** @param  Collection<int, array<string, mixed>>  $satirlar */
+    private function bolumOzeti(Collection $satirlar): string
+    {
+        $parcalar = [$satirlar->count().' makine'];
+        $kritik = $satirlar->where('critical', '>', 0)->count();
+        $bekleyen = $satirlar->where('pending', '>', 0)->count();
+        $sorunlu = $satirlar->whereNotNull('checkError')->count();
+
+        if ($kritik > 0) {
+            $parcalar[] = "{$kritik} kritik bekleyen";
+        }
+
+        if ($bekleyen > $kritik) {
+            $parcalar[] = ($bekleyen - $kritik).' güncelleme bekleyen';
+        }
+
+        if ($sorunlu > 0) {
+            $parcalar[] = "{$sorunlu} denetlenemedi";
+        }
+
+        return implode(' · ', $parcalar);
     }
 
     /**

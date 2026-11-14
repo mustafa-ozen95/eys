@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Erişim grubu — bir sistem ya da varlık (srv-a, Grup A, Grup B...).
@@ -104,6 +105,33 @@ class CredentialGroup extends Model
     public function scopeOrdered(Builder $query): void
     {
         $query->orderBy('position')->orderBy('name');
+    }
+
+    /**
+     * Gönderilen grupları kendi aralarında verilen sıraya dizer; listede
+     * olmayan grupların yeri DEĞİŞMEZ. Gönderilenler, zaten tuttukları
+     * sıra yuvalarına yeni sırayla yerleşir. Arama sonucu ya da sistem
+     * güncellemeleri gibi grupların yalnız bir kısmını gösteren ekranlar
+     * da sürükle-bırakla sıralayabilsin, gizli grupların sırası bozulmasın.
+     *
+     * @param  list<string>  $uuidler
+     */
+    public static function yenidenSirala(array $uuidler): void
+    {
+        DB::transaction(function () use ($uuidler): void {
+            $tumu = self::query()->where('is_personal', false)->ordered()->lockForUpdate()->pluck('uuid')->all();
+            $gelen = array_values(array_unique(array_intersect($uuidler, $tumu)));
+            $gelenler = array_flip($gelen);
+
+            $yuvalar = array_keys(array_filter($tumu, fn (string $uuid) => isset($gelenler[$uuid])));
+            foreach ($yuvalar as $i => $yuva) {
+                $tumu[$yuva] = $gelen[$i];
+            }
+
+            foreach ($tumu as $sira => $uuid) {
+                self::query()->where('uuid', $uuid)->update(['position' => $sira + 1]);
+            }
+        });
     }
 
     /**

@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 /**
  * Sistem güncellemeleri ekranı.
  *
- * Sorulanlar: kilitli makinenin kutusu kapalı mı, seçim sayısı doğru mu,
+ * Sorulanlar: solda Hepsi ve gruplar, makineye tıklayınca sağda kart ve
+ * güncelleme geçmişi açılıyor mu, kilitli makinenin kutusu kapalı mı, seçim sayısı doğru mu,
  * onay penceresi KURULACAĞINI ve kaç makine olduğunu söylüyor mu, gerekçesiz
  * gönderilebiliyor mu, telefonda yatay taşma var mı.
  *
@@ -26,21 +27,53 @@ async function girisYap(page) {
     await expect(page).toHaveURL(/access/);
 }
 
-test('kilitli makine secilemez, secim sayaci ve kurulum onayi', async ({ page }) => {
+test('solda gruplar ve Hepsi, makineye tiklayinca sagda kart ve gecmis', async ({ page }) => {
     await girisYap(page);
     await page.goto('/system-updates');
 
-    await expect(page.locator('h1')).toHaveText('Sistem güncellemeleri');
+    const gruplar = page.locator('.column').first();
+    await expect(gruplar.locator('.row-item').first()).toContainText('Hepsi');
+    await expect(gruplar.locator('.row-item[aria-selected="true"]')).toContainText('Hepsi');
 
-    const kritikSatir = page.locator('tr', { hasText: 'srv-a SSH' }).filter({ hasNotText: 'Yedek' });
+    /* Gruba tıklayınca orta liste daralır. */
+    const grup = gruplar.locator('.row-item').nth(1);
+    const grupAdi = (await grup.locator('.row-item__label').textContent()).trim();
+    await grup.click();
+    await expect(page.locator('.column--fill .column__head .eyebrow')).toHaveText(grupAdi);
+
+    await page.goto('/system-updates?grup=hepsi');
+    const satir = page.locator('.os-update-row', { hasText: 'srv-a SSH' }).filter({ hasNotText: 'Yedek' });
+    await satir.locator('.os-update-row__link').click();
+
+    const kart = page.locator('aside.detail');
+    await expect(kart).toBeVisible();
+    await expect(kart.locator('.detail__title')).toHaveText('srv-a SSH');
+    await expect(kart.getByText('Güncelleme geçmişi')).toBeVisible();
+    await expect(kart.getByText('2 kritik')).toBeVisible();
+    await expect(page.locator('.os-update-row[aria-selected="true"]')).toContainText('srv-a SSH');
+});
+
+test('kilitli makine secilemez, secim sayaci ve kurulum onayi', async ({ page }) => {
+    await girisYap(page);
+    /* ?grup= ile gelinince dar ekranda da liste bölmesi açılır (columns.js). */
+    await page.goto('/system-updates?grup=hepsi');
+    await expect(page).toHaveTitle(/Sistem güncellemeleri/);
+
+    const kritikSatir = page.locator('.os-update-row', { hasText: 'srv-a SSH' }).filter({ hasNotText: 'Yedek' });
     await expect(kritikSatir.getByText('2 kritik')).toBeVisible();
     await expect(kritikSatir.getByText('5 normal')).toBeVisible();
     await expect(kritikSatir.getByText('Yeniden başlatma gerekli')).toBeVisible();
 
-    const kilitliSatir = page.locator('tr', { hasText: 'srv-a Yedek SSH' });
-    await expect(kilitliSatir.getByText('Üretim yedek sunucusu')).toBeVisible();
+    const kilitliSatir = page.locator('.os-update-row', { hasText: 'srv-a Yedek SSH' });
+    await expect(kilitliSatir.getByText('Kilitli')).toBeVisible();
     await expect(kilitliSatir.locator('input[type="checkbox"]')).toBeDisabled();
     await expect(kilitliSatir.locator('[data-bulk-item]')).toHaveCount(0);
+
+    /* Dar ekranda toplu araçlar düğmenin arkasında. */
+    const toplu = page.locator('.bulk-tools__button');
+    if (await toplu.isVisible()) {
+        await toplu.click();
+    }
 
     const dugme = page.locator('[data-bulk-submit]');
     await expect(dugme).toBeDisabled();

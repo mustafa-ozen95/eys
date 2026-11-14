@@ -35,8 +35,21 @@ async function girisYap(page) {
     await expect(page).toHaveURL(/access/);
 }
 
+/**
+ * Dar ekranda toplu araçlar "Toplu işlemler" düğmesinin arkasında katlı
+ * (bulk.css); düğme görünüyorsa açılır. Geniş ekranda düğme yoktur.
+ */
+async function topluAraclariAc(page) {
+    const dugme = page.locator('.bulk-tools__button');
+
+    if (await dugme.isVisible()) {
+        await dugme.click();
+    }
+}
+
 test('secim sayaci ve dugme durumu', async ({ page }) => {
     await girisYap(page);
+    await topluAraclariAc(page);
 
     const dugme = page.locator('[data-bulk-submit]');
     const kutular = page.locator('[data-bulk-item]');
@@ -64,6 +77,7 @@ test('secim sayaci ve dugme durumu', async ({ page }) => {
 
 test('onay penceresi kac kaydi etkiledigini soyler ve gerekce ister', async ({ page }) => {
     await girisYap(page);
+    await topluAraclariAc(page);
 
     await page.locator('[data-bulk-item]').first().check();
     await page.locator('[data-bulk-item]').nth(1).check();
@@ -105,6 +119,7 @@ test('satirin tamami hala bagalanti, kutu ise satiri acmiyor', async ({ page }) 
 
 test('tum kasa dugmesi yok: yalniz secilenler guncellenir', async ({ page }) => {
     await girisYap(page);
+    await topluAraclariAc(page);
     await expect(page.locator('[data-bulk-submit]')).toBeVisible();
     await expect(page.locator('[data-bulk-all-submit]')).toHaveCount(0);
     await expect(page.getByText('Tüm kasayı güncelle')).toHaveCount(0);

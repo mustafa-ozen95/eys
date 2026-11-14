@@ -11,6 +11,14 @@ export default defineConfig({
     fullyParallel: false,
     workers: 1,
     reporter: [['list']],
+    /*
+     * Eksik karşılaştırma görüntüsü KENDİLİĞİNDEN YAZILMAZ: test düşer, o
+     * kadar. Varsayılan ("missing") eksik görüntüyü o anki ekranla yazıyordu;
+     * yanlış ortamda alınan görüntü sessizce taban oluyor, temizlerken de
+     * kayıtlı görüntüler silinebiliyordu. Taban bilerek güncellenir:
+     * `npx playwright test --update-snapshots`.
+     */
+    updateSnapshots: 'none',
     use: {
         baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:8000',
         ignoreHTTPSErrors: true,

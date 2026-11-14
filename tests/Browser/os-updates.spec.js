@@ -152,6 +152,46 @@ test('telefonda toplu islem dugmeleri ust uste binmez', async ({ page }) => {
     expect(tasan).toEqual([]);
 });
 
+test('telefonda denetimden sonra bakilan bolme korunur', async ({ page }) => {
+    await girisYap(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    /* ?grup olmadan gelinir: telefonda gruplar bölmesi açılır. */
+    await page.goto('/system-updates');
+
+    /*
+     * İstek sunucuya gitmez (gerçek denetim başlamasın); sunucunun yaptığı
+     * gibi aynı adrese yönlendirilir, sayfa yerinde yeniden çizilir.
+     */
+    await page.route('**/system-updates/check', (route) => route.fulfill({
+        status: 302,
+        headers: { location: '/system-updates' },
+    }));
+
+    /* Kullanıcı adres değiştirmeden kaydırarak listeye geçer. */
+    const listeyeKaydir = () => page.evaluate(() => {
+        const serit = document.querySelector('.columns');
+        const liste = serit.querySelector('.column--fill');
+        serit.scrollLeft = liste.offsetLeft - serit.offsetLeft;
+
+        return serit.scrollLeft;
+    });
+    const konum = await listeyeKaydir();
+    expect(konum).toBeGreaterThan(0);
+
+    await page.locator('.bulk-tools__button').click();
+    await page.getByRole('button', { name: 'Hepsini şimdi denetle' }).click();
+
+    const yenilendi = page.waitForResponse((r) => r.url().endsWith('/system-updates') && r.request().method() === 'GET');
+    await page.locator('[data-confirm-dialog] [data-confirm-accept]').click();
+    await yenilendi;
+
+    /* Yeni çizimde araçlar yine katlı gelir: sayfa gerçekten yeniden çizildi. */
+    await expect(page.locator('.bulk-tools__box')).not.toBeChecked();
+
+    await expect.poll(() => page.evaluate(() => document.querySelector('.columns').scrollLeft)).toBe(konum);
+});
+
 test('dar ekranda yatay tasma yok', async ({ page }) => {
     await girisYap(page);
     await page.goto('/system-updates');

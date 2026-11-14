@@ -93,6 +93,31 @@ function restoreListScrolls(scrolls) {
     });
 }
 
+/*
+ * DAR EKRANDA BAKILAN BÖLME.
+ *
+ * Telefonda sütunlar yatay kayan bir şerit; hangi bölmenin açılacağını
+ * columns.js ADRESTEN seçer (?grup / ?kayit). Kullanıcı adres değiştirmeden
+ * kaydırarak listeye geçtiyse (ör. ?grup olmadan gelinen sistem
+ * güncellemelerinde) yerinde her çizim (form gönderimi, ilerleme kartının
+ * tazelenmesi) onu gruplar bölmesine geri atıyordu: "Denetle" dedi, kendini
+ * grup listesinde buldu.
+ *
+ * Adres AYNI kaldıysa kullanıcı aynı yerdedir: şeritlerin yatay konumu
+ * korunur. Adres değiştiyse (başka grup, başka kayıt) adres kuralı geçerli.
+ */
+function stripPositions() {
+    return $$('.columns').map((strip) => strip.scrollLeft);
+}
+
+function restoreStripPositions(positions) {
+    $$('.columns').forEach((strip, index) => {
+        if (positions[index] !== undefined) {
+            strip.scrollLeft = positions[index];
+        }
+    });
+}
+
 function render(text, url, historyMode) {
     const fresh = new DOMParser().parseFromString(text, 'text/html');
 
@@ -128,6 +153,13 @@ function render(text, url, historyMode) {
     }
 
     const scrolls = listScrolls(document);
+    /*
+     * Geri/ileri ('yok') dahil DEĞİL: orada adres zaten değişmiştir ve
+     * kullanıcı başka bir yere gitmiştir.
+     */
+    const sameAddress = (historyMode === 'replace' || historyMode === 'tazele')
+        && new URL(url, window.location.href).href === window.location.href;
+    const strips = sameAddress ? stripPositions() : null;
 
     document.body.innerHTML = fresh.body.innerHTML;
 
@@ -150,6 +182,11 @@ function render(text, url, historyMode) {
 
     /* Düğüme bağlı çalışan bileşenler kendilerini burada tazeler. */
     document.dispatchEvent(new CustomEvent(EVENT));
+
+    /* columns.js olay sırasında adres kuralını uyguladı; adres aynıysa bölme korunur. */
+    if (strips) {
+        restoreStripPositions(strips);
+    }
 }
 
 async function goTo(url, historyMode = 'push') {
@@ -242,7 +279,8 @@ export async function submitForm(form) {
  * hâli. Eklenseydi "geri" tuşu aynı adrese tekrar tekrar düşerdi.
  */
 export function refresh() {
-    return goTo(window.location.href, 'yok');
+    /* 'tazele': geçmişe dokunmaz ve bakılan bölmeyi korur (bkz. stripPositions). */
+    return goTo(window.location.href, 'tazele');
 }
 
 export function init() {

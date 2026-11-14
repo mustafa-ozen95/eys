@@ -64,6 +64,8 @@ class OsUpdateListing
             'sections' => $bolumler,
             'rows' => $liste,
             'canOrder' => $sirala,
+            /* Toplu araçlar ve seçim kutuları: işlem yetkisi yoksa hiç çizilmez (şimdilik yalnızca yönetici). */
+            'canAct' => $user->can('osUpdateAny', Credential::class),
             'selectable' => $liste->where('selectable', true)->count(),
             'checkable' => $satirlar->where('canApply', true)->count(),
             'checkText' => $this->denetimMetni((int) config('os_update.check_hours', 4)),

@@ -62,11 +62,12 @@
 
                 <span class="spacer"></span>
 
+                {{-- İşlem yetkisi yoksa (şimdilik yönetici dışındakiler) toplu araçlar hiç çizilmez. --}}
+                @if ($canAct)
                 <input type="checkbox" id="bulk-tools-toggle" class="bulk-tools__box" hidden>
                 <label for="bulk-tools-toggle" class="btn btn--sm bulk-tools__button">Toplu işlemler</label>
 
                 <div class="bulk-tools">
-                    @can('osUpdateAny', App\Models\Credential::class)
                         {{-- Telefonda iki denetim düğmesini "Toplu işlemler"in altına, kendi satırına indirir. --}}
                         <span class="bulk-tools__break" aria-hidden="true"></span>
 
@@ -123,8 +124,8 @@
                             <button type="submit" class="btn btn--sm" data-bulk-submit disabled
                             >Seçilenlere kur (<span data-bulk-count>0</span>)</button>
                         </form>
-                    @endcan
                 </div>
+                @endif
             </div>
 
             {{-- Kurulum ve denetim ayrı kartlar; ikisi aynı anda sürebilir. Kayan listenin dışında. --}}
@@ -153,7 +154,9 @@
                         <div class="grid-row os-update-row"
                              @if ($selected && $selected['uuid'] === $row['uuid']) aria-selected="true" @endif>
                             <span class="os-update-row__select">
-                                @if ($row['selectable'])
+                                @if (! $canAct)
+                                    {{-- Yalnızca görme yetkisi: seçilecek bir iş yok, kutu da yok. --}}
+                                @elseif ($row['selectable'])
                                     <input type="checkbox" form="os-update-form" name="kayitlar[]"
                                            value="{{ $row['uuid'] }}" data-bulk-item
                                            aria-label="{{ $row['name'] }}">

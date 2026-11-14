@@ -164,34 +164,46 @@ class CredentialPolicy
     }
 
     /**
-     * Linux makineye sistem güncellemesi kurmak (ve bekleyenleri denetlemek).
+     * SİSTEM GÜNCELLEMELERİ — ŞİMDİLİK YALNIZCA YÖNETİCİ İŞLEM YAPAR.
      *
-     * Cihazı değiştirir: ayrı yetki ister, "Düzenle" kapsamaz. Kilit ayrıca
-     * uygulanır (OsUpdateTargets::kilit) — yetki kilidi aşmaz.
+     * Denetim, kurulum ve kilit yalnızca yöneticiye açık; diğer kullanıcılar
+     * ekranı görür (yalnızca görebildikleri makineler), hiçbir işlem
+     * yapamaz. Rol yetkileri (os_update, os_update_lock) yerinde duruyor:
+     * işlem ileride role açılacaksa yalnızca `isAdmin()` koşulu kalkar.
+     *
+     * Cihazı değiştirir: "Düzenle" kapsamaz. Kilit ayrıca uygulanır
+     * (OsUpdateTargets::kilit) — yetki kilidi aşmaz.
      */
     public function osUpdate(User $user, Credential $credential): bool
     {
-        return $this->can($user, 'os_update', $credential)
+        return $user->isAdmin()
+            && $this->can($user, 'os_update', $credential)
             && $this->can($user, 'view', $credential);
     }
 
     public function osUpdateAny(User $user): bool
     {
-        return $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
+        return $user->isAdmin()
+            && $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
     }
 
-    /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. */
+    /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. Şimdilik yalnızca yönetici. */
     public function osUpdateLock(User $user, Credential $credential): bool
     {
-        return $this->can($user, 'os_update_lock', $credential)
+        return $user->isAdmin()
+            && $this->can($user, 'os_update_lock', $credential)
             && $this->can($user, 'view', $credential);
     }
 
-    /** "Sistem güncellemeleri" ekranı: iki yetkiden biri yeter. */
+    /**
+     * "Sistem güncellemeleri" ekranı: en az bir grubu GÖREBİLEN herkes görür.
+     * Liste kullanıcının görebildiği makinelerle sınırlı (visibleTo); işlem
+     * düğmeleri yukarıdaki yetkilere bağlı. Hiçbir grubu göremeyene ekran
+     * açılmaz: göreceği bir makine yok.
+     */
     public function osUpdatePage(User $user): bool
     {
-        return $this->osUpdateAny($user)
-            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_update_lock');
+        return $this->resolver->allowsAny($user, self::RESOURCE, 'view');
     }
 
     /**

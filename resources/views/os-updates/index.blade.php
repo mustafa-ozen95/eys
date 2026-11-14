@@ -100,123 +100,131 @@
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach ($rows as $row)
-                                <tr>
-                                    <td data-label="Seç">
-                                        @if ($row['selectable'])
-                                            <input type="checkbox" form="os-update-form" name="kayitlar[]"
-                                                   value="{{ $row['uuid'] }}" data-bulk-item
-                                                   aria-label="{{ $row['name'] }}">
-                                        @else
-                                            {{-- Kapalı ve nedenini söylüyor: neden seçilemediği satırda okunsun. --}}
-                                            <input type="checkbox" disabled title="{{ $row['blocked'] }}"
-                                                   aria-label="{{ $row['name'] }} seçilemez: {{ $row['blocked'] }}">
-                                        @endif
-                                    </td>
-
-                                    <td data-label="Makine">
-                                        {{-- Tek blok: telefonda hücre yatay diziliyor, parçalar dağılıyordu. --}}
-                                        <div>
-                                            <span class="satir-baslik">{{ $row['name'] }}</span>
-                                            <span class="text-sm text-muted">{{ $row['group'] }}</span>
-                                            {{-- Denetimin makineden okuduğu ad (/etc/os-release). --}}
-                                            @if ($row['os'])
-                                                <div class="text-sm text-muted">{{ $row['os'] }}</div>
+                        {{-- Grup grup: her grup kendi gövdesi ve başlık satırıyla; sütunlar ortak kalır. --}}
+                        @foreach ($sections as $bolum)
+                            <tbody>
+                                <tr class="table__group">
+                                    <th colspan="6" scope="rowgroup">
+                                        {{ $bolum['name'] }}
+                                        <span class="table__group-count">{{ $bolum['count'] }} makine</span>
+                                    </th>
+                                </tr>
+                                @foreach ($bolum['rows'] as $row)
+                                    <tr>
+                                        <td data-label="Seç">
+                                            @if ($row['selectable'])
+                                                <input type="checkbox" form="os-update-form" name="kayitlar[]"
+                                                       value="{{ $row['uuid'] }}" data-bulk-item
+                                                       aria-label="{{ $row['name'] }}">
+                                            @else
+                                                {{-- Kapalı ve nedenini söylüyor: neden seçilemediği satırda okunsun. --}}
+                                                <input type="checkbox" disabled title="{{ $row['blocked'] }}"
+                                                       aria-label="{{ $row['name'] }} seçilemez: {{ $row['blocked'] }}">
                                             @endif
-                                            @if ($row['locked'])
-                                                <div>
-                                                    <x-ui.badge variant="gray">Kilitli</x-ui.badge>
-                                                    <span class="text-sm text-muted">
-                                                        {{ $row['lockReason'] }}
-                                                        @if (! $row['lockHere']) · «{{ $row['lockFrom'] }}» kaydından @endif
-                                                        @if ($row['lockBy']) · {{ $row['lockBy'] }}, {{ $row['lockAt'] }} @endif
-                                                    </span>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    <td data-label="Bekleyen">
-                                        {{-- Rozetler bir satırda, paket listesi altında ayrı (yan yana yapışıyorlardı);
-                                             tek yığın, çünkü telefonda hücre yatay diziliyor. --}}
-                                        <div class="stack stack--tight">
-                                            <div class="row row--wrap row--tight">
-                                                @if (! $row['checked'])
-                                                    <x-ui.badge variant="gray">Denetlenmedi</x-ui.badge>
-                                                @elseif ($row['pending'] === 0)
-                                                    <x-ui.badge variant="green">Güncel</x-ui.badge>
-                                                @else
-                                                    @if ($row['critical'] > 0)
-                                                        <x-ui.badge variant="red">{{ $row['critical'] }} kritik</x-ui.badge>
-                                                    @endif
-                                                    @if ($row['normal'] > 0)
-                                                        <x-ui.badge variant="yellow">{{ $row['normal'] }} normal</x-ui.badge>
-                                                    @endif
+                                        <td data-label="Makine">
+                                            {{-- Tek blok: telefonda hücre yatay diziliyor, parçalar dağılıyordu. --}}
+                                            <div>
+                                                <span class="satir-baslik">{{ $row['name'] }}</span>
+                                                {{-- Denetimin makineden okuduğu ad (/etc/os-release). --}}
+                                                @if ($row['os'])
+                                                    <div class="text-sm text-muted">{{ $row['os'] }}</div>
                                                 @endif
-
-                                                @if ($row['reboot'])
-                                                    <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
+                                                @if ($row['locked'])
+                                                    <div>
+                                                        <x-ui.badge variant="gray">Kilitli</x-ui.badge>
+                                                        <span class="text-sm text-muted">
+                                                            {{ $row['lockReason'] }}
+                                                            @if (! $row['lockHere']) · «{{ $row['lockFrom'] }}» kaydından @endif
+                                                            @if ($row['lockBy']) · {{ $row['lockBy'] }}, {{ $row['lockAt'] }} @endif
+                                                        </span>
+                                                    </div>
                                                 @endif
                                             </div>
+                                        </td>
 
-                                            @if ($row['packages'] !== [])
-                                                <details class="package-list">
-                                                    <summary>Paket listesi</summary>
-                                                    <ul class="package-list__items">
-                                                        @foreach ($row['packages'] as $paket)
-                                                            <li class="package-list__item">
-                                                                <span class="package-list__name">{{ $paket['name'] }}</span>
-                                                                <span class="package-list__version">{{ $paket['version'] }}</span>
-                                                                @if ($paket['critical']) <x-ui.badge variant="red">kritik</x-ui.badge> @endif
-                                                            </li>
-                                                        @endforeach
-                                                        @if ($row['packageMore'] > 0)
-                                                            <li class="package-list__item text-muted">… {{ $row['packageMore'] }} paket daha</li>
+                                        <td data-label="Bekleyen">
+                                            {{-- Rozetler bir satırda, paket listesi altında ayrı (yan yana yapışıyorlardı);
+                                                 tek yığın, çünkü telefonda hücre yatay diziliyor. --}}
+                                            <div class="stack stack--tight">
+                                                <div class="row row--wrap row--tight">
+                                                    @if (! $row['checked'])
+                                                        <x-ui.badge variant="gray">Denetlenmedi</x-ui.badge>
+                                                    @elseif ($row['pending'] === 0)
+                                                        <x-ui.badge variant="green">Güncel</x-ui.badge>
+                                                    @else
+                                                        @if ($row['critical'] > 0)
+                                                            <x-ui.badge variant="red">{{ $row['critical'] }} kritik</x-ui.badge>
                                                         @endif
-                                                    </ul>
-                                                </details>
+                                                        @if ($row['normal'] > 0)
+                                                            <x-ui.badge variant="yellow">{{ $row['normal'] }} normal</x-ui.badge>
+                                                        @endif
+                                                    @endif
+
+                                                    @if ($row['reboot'])
+                                                        <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
+                                                    @endif
+                                                </div>
+
+                                                @if ($row['packages'] !== [])
+                                                    <details class="package-list">
+                                                        <summary>Paket listesi</summary>
+                                                        <ul class="package-list__items">
+                                                            @foreach ($row['packages'] as $paket)
+                                                                <li class="package-list__item">
+                                                                    <span class="package-list__name">{{ $paket['name'] }}</span>
+                                                                    <span class="package-list__version">{{ $paket['version'] }}</span>
+                                                                    @if ($paket['critical']) <x-ui.badge variant="red">kritik</x-ui.badge> @endif
+                                                                </li>
+                                                            @endforeach
+                                                            @if ($row['packageMore'] > 0)
+                                                                <li class="package-list__item text-muted">… {{ $row['packageMore'] }} paket daha</li>
+                                                            @endif
+                                                        </ul>
+                                                    </details>
+                                                @endif
+                                            </div>
+                                        </td>
+
+                                        <td data-label="Son denetim" class="mono text-muted">
+                                            @if ($row['checkedAt'])
+                                                <span title="{{ $row['checkedAt'] }}">{{ $row['checkedAgo'] }}</span>
+                                                @if ($row['manager']) · {{ $row['manager'] }} @endif
+                                            @else
+                                                —
                                             @endif
-                                        </div>
-                                    </td>
-
-                                    <td data-label="Son denetim" class="mono text-muted">
-                                        @if ($row['checkedAt'])
-                                            <span title="{{ $row['checkedAt'] }}">{{ $row['checkedAgo'] }}</span>
-                                            @if ($row['manager']) · {{ $row['manager'] }} @endif
-                                        @else
-                                            —
-                                        @endif
-                                        @if ($row['checkError'])
-                                            <div><x-ui.badge variant="orange">{{ $row['checkError'] }}</x-ui.badge></div>
-                                        @endif
-                                    </td>
-
-                                    <td data-label="Son kurulum">
-                                        @if ($row['apply'])
-                                            <x-ui.badge :variant="$row['apply']['variant']">{{ $row['apply']['label'] }}</x-ui.badge>
-                                            <span class="mono text-sm text-muted">{{ $row['apply']['at'] }}</span>
-                                            @if ($row['apply']['error'])
-                                                <div class="text-sm text-muted">{{ $row['apply']['error'] }}</div>
+                                            @if ($row['checkError'])
+                                                <div><x-ui.badge variant="orange">{{ $row['checkError'] }}</x-ui.badge></div>
                                             @endif
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </td>
+                                        </td>
 
-                                    <td data-label="İşlem" class="text-right">
-                                        @if ($row['canApply'])
-                                            <button type="submit" form="denetle-{{ $row['uuid'] }}" class="btn btn--sm btn--ghost">Denetle</button>
-                                        @endif
-                                        @if ($row['canLock'] && (! $row['locked'] || $row['lockHere']))
-                                            <button type="submit" form="kilit-{{ $row['uuid'] }}" class="btn btn--sm">
-                                                {{ $row['locked'] ? 'Kilidi kaldır' : 'Kilitle' }}
-                                            </button>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
+                                        <td data-label="Son kurulum">
+                                            @if ($row['apply'])
+                                                <x-ui.badge :variant="$row['apply']['variant']">{{ $row['apply']['label'] }}</x-ui.badge>
+                                                <span class="mono text-sm text-muted">{{ $row['apply']['at'] }}</span>
+                                                @if ($row['apply']['error'])
+                                                    <div class="text-sm text-muted">{{ $row['apply']['error'] }}</div>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+
+                                        <td data-label="İşlem" class="text-right">
+                                            @if ($row['canApply'])
+                                                <button type="submit" form="denetle-{{ $row['uuid'] }}" class="btn btn--sm btn--ghost">Denetle</button>
+                                            @endif
+                                            @if ($row['canLock'] && (! $row['locked'] || $row['lockHere']))
+                                                <button type="submit" form="kilit-{{ $row['uuid'] }}" class="btn btn--sm">
+                                                    {{ $row['locked'] ? 'Kilidi kaldır' : 'Kilitle' }}
+                                                </button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        @endforeach
                     </table>
                 @endif
             </x-ui.panel>

@@ -7,6 +7,7 @@ namespace App\Services\OsUpdate;
 use App\Models\Credential;
 use App\Models\OsUpdateState;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * "Sistem güncellemeleri" ekranının hazır verisi. Blade yalnızca çizer.
@@ -20,11 +21,12 @@ class OsUpdateListing
     {
         $kilitler = $this->targets->kilitliMakineler();
 
-        $satirlar = $this->targets->kullaniciIcin($user)
+        $kayitlar = $this->targets->kullaniciIcin($user)
             ->with(['group', 'altGrup', 'osUpdateState'])
             ->ordered()
-            ->get()
-            ->map(fn (Credential $kayit): array => $this->satir($kayit, $user, $kilitler));
+            ->get();
+
+        $satirlar = $kayitlar->map(fn (Credential $kayit): array => $this->satir($kayit, $user, $kilitler));
 
         $sayilar = [
             'makine' => $satirlar->count(),
@@ -36,6 +38,7 @@ class OsUpdateListing
 
         return [
             'rows' => $satirlar,
+            'sections' => $this->bolumler($kayitlar, $satirlar),
             'figures' => $sayilar,
             'selectable' => $satirlar->where('selectable', true)->count(),
             'checkable' => $satirlar->where('canApply', true)->count(),
@@ -43,6 +46,27 @@ class OsUpdateListing
             'modes' => [OsUpdateScripts::KRITIK => 'Yalnızca kritik', OsUpdateScripts::TUMU => 'Tüm güncellemeler'],
             'rounds' => OsUpdateRound::kartlar($user),
         ];
+    }
+
+    /**
+     * Satırlar GRUPLARINA göre: Gruplar ekranındaki sırayla (konum, ad).
+     *
+     * @param  Collection<int, Credential>  $kayitlar
+     * @param  Collection<int, array<string, mixed>>  $satirlar
+     * @return list<array{name: string, count: int, rows: list<array<string, mixed>>}>
+     */
+    private function bolumler(Collection $kayitlar, Collection $satirlar): array
+    {
+        return $kayitlar->zip($satirlar)
+            ->groupBy(fn ($cift): int => (int) $cift[0]->credential_group_id)
+            ->sortBy(fn ($ciftler) => [$ciftler->first()[0]->group?->position ?? PHP_INT_MAX, $ciftler->first()[0]->group?->name])
+            ->map(fn ($ciftler): array => [
+                'name' => (string) ($ciftler->first()[0]->group?->name ?? 'Grupsuz'),
+                'count' => $ciftler->count(),
+                'rows' => $ciftler->map(fn ($cift): array => $cift[1])->values()->all(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

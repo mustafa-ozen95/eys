@@ -111,6 +111,24 @@ class OsUpdateTest extends TestCase
         return [$user, $group];
     }
 
+    /** Satırlar gruplarına göre ayrılır; gruplar Gruplar ekranındaki sırayla gelir. */
+    #[Test]
+    public function satirlar_grup_grup_ayrilir_grup_sirasiyla(): void
+    {
+        $user = User::factory()->create();
+        $ikinci = CredentialGroup::factory()->create(['name' => 'Teknik PCler', 'position' => 2]);
+        $birinci = CredentialGroup::factory()->create(['name' => 'Sunucular', 'position' => 1]);
+        $this->yetkilendir($user, $ikinci, ['view', 'os_update']);
+        $this->yetkilendir($user, $birinci, ['view', 'os_update']);
+        $this->makine($ikinci, 'PC-1', '10.0.9.1');
+        $this->makine($ikinci, 'PC-2', '10.0.9.2');
+        $this->makine($birinci, 'Sunucu-1', '10.0.9.3');
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Sunucular', '1 makine', 'Sunucu-1', 'Teknik PCler', '2 makine', 'PC-1', 'PC-2']);
+    }
+
     /** Teknik PC'ler: RDP (xrdp) ile kayıtlı Linux makineler geliyor, SSH 22'den; Windows RDP gelmiyor. */
     #[Test]
     public function rdp_ile_kayitli_linux_makine_gelir_ssh_portu_22_windows_rdp_gelmez(): void

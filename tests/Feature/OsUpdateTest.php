@@ -123,7 +123,7 @@ class OsUpdateTest extends TestCase
     #[Test]
     public function satirlar_grup_grup_ayrilir_grup_sirasiyla(): void
     {
-        $user = User::factory()->create();
+        $user = $this->yonetici();
         $ikinci = CredentialGroup::factory()->create(['name' => 'Teknik PCler', 'position' => 2]);
         $birinci = CredentialGroup::factory()->create(['name' => 'Sunucular', 'position' => 1]);
         $this->yetkilendir($user, $ikinci, ['view', 'os_update']);
@@ -149,14 +149,9 @@ class OsUpdateTest extends TestCase
     public function grup_surukleme_yalnizca_siralayabilene(): void
     {
         $group = CredentialGroup::factory()->create();
-        $user = $this->izleyici($group);
         $this->makine($group, 'srv-kutu', '10.0.9.9');
 
-        $html = $this->actingAs($user)->get(route('os-updates.index'))->assertOk()->getContent();
-
-        $this->assertStringNotContainsString('data-order="'.route('groups.reorder').'"', $html, 'yetkisiz sürükleyemez');
-        $this->assertStringNotContainsString('data-order-id', $html);
-
+        /* Ekran şimdilik yalnızca yöneticide; yönetici grupları sıralayabilir. */
         $html = $this->actingAs($this->yonetici())->get(route('os-updates.index'))->assertOk()->getContent();
 
         $this->assertStringContainsString('data-order="'.route('groups.reorder').'"', $html);
@@ -187,17 +182,9 @@ class OsUpdateTest extends TestCase
             ->assertDontSee('Başka makinenin kurulumu')
             ->assertSee('aria-selected="true"', false);
 
-        /*
-         * Göremediği grubun makinesi: kart açılmaz, adı sızmaz. Yönetici her
-         * grubu görür; bu yüzden grubu yalnızca gören kullanıcıyla.
-         */
-        $yabanciGrup = CredentialGroup::factory()->create();
-        $yabanci = $this->makine($yabanciGrup, 'srv-yabanci', '10.0.9.12');
-
-        $this->actingAs($this->izleyici($group))->get(route('os-updates.index', ['kayit' => $yabanci->uuid]))
-            ->assertOk()
-            ->assertDontSee('srv-yabanci')
-            ->assertDontSee('Güncelleme geçmişi');
+        /* Yönetici olmayan, grubu görse de kartı ve geçmişi açamaz: ekran kapalı. */
+        $this->actingAs($this->izleyici($group))->get(route('os-updates.index', ['kayit' => $makine->uuid]))
+            ->assertForbidden();
     }
 
     /** Grubu yalnızca GÖREN, yönetici olmayan kullanıcı. */
@@ -315,19 +302,22 @@ class OsUpdateTest extends TestCase
     }
 
     #[Test]
-    public function ekran_grup_gorene_acik_yalnizca_gorebildigi_makineler(): void
+    public function ekran_simdilik_yalnizca_yoneticiye_acik(): void
     {
         [$user, $group] = $this->kurucu();
         $this->makine($group, 'web-01', '10.0.0.5');
 
-        /* Hiçbir grubu göremeyene ekran açılmaz. */
+        /* Hiçbir grubu göremeyen de, grubu görüp güncelleme yetkisi olan da açamaz. */
         $this->actingAs(User::factory()->create())->get(route('os-updates.index'))->assertForbidden();
+        $this->actingAs($this->izleyici($group, ['os_update', 'os_update_lock']))
+            ->get(route('os-updates.index'))
+            ->assertForbidden();
 
-        /* Başka bir grubu gören açar ama bu grubun makinesini görmez. */
-        $baskaGrup = CredentialGroup::factory()->create();
-        $this->actingAs($this->izleyici($baskaGrup))->get(route('os-updates.index'))
+        /* Üst menüde sekme de yok. */
+        $this->actingAs($this->izleyici($group, ['os_update']))->get(route('credentials.index'))
             ->assertOk()
-            ->assertDontSee('web-01');
+            ->assertDontSee(route('os-updates.index'));
+        $this->actingAs($user)->get(route('credentials.index'))->assertSee(route('os-updates.index'));
 
         $this->actingAs($user)->get(route('os-updates.index'))
             ->assertOk()
@@ -339,26 +329,16 @@ class OsUpdateTest extends TestCase
      * ŞİMDİLİK YALNIZCA YÖNETİCİ İŞLEM YAPAR.
      *
      * Grupta os_update ve os_update_lock yetkisi olsa bile yönetici olmayan
-     * kullanıcı ekranı görür ama denetleyemez, kuramaz, kilitleyemez; toplu
-     * araçlar, seçim kutuları ve karttaki düğmeler hiç çizilmez.
+     * kullanıcı denetleyemez, kuramaz, kilitleyemez: ekranın düğmeleri
+     * görünmese de istek doğrudan gönderilebilir.
      */
     #[Test]
-    public function yonetici_olmayan_yalnizca_gorur_islem_yapamaz(): void
+    public function yonetici_olmayan_islem_yapamaz(): void
     {
         Queue::fake();
         $group = CredentialGroup::factory()->create();
         $kayit = $this->makine($group, 'web-02', '10.0.0.6');
         $user = $this->izleyici($group, ['os_update', 'os_update_lock']);
-
-        $html = $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $kayit->uuid]))
-            ->assertOk()
-            ->assertSee('web-02')
-            ->getContent();
-
-        $this->assertStringNotContainsString('Toplu işlemler', $html);
-        $this->assertStringNotContainsString('data-bulk-item', $html);
-        $this->assertStringNotContainsString(route('os-updates.check'), $html);
-        $this->assertStringNotContainsString(route('os-updates.lock', $kayit), $html);
 
         $this->actingAs($user)->post(route('os-updates.check'))->assertForbidden();
         $this->actingAs($user)->post(route('os-updates.check'), ['kayitlar' => [$kayit->uuid], 'secilen' => 1])->assertForbidden();
@@ -505,7 +485,7 @@ class OsUpdateTest extends TestCase
             ->post(route('os-updates.apply'), ['kayitlar' => [$kayit->uuid], 'mod' => 'tumu', 'reason' => 'Deneme'])
             ->assertForbidden();
 
-        $this->actingAs($kilitci)->get(route('os-updates.index'))->assertOk();
+        $this->actingAs($kilitci)->get(route('os-updates.index'))->assertForbidden();
     }
 
     #[Test]

@@ -196,14 +196,18 @@ class CredentialPolicy
     }
 
     /**
-     * "Sistem güncellemeleri" ekranı: en az bir grubu GÖREBİLEN herkes görür.
-     * Liste kullanıcının görebildiği makinelerle sınırlı (visibleTo); işlem
-     * düğmeleri yukarıdaki yetkilere bağlı. Hiçbir grubu göremeyene ekran
-     * açılmaz: göreceği bir makine yok.
+     * "Sistem güncellemeleri" ekranı ve üst menüdeki sekmesi: ŞİMDİLİK
+     * YALNIZCA YÖNETİCİ görür.
+     *
+     * Ekran yalnızca görme yetkisine hazır: liste kullanıcının görebildiği
+     * makinelerle sınırlı (visibleTo), işlem düğmeleri yukarıdaki yetkilere
+     * bağlı ve yetkisizde hiç çizilmez. Ekran başkalarına açılacaksa
+     * `isAdmin()` koşulu kalkar; hiçbir grubu göremeyene yine açılmaz.
      */
     public function osUpdatePage(User $user): bool
     {
-        return $this->resolver->allowsAny($user, self::RESOURCE, 'view');
+        return $user->isAdmin()
+            && $this->resolver->allowsAny($user, self::RESOURCE, 'view');
     }
 
     /**

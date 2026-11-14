@@ -67,6 +67,9 @@
 
                 <div class="bulk-tools">
                     @can('osUpdateAny', App\Models\Credential::class)
+                        {{-- Telefonda iki denetim düğmesini "Toplu işlemler"in altına, kendi satırına indirir. --}}
+                        <span class="bulk-tools__break" aria-hidden="true"></span>
+
                         @if ($checkable > 0)
                             {{-- Okuyan bir işlem: gerekçe istenmez. --}}
                             <form method="POST" action="{{ route('os-updates.check') }}" class="bulk" data-inline

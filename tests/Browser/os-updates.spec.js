@@ -130,6 +130,28 @@ test('secilenleri denetle yalnizca secili makineyi gonderir', async ({ page }) =
     expect((govde.match(/name="kayitlar\[\]"/g) ?? []).length).toBe(1);
 });
 
+test('telefonda toplu islem dugmeleri ust uste binmez', async ({ page }) => {
+    await girisYap(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/system-updates?grup=hepsi');
+    await page.locator('.bulk-tools__button').click();
+
+    const toplu = await page.locator('.bulk-tools__button').boundingBox();
+    const hepsi = await page.getByRole('button', { name: 'Hepsini şimdi denetle' }).boundingBox();
+    const secilen = await page.getByRole('button', { name: /Seçilenleri denetle/ }).boundingBox();
+
+    /* İki denetim düğmesi "Toplu işlemler"in altında, kendi satırında yan yana. */
+    expect(hepsi.y).toBeGreaterThanOrEqual(toplu.y + toplu.height);
+    expect(Math.abs(hepsi.y - secilen.y)).toBeLessThan(2);
+    expect(hepsi.x + hepsi.width).toBeLessThanOrEqual(secilen.x);
+
+    /* Yazı düğmeden taşmıyor. */
+    const tasan = await page.locator('.column__head .btn').evaluateAll(
+        (dugmeler) => dugmeler.filter((d) => d.offsetParent && d.scrollWidth > d.clientWidth).map((d) => d.textContent.trim()),
+    );
+    expect(tasan).toEqual([]);
+});
+
 test('dar ekranda yatay tasma yok', async ({ page }) => {
     await girisYap(page);
     await page.goto('/system-updates');

@@ -146,7 +146,8 @@
     display: contents;
 }
 
-.bulk-tools__button {
+.bulk-tools__button,
+.bulk-tools__break {
     display: none;
 }
 
@@ -179,5 +180,20 @@
 
     .bulk-tools > * {
         order: 2;
+    }
+
+    /*
+     * SATIR KIRICI.
+     *
+     * Tek düğmelik şeritler "Toplu işlemler" düğmesiyle aynı satırı
+     * paylaşıyor. Sistem güncellemesinde iki denetim düğmesi var: üç düğme
+     * 390 pikselde sığmıyor, yazılar birbirinin üstüne biniyordu. Kırıcı
+     * (araçların başına konan boş öğe) tam satır alır; arkasındaki düğmeler
+     * alt satırda genişliği eşit paylaşır. Kırıcı konmayan sayfa etkilenmez.
+     */
+    .bulk-tools__break {
+        display: block;
+        flex: 0 0 100%;
+        height: 0;
     }
 }

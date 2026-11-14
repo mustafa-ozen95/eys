@@ -126,7 +126,7 @@ class OsUpdateTest extends TestCase
     }
 
     #[Test]
-    public function ayni_adli_kayitlar_alt_grup_adiyla_ayrilir_ve_onunla_aranir(): void
+    public function ayni_adli_kayitlar_alt_grup_adiyla_ayrilir(): void
     {
         [$user, $group] = $this->kurucu();
         $noc = SubGroup::factory()->for($group, 'group')->create(['name' => 'DGN_NOC']);
@@ -138,11 +138,6 @@ class OsUpdateTest extends TestCase
             ->assertOk()
             ->assertSee('DGN_NOC · SSH')
             ->assertSee('KAPI_DB · SSH');
-
-        $this->actingAs($user)->get(route('os-updates.index', ['q' => 'kapi']))
-            ->assertOk()
-            ->assertSee('KAPI_DB · SSH')
-            ->assertDontSee('DGN_NOC · SSH');
     }
 
     #[Test]

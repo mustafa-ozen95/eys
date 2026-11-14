@@ -22,6 +22,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -51,8 +52,10 @@ class GroupController extends Controller implements HasMiddleware
          * listede anlamlı; iki sayfaya bölünmüş liste sürüklenemez. Grup
          * sayısı zaten onlarla ölçülüyor.
          */
+        $arama = $request->string('q')->squish()->value() ?: null;
+
         $groups = CredentialGroup::query()
-            ->search($request->string('q')->squish()->value() ?: null)
+            ->search($arama)
             ->withCount('credentials')
             ->with(['altGruplar' => fn ($q) => $q->withCount('credentials')])
             ->ordered()
@@ -62,10 +65,35 @@ class GroupController extends Controller implements HasMiddleware
             'groups' => $groups,
             'viewerCounts' => $this->viewerCounts($groups),
             'query' => $request->string('q')->value(),
-            /* Hepsi KAPALI gelir; yalnız ?acik= ile istenen açık: alt grup işinden dönüşte. */
-            'acikGrup' => $request->string('acik')->value() ?: null,
+            'acikGruplar' => $this->acikGruplar($groups, $arama, $request->string('acik')->value() ?: null),
             'pencere' => $this->subGroupWindow($request, $groups),
         ]);
+    }
+
+    /**
+     * Açık gelecek bölümler, uuid => true. Hepsi KAPALI gelir; açık olanlar:
+     * ?acik= ile istenen (alt grup işinden dönüş) ve aranan ad bir ALT
+     * GRUBA uyduğu için listelenen gruplar — aranan satır kapalı bölümde
+     * saklı kalmasın.
+     *
+     * @param  Collection<int, CredentialGroup>  $groups
+     * @return array<string, true>
+     */
+    private function acikGruplar(Collection $groups, ?string $arama, ?string $acik): array
+    {
+        $acikGruplar = $acik === null ? [] : [$acik => true];
+
+        if ($arama === null) {
+            return $acikGruplar;
+        }
+
+        foreach ($groups as $group) {
+            if ($group->altGruplar->contains(fn (SubGroup $alt): bool => Str::contains($alt->name, $arama, ignoreCase: true))) {
+                $acikGruplar[$group->uuid] = true;
+            }
+        }
+
+        return $acikGruplar;
     }
 
     /**

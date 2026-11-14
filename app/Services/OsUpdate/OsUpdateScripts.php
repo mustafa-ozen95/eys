@@ -27,13 +27,15 @@ final class OsUpdateScripts
     /**
      * Denetim: depo listesini yeniler ve bekleyenleri sayar. KURULUM YAPMAZ.
      *
+     * TERM=dumb: yum/dnf paket adını kalın basmasın (bkz. PackageReport::temizle).
+     *
      * Son satır `true`: betiğin çıkış kodu "denetim koştu" demektir;
      * deponun yenilenememesi ayrı bir işaretle (EYS-UYARI:depo) bildirilir.
      */
     public static function denetim(): string
     {
         return <<<'SH'
-export LC_ALL=C
+export LC_ALL=C TERM=dumb
 if command -v apt-get >/dev/null 2>&1; then
   echo EYS-PM:apt
   apt-get update -qq -o DPkg::Lock::Timeout=60 >/dev/null 2>&1 || echo EYS-UYARI:depo
@@ -91,7 +93,7 @@ SH;
         $dnf = 'pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum; '
             .'$pm -y -q upgrade'.($kritik ? ' --security' : '');
 
-        $is = 'export LC_ALL=C DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1; '
+        $is = 'export LC_ALL=C TERM=dumb DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1; '
             .'date; '
             .'if command -v apt-get >/dev/null 2>&1; then '.$apt.'; '
             .'elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then '.$dnf.'; '

@@ -62,6 +62,37 @@ class OsUpdatePackageReportTest extends TestCase
         $this->assertSame(1, $rapor->normal);
     }
 
+    /** Makineden gelen gerçek biçim: ad kalın, sonra ESC[m ve SI. */
+    #[Test]
+    public function uclbirim_renk_kodlari_paket_adina_ve_surume_karismaz(): void
+    {
+        $cikti = implode("\n", [
+            'EYS-PM:dnf',
+            'EYS-BOLUM:liste',
+            "\e[1mbind-libs.x86_64 \e[m\x0f   32:9.11.4-26.P2.el7_9.16    updates",
+            "\e[1mcurl.x86_64      \e[m\x0f   7.29.0-59.el7_9.2           updates",
+            'EYS-BOLUM:guvenlik',
+            "RHSA-2024:1234 Important/Sec. \e[1mbind-libs-32:9.11.4-26.P2.el7_9.16.x86_64\e[m",
+            'EYS-BOLUM:son',
+        ]);
+
+        $rapor = PackageReport::parse($cikti);
+
+        $this->assertSame([
+            ['name' => 'bind-libs', 'version' => '32:9.11.4-26.P2.el7_9.16', 'critical' => true],
+            ['name' => 'curl', 'version' => '7.29.0-59.el7_9.2', 'critical' => false],
+        ], $rapor->packages);
+        $this->assertSame(1, $rapor->critical);
+        $this->assertSame(1, $rapor->normal);
+    }
+
+    #[Test]
+    public function denetim_ve_kurulum_betigi_uclbirimi_renksiz_ister(): void
+    {
+        $this->assertStringContainsString('TERM=dumb', OsUpdateScripts::denetim());
+        $this->assertStringContainsString('TERM=dumb', OsUpdateScripts::kurulum(OsUpdateScripts::TUMU));
+    }
+
     #[Test]
     public function dnf_guvenlik_bildirisine_bagli_paket_kritik_bolunmus_satir_birlesir(): void
     {

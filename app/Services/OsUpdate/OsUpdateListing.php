@@ -7,33 +7,21 @@ namespace App\Services\OsUpdate;
 use App\Models\Credential;
 use App\Models\OsUpdateState;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * "Sistem güncellemeleri" ekranının hazır verisi. Blade yalnızca çizer.
  */
 class OsUpdateListing
 {
-    public const DURUMLAR = [
-        '' => 'Hepsi',
-        'kritik' => 'Kritik bekleyen',
-        'bekleyen' => 'Güncelleme bekleyen',
-        'guncel' => 'Güncel',
-        'kilitli' => 'Kilitli',
-        'sorunlu' => 'Sorunlu',
-        'denetlenmedi' => 'Denetlenmedi',
-    ];
-
     public function __construct(private OsUpdateTargets $targets) {}
 
     /** @return array<string, mixed> */
-    public function build(User $user, ?string $arama, ?string $durum): array
+    public function build(User $user): array
     {
         $kilitler = $this->targets->kilitliMakineler();
 
         $satirlar = $this->targets->kullaniciIcin($user)
             ->with(['group', 'altGrup', 'osUpdateState'])
-            ->when($arama, fn ($q, string $a) => $this->ara($q, $a))
             ->ordered()
             ->get()
             ->map(fn (Credential $kayit): array => $this->satir($kayit, $user, $kilitler));
@@ -46,36 +34,15 @@ class OsUpdateListing
             'yenidenBaslat' => $satirlar->where('reboot', true)->count(),
         ];
 
-        $durum = array_key_exists((string) $durum, self::DURUMLAR) ? (string) $durum : '';
-
         return [
-            'rows' => $satirlar->filter(fn (array $s): bool => $this->uyar($s, $durum))->values(),
+            'rows' => $satirlar,
             'figures' => $sayilar,
-            'durum' => $durum,
-            'durumlar' => self::DURUMLAR,
-            'query' => $arama,
             'selectable' => $satirlar->where('selectable', true)->count(),
             'checkable' => $satirlar->where('canApply', true)->count(),
             'checkText' => $this->denetimMetni((int) config('os_update.check_hours', 4)),
             'modes' => [OsUpdateScripts::KRITIK => 'Yalnızca kritik', OsUpdateScripts::TUMU => 'Tüm güncellemeler'],
             'round' => OsUpdateRound::kart($user),
         ];
-    }
-
-    /**
-     * Ekranda yazan adın her parçasında arar: kayıt, alt grup (makine), grup.
-     *
-     * @param  Builder<Credential>  $sorgu
-     * @return Builder<Credential>
-     */
-    private function ara(Builder $sorgu, string $arama): Builder
-    {
-        $kalip = '%'.addcslashes($arama, '%_\\').'%';
-
-        return $sorgu->where(fn (Builder $q) => $q
-            ->where('name', 'like', $kalip)
-            ->orWhereHas('altGrup', fn (Builder $a) => $a->where('name', 'like', $kalip))
-            ->orWhereHas('group', fn (Builder $g) => $g->where('name', 'like', $kalip)));
     }
 
     /**
@@ -157,19 +124,5 @@ class OsUpdateListing
             'error' => $durum->apply_error,
             'at' => ($durum->apply_finished_at ?? $durum->apply_queued_at)?->translatedFormat('d.m.Y H:i'),
         ];
-    }
-
-    /** @param  array<string, mixed>  $s */
-    private function uyar(array $s, string $durum): bool
-    {
-        return match ($durum) {
-            'kritik' => $s['critical'] > 0,
-            'bekleyen' => $s['pending'] > 0,
-            'guncel' => $s['checked'] && $s['pending'] === 0,
-            'kilitli' => $s['locked'],
-            'sorunlu' => $s['checkError'] !== null || ($s['apply']['variant'] ?? null) === 'red',
-            'denetlenmedi' => ! $s['checked'],
-            default => true,
-        };
     }
 }

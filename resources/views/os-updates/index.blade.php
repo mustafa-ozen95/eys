@@ -53,49 +53,40 @@
                 </div>
             </div>
 
-            <div class="row row--wrap">
-                <form method="GET" class="row row--wrap filter-bar">
-                    <x-ui.search name="q" :value="$query" :standalone="false" placeholder="Makine adı" label="Makine filtrele" />
-                    <x-form.select name="durum" :options="$durumlar" :selected="$durum"
-                                   onchange="this.form.submit()" aria-label="Duruma göre süz" />
-                    <button type="submit" class="btn btn--sm">Filtrele</button>
+            @can('osUpdateAny', App\Models\Credential::class)
+                {{--
+                    Toplu kurulum: tablonun hemen üstünde, sola yaslı tek satır;
+                    "Tümü" kutusu satırların seçim kutularıyla aynı sütunda.
+                    Kilitli ve yetkisiz satırların kutusu kapalıdır; karar yine
+                    sunucuda (OsUpdateLauncher).
+                --}}
+                <form method="POST" action="{{ route('os-updates.apply') }}" id="os-update-form"
+                      class="bulk" data-bulk-form data-inline
+                      data-confirm="Seçili makinelere sistem güncellemesi kurulacak."
+                      data-bulk-confirm-one="{name} makinesine sistem güncellemesi KURULACAK. Yeniden başlatma yapılmaz."
+                      data-bulk-confirm-many="Seçili {n} makineye sistem güncellemesi KURULACAK. Yeniden başlatma yapılmaz."
+                      data-confirm-title="Sistem güncellemesi kur"
+                      data-confirm-variant="danger">
+                    @csrf
+
+                    <label @class(['bulk__all', 'bulk__all--empty' => $selectable === 0])>
+                        <input type="checkbox" data-bulk-all @disabled($selectable === 0)
+                               aria-label="Kurulabilir makinelerin hepsini seç">
+                        <span>Tümü <span class="bulk__ready">{{ $selectable }}/{{ $rows->count() }} seçilebilir</span></span>
+                    </label>
+
+                    <x-form.select name="mod" :options="$modes" class="select--cell"
+                                   selected="kritik" aria-label="Kurulum türü" />
+
+                    <button type="submit" class="btn btn--sm" data-bulk-submit disabled
+                    >Seçilenlere kur (<span data-bulk-count>0</span>)</button>
                 </form>
-
-                <span class="spacer"></span>
-
-                @can('osUpdateAny', App\Models\Credential::class)
-                    {{--
-                        Toplu kurulum. Kilitli ve yetkisiz satırların kutusu
-                        kapalıdır; karar yine sunucuda (OsUpdateLauncher).
-                    --}}
-                    <form method="POST" action="{{ route('os-updates.apply') }}" id="os-update-form"
-                          class="bulk" data-bulk-form data-inline
-                          data-confirm="Seçili makinelere sistem güncellemesi kurulacak."
-                          data-bulk-confirm-one="{name} makinesine sistem güncellemesi KURULACAK. Yeniden başlatma yapılmaz."
-                          data-bulk-confirm-many="Seçili {n} makineye sistem güncellemesi KURULACAK. Yeniden başlatma yapılmaz."
-                          data-confirm-title="Sistem güncellemesi kur"
-                          data-confirm-variant="danger">
-                        @csrf
-
-                        <label @class(['bulk__all', 'bulk__all--empty' => $selectable === 0])>
-                            <input type="checkbox" data-bulk-all @disabled($selectable === 0)
-                                   aria-label="Kurulabilir makinelerin hepsini seç">
-                            <span>Tümü <span class="bulk__ready">{{ $selectable }}/{{ $rows->count() }} seçilebilir</span></span>
-                        </label>
-
-                        <x-form.select name="mod" :options="$modes"
-                                       selected="kritik" aria-label="Kurulum türü" />
-
-                        <button type="submit" class="btn btn--sm" data-bulk-submit disabled
-                        >Seçilenlere kur (<span data-bulk-count>0</span>)</button>
-                    </form>
-                @endcan
-            </div>
+            @endcan
 
             <x-ui.panel flush>
                 @if ($rows->isEmpty())
                     <x-ui.empty title="Makine yok"
-                                text="Bu süzgeçte SSH bilgisi (adres, kullanıcı adı, parola) olan etkin bir Linux kaydı yok." />
+                                text="SSH bilgisi (adres, kullanıcı adı, parola) olan etkin bir Linux kaydı yok." />
                 @else
                     <table class="table">
                         <thead>

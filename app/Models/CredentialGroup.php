@@ -106,13 +106,20 @@ class CredentialGroup extends Model
         $query->orderBy('position')->orderBy('name');
     }
 
-    /** @param  Builder<$this>  $query */
+    /**
+     * Grup adı, açıklaması ya da ALT GRUP adı. Alt grup adı aranınca onu
+     * taşıyan grup listelenir; yalnız grup adına bakılırken "KAPI_DB" gibi
+     * bir makine adı hiçbir şey getirmiyordu.
+     *
+     * @param  Builder<$this>  $query
+     */
     public function scopeSearch(Builder $query, ?string $term): void
     {
         $query->when($term, fn (Builder $q, string $value) => $q->where(
             fn (Builder $inner) => $inner
                 ->where('name', 'like', "%{$value}%")
                 ->orWhere('description', 'like', "%{$value}%")
+                ->orWhereHas('altGruplar', fn (Builder $alt) => $alt->where('name', 'like', "%{$value}%"))
         ));
     }
 }

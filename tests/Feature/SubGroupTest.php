@@ -78,6 +78,33 @@ class SubGroupTest extends TestCase
         $this->assertSame(1, preg_match_all('/<details[^>]*\bopen\b/', $sayfa));
     }
 
+    /** Alt grup adıyla arama onu taşıyan grubu getirir ve bölümü açık gelir. */
+    #[Test]
+    public function gruplar_aramasi_alt_grup_adini_bulur_ve_bolumu_acar(): void
+    {
+        $yonetici = User::factory()->admin()->create();
+        [$grup] = $this->yedekleme();
+        CredentialGroup::factory()->create(['name' => 'Switchler']);
+
+        $sayfa = $this->actingAs($yonetici)->get(route('groups.index', ['q' => 'yedek 2']))
+            ->assertOk()
+            ->assertSee('Yedekleme')
+            ->assertSee('Yedek 2')
+            ->assertDontSee('Switchler')
+            ->getContent();
+
+        $this->assertSame(1, preg_match_all('/<details[^>]*\bopen\b/', $sayfa));
+
+        /* Grup adına uyan arama bölümü açmaz: alt grup aranmadı. */
+        $sayfa = $this->actingAs($yonetici)->get(route('groups.index', ['q' => 'switch']))
+            ->assertOk()
+            ->assertSee('Switchler')
+            ->assertDontSee($grup->name)
+            ->getContent();
+
+        $this->assertSame(0, preg_match_all('/<details[^>]*\bopen\b/', $sayfa));
+    }
+
     #[Test]
     public function grup_secilince_kayitlar_alt_grup_basliklari_altinda_siralanir(): void
     {

@@ -42,6 +42,14 @@
     font-size: var(--text-sm);
 }
 
+/*
+ * Şeritteki seçim kutusu içeriği kadar geniş. `.select` tam genişlikti:
+ * kutu kendi satırını alıp düğmeyi alta itiyor, şerit üç satıra bölünüyordu.
+ */
+.bulk .select {
+    width: auto;
+}
+
 /* Seçilecek kayıt yokken şerit sessizleşir: tıklanacak bir şey olmadığını göstersin. */
 .bulk__all--empty {
     opacity: 0.5;

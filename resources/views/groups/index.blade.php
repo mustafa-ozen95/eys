@@ -21,12 +21,13 @@
                 liste grupları, her bölümün içindeki tablo alt grupları.
                 Bölüm `?acik=` ile açık gelir: alt grup ekleyince/değiştirince
                 sayfa yerinde yenileniyor ve çalışılan bölüm kapanmamalı.
+                Arama bir alt gruba uyduysa o grubun bölümü de açık gelir.
             --}}
             <div data-order="{{ route('groups.reorder') }}" data-order-field="sira">
                 @forelse ($groups as $group)
                     <x-ui.collapsible :title="$group->name"
                                    :subtitle="$group->kind->label().' · '.$group->credentials_count.' kayıt · '.($viewerCounts[$group->uuid] ?? 0).' görebilen'"
-                                   :open="$acikGrup === $group->uuid"
+                                   :open="isset($acikGruplar[$group->uuid])"
                                    draggable="true"
                                    :data-order-id="$group->uuid">
                         <x-slot:prefix>

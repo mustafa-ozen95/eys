@@ -33,7 +33,7 @@ final class PackageReport
 
     public static function parse(string $cikti): self
     {
-        $satirlar = preg_split('/\r\n|\r|\n/', $cikti) ?: [];
+        $satirlar = preg_split('/\r\n|\r|\n/', self::temizle($cikti)) ?: [];
         $yonetici = null;
         $bolum = null;
         $liste = [];
@@ -161,5 +161,19 @@ final class PackageReport
         }
 
         return array_values($paketler);
+    }
+
+    /**
+     * Uçbirim kodlarını atar. yum/dnf bazı makinelerde güncellenecek paketin
+     * adını kalın basıyor (ESC[1m … ESC[m ve SI): kod adın ve sürümün parçası
+     * sanılıp ekrana kare kare yazılıyordu; güvenlik bildirisiyle de
+     * eşleşmediği için kritik paket normal sayılıyordu. Betik TERM=dumb
+     * veriyor; bu temizlik ona uymayan araç için ikinci kat.
+     */
+    private static function temizle(string $cikti): string
+    {
+        $cikti = preg_replace('/\e\[[0-9;?]*[ -\/]*[@-~]|\e[()][0-9A-Za-z]|\e./', '', $cikti) ?? $cikti;
+
+        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $cikti) ?? $cikti;
     }
 }

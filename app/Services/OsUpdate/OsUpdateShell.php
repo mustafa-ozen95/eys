@@ -32,6 +32,12 @@ class OsUpdateShell
         return 22;
     }
 
+    /** RDP ile kaydedilmiş Linux makinede kaydın portu RDP'nindir (bkz. OsUpdateTargets::sshPort). */
+    protected function connectPort(Credential $credential): int
+    {
+        return OsUpdateTargets::sshPort($credential);
+    }
+
     public function calistir(Credential $credential, string $betik, int $sure, string $hata): string
     {
         $kullanici = (string) $credential->username;

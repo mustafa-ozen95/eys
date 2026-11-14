@@ -19,7 +19,13 @@ use Illuminate\Database\Eloquent\Collection;
  * adı ve parolası kayıtlı. İşletim sistemi "bilinmiyor" girilmiş SSH kaydı
  * da hedeftir: SSH bilgisi olduğu hâlde ekrana gelmiyordu. Betik paket
  * yöneticisini kendisi arar; bulamazsa yalnızca bunu bildirir. Gömülü
- * cihazlar (switch vb.) hedef DEĞİL: apt/dnf yok, kabuğu Linux kabuğu değil. Ekran, toplu uç, zamanlayıcı ve kuyruk işi aynı
+ * cihazlar (switch vb.) hedef DEĞİL: apt/dnf yok, kabuğu Linux kabuğu değil.
+ *
+ * RDP ile kaydedilmiş LINUX makine de hedeftir (Teknik PC'ler: xrdp). xrdp
+ * sistem kullanıcısıyla girer; aynı kullanıcı ve parola SSH'ta da geçer.
+ * Bağlantı o kayıtta kaydın portuna (RDP portu) DEĞİL, 22'ye gider (sshPort).
+ * Windows RDP ve web/panel kayıtları hedef değil: kimlikleri işletim sistemi
+ * kabuğunun kimliği değil. Ekran, toplu uç, zamanlayıcı ve kuyruk işi aynı
  * sorguyu kullanır: biri genişletilip öteki dar kalırsa ekranda seçilemeyen
  * kayda uçtan kurulum yapılabilirdi.
  *
@@ -34,8 +40,13 @@ class OsUpdateTargets
     {
         return Credential::query()
             ->otomasyon()
-            ->whereIn('operating_system', [OperatingSystem::Linux, OperatingSystem::Unknown])
-            ->where('access_type', AccessType::Ssh)
+            ->where(fn (Builder $q) => $q
+                ->where(fn (Builder $ssh) => $ssh
+                    ->where('access_type', AccessType::Ssh)
+                    ->whereIn('operating_system', [OperatingSystem::Linux, OperatingSystem::Unknown]))
+                ->orWhere(fn (Builder $rdp) => $rdp
+                    ->where('access_type', AccessType::Rdp)
+                    ->where('operating_system', OperatingSystem::Linux)))
             ->where('is_active', true)
             ->whereNotNull('host')->where('host', '!=', '')
             ->whereNotNull('username')->where('username', '!=', '')
@@ -66,10 +77,19 @@ class OsUpdateTargets
         return filled($alt) ? "{$alt} · {$credential->name}" : $credential->name;
     }
 
-    /** Makine anahtarı: küçük harf adres + port (yoksa 22). */
+    /** Makine anahtarı: küçük harf adres + SSH portu. */
     public static function makine(Credential $credential): string
     {
-        return mb_strtolower(trim((string) $credential->host)).':'.($credential->port ?? 22);
+        return mb_strtolower(trim((string) $credential->host)).':'.self::sshPort($credential);
+    }
+
+    /**
+     * Bağlanılacak SSH portu. SSH kaydında kaydın portu (yoksa 22); RDP
+     * kaydında kaydın portu RDP'nin portudur (3389), SSH için 22.
+     */
+    public static function sshPort(Credential $credential): int
+    {
+        return $credential->access_type === AccessType::Ssh ? ($credential->port ?? 22) : 22;
     }
 
     /**

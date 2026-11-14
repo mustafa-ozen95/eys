@@ -111,6 +111,25 @@ class OsUpdateTest extends TestCase
         return [$user, $group];
     }
 
+    /** Teknik PC'ler: RDP (xrdp) ile kayıtlı Linux makineler geliyor, SSH 22'den; Windows RDP gelmiyor. */
+    #[Test]
+    public function rdp_ile_kayitli_linux_makine_gelir_ssh_portu_22_windows_rdp_gelmez(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $pc = $this->makine($group, 'Teknik-PC-Linux', '10.5.5.131', ['access_type' => AccessType::Rdp, 'port' => 3389]);
+        $this->makine($group, 'Teknik-PC-Windows', '10.5.5.136', ['access_type' => AccessType::Rdp, 'operating_system' => OperatingSystem::Windows]);
+        $ssh = $this->makine($group, 'Ssh-2222', '10.5.5.140', ['port' => 2222]);
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertOk()
+            ->assertSee('Teknik-PC-Linux')
+            ->assertDontSee('Teknik-PC-Windows');
+
+        $this->assertSame(22, OsUpdateTargets::sshPort($pc));
+        $this->assertSame('10.5.5.131:22', OsUpdateTargets::makine($pc));
+        $this->assertSame(2222, OsUpdateTargets::sshPort($ssh));
+    }
+
     /** Monitor kaydı işletim sistemi "bilinmiyor" diye SSH bilgisi olduğu hâlde gelmiyordu. */
     #[Test]
     public function isletim_sistemi_bilinmeyen_ssh_kaydi_gelir_gomulu_cihaz_ve_eksik_bilgili_gelmez(): void

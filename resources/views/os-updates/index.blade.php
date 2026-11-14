@@ -2,7 +2,7 @@
     <div class="page">
         <div class="page__inner page__inner--wide">
             <x-ui.page-head title="Sistem güncellemeleri"
-                            subtitle="SSH bilgisi olan Linux kayıtları (işletim sistemi belirtilmemiş SSH kayıtları dahil). Denetim yalnızca okur; kurulum gerekçe ister, kilitli makineye hiçbir yoldan kurulum yapılmaz.">
+                            subtitle="SSH ya da RDP ile kayıtlı Linux makineler (işletim sistemi belirtilmemiş SSH kayıtları dahil); bağlantı SSH ile yapılır. Denetim yalnızca okur; kurulum gerekçe ister, kilitli makineye hiçbir yoldan kurulum yapılmaz.">
                 <x-slot:actions>
                     {{-- Açıklama düğmenin altında: yan yana dururken satır hizası kayıyordu. --}}
                     <div class="stack stack--tight">

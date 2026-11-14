@@ -79,6 +79,22 @@
                         @endif
 
                         {{--
+                            Aynı seçimle denetim: kutular kurulum formuna bağlı,
+                            seçim onayda buraya kopyalanır (bulk.js, data-bulk-copy).
+                            secilen=1: seçim boş gelirse sunucu reddeder, hepsini denetlemez.
+                        --}}
+                        <form method="POST" action="{{ route('os-updates.check') }}" class="bulk"
+                              data-inline data-bulk-copy
+                              data-confirm="Seçili makinelere bağlanılıp bekleyen güncellemeler okunacak. Hiçbir şey kurulmaz."
+                              data-confirm-title="Seçilenleri denetle"
+                              data-confirm-reasonless>
+                            @csrf
+                            <input type="hidden" name="secilen" value="1">
+                            <button type="submit" class="btn btn--sm" data-bulk-submit disabled
+                            >Seçilenleri denetle (<span data-bulk-count>0</span>)</button>
+                        </form>
+
+                        {{--
                             Kurulum: seçim bu listedeki satırlardan. Kilitli ve
                             yetkisiz satırların kutusu kapalıdır; karar yine
                             sunucuda (OsUpdateLauncher).

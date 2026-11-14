@@ -13,6 +13,8 @@ use Illuminate\Foundation\Http\FormRequest;
  * Bekleyen güncellemeleri şimdi denetleme isteği. Yalnızca okur.
  *
  * Kayıt listesi boşsa kullanıcının denetleyebildiği bütün makineler.
+ * "Seçilenleri denetle" `secilen=1` gönderir: o yoldan boş liste gelirse
+ * (betik seçimi taşıyamadıysa) hepsi denetlenmez, istek reddedilir.
  */
 class CheckOsUpdateRequest extends FormRequest
 {
@@ -25,7 +27,8 @@ class CheckOsUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'kayitlar' => ['sometimes', 'array', 'max:500'],
+            'secilen' => ['sometimes', 'boolean'],
+            'kayitlar' => ['required_if_accepted:secilen', 'array', 'max:500'],
             'kayitlar.*' => ['uuid'],
         ];
     }

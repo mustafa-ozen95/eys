@@ -75,12 +75,16 @@ test('kilitli makine secilemez, secim sayaci ve kurulum onayi', async ({ page })
         await toplu.click();
     }
 
-    const dugme = page.locator('[data-bulk-submit]');
+    const dugme = page.getByRole('button', { name: /Seçilenlere kur/ });
+    const denetle = page.getByRole('button', { name: /Seçilenleri denetle/ });
     await expect(dugme).toBeDisabled();
+    await expect(denetle).toBeDisabled();
 
     await kritikSatir.locator('[data-bulk-item]').check();
-    await expect(page.locator('[data-bulk-count]')).toHaveText('1');
+    await expect(page.locator('[data-bulk-count]').first()).toHaveText('1');
+    await expect(page.locator('[data-bulk-count]').last()).toHaveText('1');
     await expect(dugme).toBeEnabled();
+    await expect(denetle).toBeEnabled();
 
     await dugme.click();
 
@@ -92,6 +96,38 @@ test('kilitli makine secilemez, secim sayaci ve kurulum onayi', async ({ page })
     await expect(pencere.locator('[data-confirm-accept]')).toBeDisabled();
     await pencere.getByRole('button', { name: 'Vazgeç' }).click();
     await expect(pencere).toBeHidden();
+});
+
+test('secilenleri denetle yalnizca secili makineyi gonderir', async ({ page }) => {
+    await girisYap(page);
+    await page.goto('/system-updates?grup=hepsi');
+
+    /* İstek yakalanır, sunucuya gitmez: gerçek denetim başlamasın. */
+    let govde = null;
+    await page.route('**/system-updates/check', async (route) => {
+        govde = route.request().postData();
+        await route.fulfill({ status: 204 });
+    });
+
+    const toplu = page.locator('.bulk-tools__button');
+    if (await toplu.isVisible()) {
+        await toplu.click();
+    }
+
+    const satir = page.locator('.os-update-row', { hasText: 'srv-a SSH' }).filter({ hasNotText: 'Yedek' });
+    const uuid = await satir.locator('[data-bulk-item]').getAttribute('value');
+    await satir.locator('[data-bulk-item]').check();
+
+    await page.getByRole('button', { name: /Seçilenleri denetle/ }).click();
+    const pencere = page.locator('[data-confirm-dialog]');
+    await expect(pencere.locator('[data-confirm-message]')).toContainText('Hiçbir şey kurulmaz');
+    await pencere.locator('[data-confirm-accept]').click();
+
+    await expect.poll(() => govde).not.toBeNull();
+    /* Gövde çok parçalı (FormData): alan adları ve değer metinde aranır. */
+    expect(govde).toContain(uuid);
+    expect(govde).toContain('name="secilen"');
+    expect((govde.match(/name="kayitlar\[\]"/g) ?? []).length).toBe(1);
 });
 
 test('dar ekranda yatay tasma yok', async ({ page }) => {

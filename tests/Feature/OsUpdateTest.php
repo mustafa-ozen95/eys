@@ -233,6 +233,32 @@ class OsUpdateTest extends TestCase
             ->assertDontSee('Sensor-SSH');
     }
 
+    /**
+     * "Seçilenleri denetle" yalnızca seçilenleri denetler; seçim boş gelirse
+     * (betik taşıyamadıysa) HEPSİ denetlenmez, istek reddedilir.
+     */
+    #[Test]
+    public function secilenleri_denetle_yalnizca_secilenleri_bos_secim_hepsini_denetlemez(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $bir = $this->makine($group, 'Secili', '10.0.7.1');
+        $this->makine($group, 'Secilmedi', '10.0.7.2');
+
+        $this->actingAs($user)->post(route('os-updates.check'), ['secilen' => 1])
+            ->assertSessionHasErrors('kayitlar');
+        Queue::assertNothingPushed();
+
+        $this->actingAs($user)->post(route('os-updates.check'), ['secilen' => 1, 'kayitlar' => [$bir->uuid]])
+            ->assertSessionHas('status');
+        Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $j): bool => $j->uniqueId() === 'denetim:10.0.7.1:22');
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertSee('Seçilenleri denetle')
+            ->assertSee('Hepsini şimdi denetle');
+    }
+
     /** Denetim de kurulum gibi ilerleme kartı açar; sonuç geldikçe sayılır. */
     #[Test]
     public function denetim_ilerleme_karti_acar_ve_sonuclari_sayar(): void

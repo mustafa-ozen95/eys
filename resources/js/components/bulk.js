@@ -24,17 +24,19 @@ function refresh() {
     }
 
     const chosen = selected();
-    const counter = form.querySelector('[data-bulk-count]');
-    const submit = form.querySelector('[data-bulk-submit]');
     const everything = $('[data-bulk-all]');
 
-    if (counter) {
+    /*
+     * Sayaç ve düğme birden çok olabilir: aynı seçimle ikinci bir iş
+     * (sistem güncellemesinde "Seçilenleri denetle", bkz. data-bulk-copy).
+     */
+    $$('[data-bulk-count]').forEach((counter) => {
         counter.textContent = String(chosen.length);
-    }
+    });
 
-    if (submit) {
+    $$('[data-bulk-submit]').forEach((submit) => {
         submit.disabled = chosen.length === 0;
-    }
+    });
 
     if (everything && !everything.disabled) {
         const all = items();
@@ -70,8 +72,30 @@ function refresh() {
         : `Seçili ${chosen.length} kaydın parolası UZAKTAKİ MAKİNELERDE değiştirilecek.`;
 }
 
+/*
+ * AYNI SEÇİMLE İKİNCİ FORM.
+ *
+ * Seçim kutuları tek bir forma bağlı (form="…"); bir kutu iki forma birden
+ * ait olamaz. Seçimi kullanan ikinci form (data-bulk-copy) onaylanınca
+ * seçili değerler ona gizli alan olarak kopyalanır. Kopya her onayda
+ * baştan kurulur: eski seçim kalmasın.
+ */
+function copySelection(event, form) {
+    form.querySelectorAll('[data-bulk-copied]').forEach((field) => field.remove());
+
+    selected().forEach((box) => {
+        const field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = box.name;
+        field.value = box.value;
+        field.setAttribute('data-bulk-copied', '');
+        form.appendChild(field);
+    });
+}
+
 export function init() {
     on('change', '[data-bulk-item]', refresh);
+    on('eys:confirmed', 'form[data-bulk-copy]', copySelection);
 
     on('change', '[data-bulk-all]', (event, box) => {
         items().forEach((item) => {

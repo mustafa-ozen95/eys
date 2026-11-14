@@ -50,6 +50,19 @@ class OsUpdateTargets
         return $this->sorgu()->whereKey($credential->getKey())->exists();
     }
 
+    /**
+     * Ekranda ve iletilerde makinenin adı: "alt grup · kayıt" (DGN_NOC · SSH).
+     *
+     * Kayıt adları çoğunlukla erişim türüdür ("SSH"); hangi makine olduğunu
+     * alt grup söyler. Alt grup yoksa kayıt adı tek başına yeter.
+     */
+    public static function ad(Credential $credential): string
+    {
+        $alt = $credential->altGrup?->name;
+
+        return filled($alt) ? "{$alt} · {$credential->name}" : $credential->name;
+    }
+
     /** Makine anahtarı: küçük harf adres + port (yoksa 22). */
     public static function makine(Credential $credential): string
     {
@@ -96,7 +109,7 @@ class OsUpdateTargets
 
         OsUpdateState::query()
             ->where('locked', true)
-            ->with(['credential', 'locker'])
+            ->with(['credential.altGrup', 'locker'])
             ->get()
             ->each(function (OsUpdateState $durum) use (&$kilitler): void {
                 if ($durum->credential !== null) {

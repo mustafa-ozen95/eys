@@ -84,9 +84,11 @@ class OsUpdateController extends Controller implements HasMiddleware
         $kilitli = $request->boolean('kilit');
         $updater->kilitle($credential, $kilitli, $request->user(), $request->string('reason')->value());
 
+        $ad = OsUpdateTargets::ad($credential->loadMissing('altGrup'));
+
         return back()->with('status', $kilitli
-            ? "{$credential->name} kilitlendi: bu makineye güncelleme kurulmaz."
-            : "{$credential->name} kilidi kaldırıldı.");
+            ? "{$ad} kilitlendi: bu makineye güncelleme kurulmaz."
+            : "{$ad} kilidi kaldırıldı.");
     }
 
     public function status(Request $request, string $parti): JsonResponse

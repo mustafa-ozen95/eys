@@ -4,20 +4,23 @@
             <x-ui.page-head title="Sistem güncellemeleri"
                             subtitle="SSH bilgisi olan Linux kayıtları. Denetim yalnızca okur; kurulum gerekçe ister, kilitli makineye hiçbir yoldan kurulum yapılmaz.">
                 <x-slot:actions>
-                    <span class="text-sm text-muted">
-                        {{ $checkText }}
-                    </span>
+                    {{-- Açıklama düğmenin altında: yan yana dururken satır hizası kayıyordu. --}}
+                    <div class="stack stack--tight">
+                        @if ($checkable > 0)
+                            {{-- Okuyan bir işlem: gerekçe istenmez. --}}
+                            <form method="POST" action="{{ route('os-updates.check') }}" data-inline
+                                  data-confirm="Yetkiniz olan {{ $checkable }} makineye bağlanılıp bekleyen güncellemeler okunacak. Hiçbir şey kurulmaz."
+                                  data-confirm-title="Şimdi denetle"
+                                  data-confirm-reasonless>
+                                @csrf
+                                <button type="submit" class="btn btn--sm">Hepsini şimdi denetle</button>
+                            </form>
+                        @endif
 
-                    @if ($checkable > 0)
-                        {{-- Okuyan bir işlem: gerekçe istenmez. --}}
-                        <form method="POST" action="{{ route('os-updates.check') }}" data-inline
-                              data-confirm="Yetkiniz olan {{ $checkable }} makineye bağlanılıp bekleyen güncellemeler okunacak. Hiçbir şey kurulmaz."
-                              data-confirm-title="Şimdi denetle"
-                              data-confirm-reasonless>
-                            @csrf
-                            <button type="submit" class="btn btn--sm">Hepsini şimdi denetle</button>
-                        </form>
-                    @endif
+                        <span class="text-sm text-muted">
+                            {{ $checkText }}
+                        </span>
+                    </div>
                 </x-slot:actions>
             </x-ui.page-head>
 

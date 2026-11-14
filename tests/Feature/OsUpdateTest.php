@@ -14,6 +14,7 @@ use App\Models\ActivityLog;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\OsUpdateState;
+use App\Models\SubGroup;
 use App\Models\User;
 use App\Services\OsUpdate\OsUpdater;
 use App\Services\OsUpdate\OsUpdateScripts;
@@ -122,6 +123,26 @@ class OsUpdateTest extends TestCase
             ->assertOk()
             ->assertSee('web-01')
             ->assertSee('Denetlenmedi');
+    }
+
+    #[Test]
+    public function ayni_adli_kayitlar_alt_grup_adiyla_ayrilir_ve_onunla_aranir(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $noc = SubGroup::factory()->for($group, 'group')->create(['name' => 'DGN_NOC']);
+        $db = SubGroup::factory()->for($group, 'group')->create(['name' => 'KAPI_DB']);
+        $this->makine($group, 'SSH', '10.0.0.1', ['alt_grup_id' => $noc->id]);
+        $this->makine($group, 'SSH', '10.0.0.2', ['alt_grup_id' => $db->id]);
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertOk()
+            ->assertSee('DGN_NOC · SSH')
+            ->assertSee('KAPI_DB · SSH');
+
+        $this->actingAs($user)->get(route('os-updates.index', ['q' => 'kapi']))
+            ->assertOk()
+            ->assertSee('KAPI_DB · SSH')
+            ->assertDontSee('DGN_NOC · SSH');
     }
 
     #[Test]

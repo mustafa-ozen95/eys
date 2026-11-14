@@ -50,7 +50,7 @@ class ApplyOsUpdateRequest extends FormRequest
         return app(OsUpdateTargets::class)
             ->kullaniciIcin($this->user())
             ->whereIn('uuid', $this->array('kayitlar'))
-            ->with(['group', 'osUpdateState'])
+            ->with(['group', 'altGrup', 'osUpdateState'])
             ->ordered()
             ->get();
     }

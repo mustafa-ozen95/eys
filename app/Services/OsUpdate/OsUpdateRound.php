@@ -66,7 +66,8 @@ class OsUpdateRound
 
         $kimlikler = $veri['kayitlar'];
         $durumlar = OsUpdateState::query()->whereIn('credential_id', $kimlikler)->get()->keyBy('credential_id');
-        $adlar = Credential::query()->whereIn('id', $kimlikler)->pluck('name', 'id');
+        $adlar = Credential::query()->with('altGrup')->whereIn('id', $kimlikler)->get()
+            ->mapWithKeys(fn (Credential $k): array => [$k->getKey() => OsUpdateTargets::ad($k)]);
 
         /* Kuyruk durmuşsa sonsuza dek "sürüyor" denmesin. */
         $zamanAsimi = now()->timestamp - $veri['baslangic']

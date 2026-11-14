@@ -37,7 +37,7 @@ class OsUpdateLauncher
             $sebep = $this->engel($kayit, $user, $gorulen);
 
             if ($sebep !== null) {
-                $sonuc['skipped'][$kayit->name] = $sebep;
+                $sonuc['skipped'][OsUpdateTargets::ad($kayit)] = $sebep;
 
                 continue;
             }

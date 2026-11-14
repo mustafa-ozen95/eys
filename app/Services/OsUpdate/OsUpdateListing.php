@@ -7,6 +7,7 @@ namespace App\Services\OsUpdate;
 use App\Models\Credential;
 use App\Models\OsUpdateState;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * "Sistem güncellemeleri" ekranının hazır verisi. Blade yalnızca çizer.
@@ -31,8 +32,8 @@ class OsUpdateListing
         $kilitler = $this->targets->kilitliMakineler();
 
         $satirlar = $this->targets->kullaniciIcin($user)
-            ->with(['group', 'osUpdateState'])
-            ->when($arama, fn ($q, string $a) => $q->where('name', 'like', '%'.addcslashes($a, '%_\\').'%'))
+            ->with(['group', 'altGrup', 'osUpdateState'])
+            ->when($arama, fn ($q, string $a) => $this->ara($q, $a))
             ->ordered()
             ->get()
             ->map(fn (Credential $kayit): array => $this->satir($kayit, $user, $kilitler));
@@ -62,6 +63,22 @@ class OsUpdateListing
     }
 
     /**
+     * Ekranda yazan adın her parçasında arar: kayıt, alt grup (makine), grup.
+     *
+     * @param  Builder<Credential>  $sorgu
+     * @return Builder<Credential>
+     */
+    private function ara(Builder $sorgu, string $arama): Builder
+    {
+        $kalip = '%'.addcslashes($arama, '%_\\').'%';
+
+        return $sorgu->where(fn (Builder $q) => $q
+            ->where('name', 'like', $kalip)
+            ->orWhereHas('altGrup', fn (Builder $a) => $a->where('name', 'like', $kalip))
+            ->orWhereHas('group', fn (Builder $g) => $g->where('name', 'like', $kalip)));
+    }
+
+    /**
      * @param  array<string, OsUpdateState>  $kilitler
      * @return array<string, mixed>
      */
@@ -77,7 +94,7 @@ class OsUpdateListing
 
         return [
             'uuid' => $kayit->uuid,
-            'name' => $kayit->name,
+            'name' => OsUpdateTargets::ad($kayit),
             'group' => $kayit->group?->name,
             'checked' => $denetlendi,
             'checkedAt' => $durum?->checked_at?->translatedFormat('d.m.Y H:i'),
@@ -92,7 +109,7 @@ class OsUpdateListing
             'packageMore' => max(0, count($durum?->packages ?? []) - 150),
             'locked' => $kilit !== null,
             'lockHere' => $kilit !== null && $kilit->credential_id === $kayit->getKey(),
-            'lockFrom' => $kilit?->credential?->name,
+            'lockFrom' => $kilit?->credential === null ? null : OsUpdateTargets::ad($kilit->credential),
             'lockReason' => $kilit?->lock_reason,
             'lockBy' => $kilit?->locker?->name,
             'lockAt' => $kilit?->locked_at?->translatedFormat('d.m.Y H:i'),

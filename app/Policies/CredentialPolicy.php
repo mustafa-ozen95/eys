@@ -169,6 +169,9 @@ class CredentialPolicy
      * Kim denetler/kurar ve kim kilitler, Kullanıcılar → Yetkiler (ve rol
      * şablonları) ekranından GRUP BAZINDA verilir: "Sistem güncellemesi kur
      * (Linux)" (os_update) ve "Güncelleme kilidini değiştir" (os_update_lock).
+     * Kurma yetkisi SUNUCUYA ÖZEL de verilebilir: kayıt düzenleme → Gelişmiş
+     * ayarlar → Rol istisnaları → Güncelleme (credential_role_grants). Kilit
+     * yalnızca grup bazındadır.
      * Yönetici her ikisini de yapar (UserPermissionResolver). Kodda ayrıca bir
      * "yalnızca yönetici" koşulu YOK: panelde verilen yetki çalışmasaydı
      * ekran yalan söylerdi.
@@ -182,9 +185,16 @@ class CredentialPolicy
             && $this->can($user, 'view', $credential);
     }
 
+    /**
+     * Güncelleme yetkisi bir yerde var mı: grupta (paneldeki yetki) ya da
+     * SUNUCUYA ÖZEL (kayıt düzenleme → Gelişmiş ayarlar → Rol istisnaları →
+     * Güncelleme). Kapıyı açar; hangi makineye kurulacağına tek tek
+     * osUpdate() karar verir.
+     */
     public function osUpdateAny(User $user): bool
     {
-        return $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
+        return $this->resolver->allowsAny($user, self::RESOURCE, 'os_update')
+            || $this->kayittaVerilmis($user, 'os_update');
     }
 
     /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. */
@@ -221,6 +231,26 @@ class CredentialPolicy
     {
         return $this->can($user, 'connect', $credential)
             && $this->can($user, 'view', $credential);
+    }
+
+    /**
+     * Rolüne bu aksiyon tek bir kayıtta verilmiş ve o kayıtta gerçekten
+     * geçerli mi? Kısıt, kişinin yasağı ve görme şartı can()'da; burada aynı
+     * karar sorulur ki sekme, işe yaramayan bir izinle açılmasın.
+     */
+    private function kayittaVerilmis(User $user, string $action): bool
+    {
+        if ($user->role_id === null || ! $user->isActive()) {
+            return false;
+        }
+
+        return Credential::query()
+            ->visibleTo($user)
+            ->whereHas('grantedRoles', fn ($r) => $r
+                ->whereKey($user->role_id)
+                ->where('credential_role_grants.action', $action))
+            ->get()
+            ->contains(fn (Credential $kayit): bool => $this->can($user, $action, $kayit));
     }
 
     private function can(User $user, string $action, Credential $credential): bool

@@ -47,6 +47,13 @@ class Form extends Component
 
     public string $portalTurleri = 'panel,web';
 
+    /*
+     * Sistem güncellemesi kurulabilen erişim türleri: SSH ve xrdp'li Linux
+     * (bkz. OsUpdateTargets). Sütunu yalnızca gösterir/gizler; asıl karar
+     * hedef sorgusunda ve politikada.
+     */
+    public string $guncellemeTurleri = 'ssh,rdp';
+
     /** Parola güncelleme koşulu. */
     public string $guncellemeKosulu;
 
@@ -90,6 +97,7 @@ class Form extends Component
         public mixed $gormeRoleUuids = [],
         public mixed $rolGorunum = [],
         public mixed $portalRoleUuids = [],
+        public mixed $guncellemeRoleUuids = [],
     ) {
         $this->restrictableRoles = $restrictableRoles ?? collect();
 
@@ -110,7 +118,8 @@ class Form extends Component
             || old('granted_roles', $grantedRoleUuids) !== []
             || old('konsol_roles', $konsolRoleUuids) !== []
             || old('gorme_roles', $gormeRoleUuids) !== []
-            || old('portal_roles', $portalRoleUuids) !== [];
+            || old('portal_roles', $portalRoleUuids) !== []
+            || old('guncelleme_roles', $guncellemeRoleUuids) !== [];
 
         $this->surucuSecimi = old('rotation_driver', $credential?->rotation_driver ?? '');
         $this->kasaSecimi = old('rotation_credential_id', $credential?->rotation_credential_id ?? '');

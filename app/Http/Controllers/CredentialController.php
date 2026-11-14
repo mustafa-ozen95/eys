@@ -51,6 +51,7 @@ class CredentialController extends Controller implements HasMiddleware
         $this->writer->syncGrants($credential, $request->konsolRoleIds(), 'connect');
         $this->writer->syncGrants($credential, $request->gormeRoleIds(), 'view');
         $this->writer->syncGrants($credential, $request->portalRoleIds(), 'session');
+        $this->writer->syncGrants($credential, $request->guncellemeRoleIds(), 'os_update');
 
         return redirect()
             ->route('credentials.index', ['kayit' => $credential->uuid])
@@ -98,6 +99,7 @@ class CredentialController extends Controller implements HasMiddleware
         $this->writer->syncGrants($credential, $request->konsolRoleIds(), 'connect');
         $this->writer->syncGrants($credential, $request->gormeRoleIds(), 'view');
         $this->writer->syncGrants($credential, $request->portalRoleIds(), 'session');
+        $this->writer->syncGrants($credential, $request->guncellemeRoleIds(), 'os_update');
 
         return redirect()
             ->route('credentials.index', ['kayit' => $credential->uuid])

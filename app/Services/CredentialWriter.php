@@ -205,6 +205,7 @@ class CredentialWriter
             'connect' => ['konsol', 'konsol açabilen'],
             'view' => ['görme', 'görebilen'],
             'session' => ['portal', 'portal açabilen'],
+            'os_update' => ['sistem güncellemesi', 'güncelleme kurabilen'],
             default => ['parola', 'parolayı görebilen'],
         };
 

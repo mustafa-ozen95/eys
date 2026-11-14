@@ -739,6 +739,7 @@
                              :gorme-role-uuids="$selected['gormeRoleUuids']"
                              :rol-gorunum="$selected['rolGorunum']"
                              :portal-role-uuids="$selected['portalRoleUuids']"
+                             :guncelleme-role-uuids="$selected['guncellemeRoleUuids']"
                              :rotation-drivers="$rotationDrivers"
                              {{--
                                  DÜZENLEME PENCERESİ KAYDIN KENDİ GRUBUNU öne

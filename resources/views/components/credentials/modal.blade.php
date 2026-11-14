@@ -20,6 +20,7 @@
     'gormeRoleUuids' => [],
     'rolGorunum' => [],
     'portalRoleUuids' => [],
+    'guncellemeRoleUuids' => [],
     'rotationDrivers' => [],
     'rotationCredentialOptions' => [],
     'makineHesabiSurucileri' => [],
@@ -63,7 +64,7 @@
         <div class="modal__body">
             <x-ui.errors class="modal__alert" />
 
-            <x-credentials.form :can-restrict="$canRestrict" :restrictable-roles="$restrictableRoles" :restricted-role-uuids="$restrictedRoleUuids" :granted-role-uuids="$grantedRoleUuids" :konsol-role-uuids="$konsolRoleUuids" :gorme-role-uuids="$gormeRoleUuids" :rol-gorunum="$rolGorunum" :portal-role-uuids="$portalRoleUuids" :credential="$credential"
+            <x-credentials.form :can-restrict="$canRestrict" :restrictable-roles="$restrictableRoles" :restricted-role-uuids="$restrictedRoleUuids" :granted-role-uuids="$grantedRoleUuids" :konsol-role-uuids="$konsolRoleUuids" :gorme-role-uuids="$gormeRoleUuids" :rol-gorunum="$rolGorunum" :portal-role-uuids="$portalRoleUuids" :guncelleme-role-uuids="$guncellemeRoleUuids" :credential="$credential"
                                 :group-options="$groupOptions"
                                 :alt-grup-options="$altGrupOptions"
                                 :alt-grup-haritasi="$altGrupHaritasi"

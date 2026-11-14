@@ -432,9 +432,14 @@ class Credential extends Model
      *   session         Portal oturumu açar: parolayı göstermeden web
      *                   arayüzüne girer. Kaydı görmeyi şart koşar.
      *
+     *   os_update       Sistem güncellemesini denetler ve kurar (Linux).
+     *                   Sunucuya özel güncelleme yetkisi: rol gruptaki
+     *                   yalnızca bu makineye kurabilsin. Kaydı görmeyi şart
+     *                   koşar; kilit ayrıca uygulanır (yetki kilidi aşmaz).
+     *
      * @var list<string>
      */
-    public const VERILEBILEN_AKSIYONLAR = ['field.password', 'connect', 'view', 'session'];
+    public const VERILEBILEN_AKSIYONLAR = ['field.password', 'connect', 'view', 'session', 'os_update'];
 
     /**
      * Kayıt bazlı 'view' izninin açtığı yetenekler: kaydın kendisi ve

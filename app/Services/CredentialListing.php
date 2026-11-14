@@ -637,6 +637,11 @@ class CredentialListing
                 ? $credential->grantedRoles()->wherePivot('action', 'session')->pluck('uuid')->all()
                 : [],
 
+            /* Bu makineye hangi roller ayrıca SİSTEM GÜNCELLEMESİ kurabiliyor. */
+            'guncellemeRoleUuids' => $user->isAdmin()
+                ? $credential->grantedRoles()->wherePivot('action', 'os_update')->pluck('uuid')->all()
+                : [],
+
             /*
              * Yazılı onayda ne yazılacağı.
              *

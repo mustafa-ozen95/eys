@@ -171,3 +171,26 @@ test('pencereden guncellenen kayit listede degisir', async ({ page }) => {
     await expect(page.locator('#record-edit')).toBeHidden();
     await expect(page.locator('.detail')).toContainText('Ubuntu 24');
 });
+
+test('rol istisnalarinda guncelleme sutunu linux sshta gorunur, pencere tasmaz', async ({ page }) => {
+    await girisYap(page);
+    await page.goto('/access?grup=hepsi');
+
+    await page.locator('.grid-row', { hasText: 'srv-a SSH' }).filter({ hasNotText: 'Yedek' }).first().click();
+    await page.getByRole('link', { name: 'Düzenle' }).click();
+
+    const pencere = page.locator('#record-edit');
+    await expect(pencere).toBeVisible();
+    await pencere.locator('.record-form__advanced > summary').click();
+
+    const tablo = pencere.locator('.role-exception');
+    await expect(tablo.getByRole('columnheader', { name: 'Güncelleme' })).toBeVisible();
+    await expect(tablo.locator('input[name="guncelleme_roles[]"]').first()).toBeVisible();
+
+    /* SSH kaydında portal sütunu yok: sütunlar erişim türüne göre. */
+    await expect(tablo.getByRole('columnheader', { name: 'Portal' })).toBeHidden();
+
+    /* Tablo pencereden taşmıyor (telefon dahil). */
+    const tasma = await tablo.evaluate((t) => t.scrollWidth - t.parentElement.clientWidth);
+    expect(tasma).toBeLessThanOrEqual(0);
+});

@@ -111,6 +111,8 @@ abstract class CredentialRequest extends FormRequest
             'gorme_roles.*' => ['string', 'uuid'],
             'portal_roles' => ['sometimes', 'array'],
             'portal_roles.*' => ['string', 'uuid'],
+            'guncelleme_roles' => ['sometimes', 'array'],
+            'guncelleme_roles.*' => ['string', 'uuid'],
 
             /*
              * Rol kutuları formda VAR mı? Tarayıcı işaretsiz kutuyu hiç
@@ -402,6 +404,17 @@ abstract class CredentialRequest extends FormRequest
     public function portalRoleIds(): ?array
     {
         return $this->rolKimlikleri('portal_roles');
+    }
+
+    /**
+     * Bu makineye SİSTEM GÜNCELLEMESİ kurabilecek (ve denetleyebilecek) ek
+     * roller: grubun vermediği güncelleme yetkisini tek bir sunucuda verir.
+     *
+     * @return array<int, int>|null
+     */
+    public function guncellemeRoleIds(): ?array
+    {
+        return $this->rolKimlikleri('guncelleme_roles');
     }
 
     /**

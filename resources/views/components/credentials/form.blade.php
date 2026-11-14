@@ -324,7 +324,7 @@
                 ROL BAŞINA TEK SATIR. "Göremeyecek" ve "görebilecek" iki ayrı kutu
                 listesiyken aynı rol ikisinde birden işaretlenebiliyordu.
                 Görünürlük tek seçim; ek izinler yanında.
-                Konsol ve portal sütunları kaydın erişim türüne göre görünür.
+                Konsol, portal ve güncelleme sütunları kaydın erişim türüne göre görünür.
             --}}
             <div class="field">
                 <span class="field__label">Rol istisnaları</span>
@@ -336,6 +336,7 @@
                             <th scope="col">Parola</th>
                             <th scope="col" data-show="access_type:{{ $konsolTurleri }}">Konsol</th>
                             <th scope="col" data-show="access_type:{{ $portalTurleri }}">Portal</th>
+                            <th scope="col" data-show="access_type:{{ $guncellemeTurleri }}">Güncelleme</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -365,6 +366,11 @@
                                            aria-label="{{ $rol->label }} portal açar"
                                            @checked(in_array($rol->uuid, old('portal_roles', $portalRoleUuids), true))>
                                 </td>
+                                <td data-show="access_type:{{ $guncellemeTurleri }}">
+                                    <input type="checkbox" name="guncelleme_roles[]" value="{{ $rol->uuid }}"
+                                           aria-label="{{ $rol->label }} sistem güncellemesi kurar"
+                                           @checked(in_array($rol->uuid, old('guncelleme_roles', $guncellemeRoleUuids), true))>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -372,7 +378,8 @@
                 <span class="field__hint">
                     <strong>Gruba göre</strong>: grubun yetkisi geçerli. <strong>Gizli</strong>: grubu görse de bu kaydı görmez.
                     <strong>Görür</strong>: grubu göremese de bu kaydı görür (adres, port, bağlantı, not).
-                    Parola, konsol ve portal ek izinlerdir; parolayı göstermeden bağlanmak konsol ve portalla olur.
+                    Parola, konsol, portal ve güncelleme ek izinlerdir; parolayı göstermeden bağlanmak konsol ve portalla olur.
+                    <strong>Güncelleme</strong>: bu makineye sistem güncellemesi denetler ve kurar (kilit yine geçerli).
                 </span>
             </div>
     </div>

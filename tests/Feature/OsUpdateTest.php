@@ -349,6 +349,112 @@ class OsUpdateTest extends TestCase
         $this->actingAs($kuran)->get(route('os-updates.index'))->assertOk()->assertSee('web-02');
     }
 
+    /** @return array{0: User, 1: Role, 2: Credential, 3: Credential} */
+    private function sunucuyaOzelSahne(): array
+    {
+        $group = CredentialGroup::factory()->create(['name' => 'Sunucular']);
+        $rol = Role::create([
+            'slug' => 'operator',
+            'label' => 'Operatör',
+            'badge' => 'gray',
+            'is_admin' => false,
+            /* Grupta yalnızca GÖRME var; güncelleme yetkisi grupta YOK. */
+            'template' => ['credential_group' => ['all' => [], 'groups' => ['Sunucular' => ['view']]]],
+        ]);
+        $user = User::factory()->create(['role_id' => $rol->getKey()]);
+
+        return [$user, $rol, $this->makine($group, 'web-a', '10.0.2.1'), $this->makine($group, 'web-b', '10.0.2.2')];
+    }
+
+    /**
+     * SUNUCUYA ÖZEL YETKİ: rol grupta güncelleme kuramıyor ama tek bir
+     * makinede kurabiliyor. Sekme açılır, yalnızca o makine kurulur;
+     * gruptaki öteki makine ve kilit kapalı kalır.
+     */
+    #[Test]
+    public function sunucuya_ozel_guncelleme_yetkisi_yalnizca_o_makineye_kurar(): void
+    {
+        Queue::fake();
+        [$user, $rol, $izinli, $oteki] = $this->sunucuyaOzelSahne();
+
+        /* İzin yokken sekme ve ekran kapalı. */
+        $this->actingAs($user)->get(route('credentials.index'))->assertDontSee(route('os-updates.index'));
+        $this->actingAs($user)->get(route('os-updates.index'))->assertForbidden();
+
+        $izinli->grantedRoles()->attach($rol, ['action' => 'os_update']);
+        $user = $user->fresh();
+
+        $this->assertTrue($user->can('osUpdate', $izinli));
+        $this->assertFalse($user->can('osUpdate', $oteki));
+        $this->assertFalse($user->can('osUpdateLock', $izinli), 'Sunucuya özel izin kilit yetkisi vermez.');
+
+        $this->actingAs($user)->get(route('credentials.index'))->assertSee(route('os-updates.index'));
+        $html = $this->actingAs($user)->get(route('os-updates.index', ['grup' => 'hepsi']))
+            ->assertOk()->assertSee('web-a')->assertSee('web-b')->getContent();
+        $this->assertSame(1, substr_count($html, 'data-bulk-item'), 'Yalnızca izinli makine seçilebilir.');
+
+        $this->actingAs($user)
+            ->post(route('os-updates.apply'), ['kayitlar' => [$izinli->uuid, $oteki->uuid], 'mod' => 'tumu', 'reason' => 'Yama'])
+            ->assertSessionHas('status', fn (string $m): bool => str_contains($m, '1 makineye') && str_contains($m, 'web-b (yetki yok)'));
+
+        Queue::assertPushed(ApplyOsUpdatesJob::class, 1);
+        Queue::assertPushed(ApplyOsUpdatesJob::class, fn (ApplyOsUpdatesJob $j): bool => $j->uniqueId() === 'kurulum:10.0.2.1:22');
+
+        $this->actingAs($user)
+            ->post(route('os-updates.lock', $izinli), ['kilit' => 1, 'reason' => 'Deneme'])
+            ->assertForbidden();
+    }
+
+    /** Kayıt kısıtı izni yener: rol bu kayda kapalıysa sunucuya özel izin de geçmez, sekme açılmaz. */
+    #[Test]
+    public function kayit_kisiti_sunucuya_ozel_guncelleme_iznini_yener(): void
+    {
+        [$user, $rol, $izinli] = $this->sunucuyaOzelSahne();
+        $izinli->grantedRoles()->attach($rol, ['action' => 'os_update']);
+        $izinli->restrictedRoles()->attach($rol);
+        $user = $user->fresh();
+
+        $this->assertFalse($user->can('osUpdate', $izinli));
+        $this->assertFalse($user->can('osUpdatePage', Credential::class));
+    }
+
+    /** Sunucuya özel izni kayıt formundan YALNIZCA yönetici yazar; boş gönderim kaldırır. */
+    #[Test]
+    public function sunucuya_ozel_guncelleme_izni_formdan_yalnizca_yonetici_yazar(): void
+    {
+        [$user, $rol, $izinli] = $this->sunucuyaOzelSahne();
+        $alanlar = [
+            'group' => $izinli->group->uuid,
+            'name' => $izinli->name,
+            'access_type' => $izinli->access_type->value,
+            'operating_system' => $izinli->operating_system->value,
+            'host' => $izinli->host,
+            'rol_kutulari' => '1',
+        ];
+
+        /* Yönetici olmayan (düzenleme yetkili) gönderirse alan okunmaz. */
+        $duzenleyen = User::factory()->create();
+        $this->yetkilendir($duzenleyen, $izinli->group, ['view', 'update']);
+        $this->actingAs($duzenleyen)
+            ->put(route('credentials.update', $izinli), [...$alanlar, 'guncelleme_roles' => [$rol->uuid]]);
+        $this->assertFalse($user->fresh()->can('osUpdate', $izinli->fresh()));
+
+        $yonetici = $this->yonetici();
+        $this->actingAs($yonetici)
+            ->put(route('credentials.update', $izinli), [...$alanlar, 'guncelleme_roles' => [$rol->uuid]])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue($user->fresh()->can('osUpdate', $izinli->fresh()));
+
+        /* Düzenleme formu kutuyu işaretli getirir. */
+        $this->actingAs($yonetici)->get(route('credentials.index', ['kayit' => $izinli->uuid]))
+            ->assertOk()
+            ->assertSee('name="guncelleme_roles[]" value="'.$rol->uuid.'"', false);
+
+        /* Tik kaldırılınca (alan gelmez, yalnızca formun işareti) izin kalkar. */
+        $this->actingAs($yonetici)->put(route('credentials.update', $izinli), $alanlar)->assertSessionHasNoErrors();
+        $this->assertFalse($user->fresh()->can('osUpdate', $izinli->fresh()));
+    }
+
     /** Yalnızca kilit yetkisi: ekran açılır ama toplu araçlar ve seçim kutuları çizilmez. */
     #[Test]
     public function yalnizca_kilit_yetkisinde_toplu_araclar_cizilmez(): void

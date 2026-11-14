@@ -125,6 +125,12 @@ test('gecisten sonra onay penceresi acilir', async ({ page }) => {
     await page.getByRole('link', { name: /^Hepsi/ }).click();
     await expect(page).toHaveURL(/grup=hepsi/);
 
+    /* Dar ekranda toplu araçlar "Toplu işlemler" düğmesinin arkasında katlı. */
+    const toplu = page.locator('.bulk-tools__button');
+    if (await toplu.isVisible()) {
+        await toplu.click();
+    }
+
     await page.locator('[data-bulk-item]').first().check();
     await page.click('[data-bulk-submit]');
 
@@ -137,8 +143,12 @@ test('gecisten sonra onay penceresi acilir', async ({ page }) => {
 test('gecisten sonra kayit penceresi acilir', async ({ page }) => {
     await girisYap(page);
 
-    await page.getByRole('link', { name: /^Hepsi/ }).click();
-    await expect(page).toHaveURL(/grup=hepsi/);
+    /*
+     * "Yeni kayıt" yalnızca bir grubun içinde çıkar ("Hepsi"de nereye
+     * ekleneceği belli değil; bkz. CredentialListing · eklenebilir).
+     */
+    await page.locator('.column').first().locator('.row-item', { hasText: 'Grup A' }).click();
+    await expect(page).toHaveURL(/grup=/);
 
     await isaretBirak(page);
     await page.getByRole('link', { name: 'Yeni kayıt' }).click();

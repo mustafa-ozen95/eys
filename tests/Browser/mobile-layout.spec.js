@@ -59,6 +59,12 @@ test('şeritteki sayaç tek satırda kalır', async ({ page }) => {
     await girisYap(page);
     await page.goto('/access');
 
+    /* Dar ekranda toplu araçlar "Toplu işlemler" düğmesinin arkasında katlı. */
+    const toplu = page.locator('.bulk-tools__button');
+    if (await toplu.isVisible()) {
+        await toplu.click();
+    }
+
     const sayac = page.locator('.bulk__all');
     await expect(sayac).toBeVisible();
 
@@ -96,7 +102,12 @@ test('satır eylemleri sağa yaslanır', async ({ page }) => {
     await girisYap(page);
     await page.goto('/panel/groups');
 
-    const satir = page.locator('.table tbody tr').first();
+    /*
+     * Alt grup tabloları katlanır bölümlerin içinde ve kapalı gelir: eylemi
+     * olan ilk satırın bölümü açılır.
+     */
+    const satir = page.locator('.table tbody tr', { has: page.locator('.table__row-actions') }).first();
+    await page.locator('details.collapsible', { has: satir }).locator('summary').click();
     const eylemler = satir.locator('.table__row-actions');
 
     await expect(eylemler).toBeVisible();

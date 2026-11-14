@@ -11,6 +11,7 @@ use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\OsUpdateState;
 use App\Models\Role;
+use App\Models\SubGroup;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -56,6 +57,13 @@ class VisualTestSeeder extends Seeder
         $grupB = CredentialGroup::firstOrCreate(['name' => 'Grup B'], ['position' => 90]);
 
         /*
+         * Gruplar ekranındaki alt grup tablosunun satır eylemleri
+         * (mobile-layout.spec.js · "satır eylemleri sağa yaslanır"): alt
+         * grup olmadan tabloda eylemli satır olmaz. Kayıt atanmaz.
+         */
+        SubGroup::firstOrCreate(['credential_group_id' => $grupA->id, 'name' => 'Alt A'], ['position' => 1]);
+
+        /*
          * Parola gösterme senaryosunun aradığı kayıt.
          *
          * Parolası OLMAK ZORUNDA: parolasız bir kayda denk geldiğinde test
@@ -86,7 +94,9 @@ class VisualTestSeeder extends Seeder
 
         /*
          * Portal senaryosunun aradığı kayıt: giriş adresi girilmeden de
-         * oturum açabilen bir iLO.
+         * oturum açabilen bir iLO. KRİTİK: portal açılışında onay penceresi
+         * yalnızca kritik kayıtta çıkar (ReasonRule) ve senaryo "sekme
+         * onaydan önce açılmaz" kuralını sınıyor.
          */
         $this->kayit($grupA, 'iLO Deneme', [
             'access_type' => AccessType::Ilo,
@@ -95,6 +105,7 @@ class VisualTestSeeder extends Seeder
             'username' => 'Administrator',
             'password' => 'gorsel-ilo-1',
             'position' => 3,
+            'is_critical' => true,
         ]);
 
         /*

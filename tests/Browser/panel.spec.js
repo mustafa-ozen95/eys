@@ -36,6 +36,12 @@ async function girisYap(page) {
 }
 
 test('giris ekrani cizilir ve tema token\'lari uygulanir', async ({ page }) => {
+    /*
+     * Seçim yokken tema tarayıcının tercihini izler (theme.js); kayıtlı
+     * görüntü koyu temada alındı. Tercih sabitlenmezse görüntü makinenin
+     * ayarına göre değişir.
+     */
+    await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/login');
 
     await expect(page.locator('.gate__mark')).toHaveText('EYS');
@@ -106,11 +112,19 @@ test('parola once gizli, gostere basinca aciliyor', async ({ page }) => {
 test('tema degistirilebilir', async ({ page }) => {
     await girisYap(page);
 
-    await page.click('[data-theme-toggle]');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    /*
+     * Başlangıç sabit değil: seçim yoksa tarayıcının tercihi izlenir
+     * (theme.js). Düğme o anki temanın TERSİNE geçirir, ikinci tık geri alır.
+     */
+    const html = page.locator('html');
+    const ilk = await html.getAttribute('data-theme');
+    const ters = ilk === 'dark' ? 'light' : 'dark';
 
     await page.click('[data-theme-toggle]');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(html).toHaveAttribute('data-theme', ters);
+
+    await page.click('[data-theme-toggle]');
+    await expect(html).toHaveAttribute('data-theme', ilk);
 });
 
 test('sayfa yatay kaymaz', async ({ page }) => {
@@ -163,6 +177,9 @@ test('alttaki kayit secilince liste en uste kaymaz', async ({ page }) => {
  *
  * Fırlatma sekmesi onay penceresinden önce açılırsa kullanıcı düğmeye
  * basar basmaz boş bir sekme açılır ve vazgeçse bile ortada kalır.
+ *
+ * Onay yalnızca kritik kayıtta sorulur (ReasonRule); "iLO Deneme" örnek
+ * veride bu yüzden kritik (VisualTestSeeder).
  */
 test('portal sekmesi onay verilmeden acilmaz', async ({ page, context }) => {
     await girisYap(page);

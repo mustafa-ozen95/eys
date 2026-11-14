@@ -62,7 +62,7 @@
 
                 <span class="spacer"></span>
 
-                {{-- İşlem yetkisi yoksa (şimdilik yönetici dışındakiler) toplu araçlar hiç çizilmez. --}}
+                {{-- Kurma/denetleme yetkisi yoksa (ör. yalnızca kilit yetkisi) toplu araçlar hiç çizilmez. --}}
                 @if ($canAct)
                 <input type="checkbox" id="bulk-tools-toggle" class="bulk-tools__box" hidden>
                 <label for="bulk-tools-toggle" class="btn btn--sm bulk-tools__button">Toplu işlemler</label>

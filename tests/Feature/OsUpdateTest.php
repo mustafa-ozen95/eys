@@ -103,16 +103,10 @@ class OsUpdateTest extends TestCase
         ]);
     }
 
-    /**
-     * İşlem yapabilen kullanıcı: şimdilik yalnızca yönetici (CredentialPolicy ·
-     * osUpdate). Grup yetkileri yine verilir: kural role açılırsa testler
-     * aynı kalsın.
-     *
-     * @return array{0: User, 1: CredentialGroup}
-     */
+    /** @return array{0: User, 1: CredentialGroup} */
     private function kurucu(array $ekYetki = []): array
     {
-        $user = $this->yonetici();
+        $user = User::factory()->create();
         $group = CredentialGroup::factory()->create();
         $this->yetkilendir($user, $group, ['view', 'os_update', ...$ekYetki]);
 
@@ -123,7 +117,7 @@ class OsUpdateTest extends TestCase
     #[Test]
     public function satirlar_grup_grup_ayrilir_grup_sirasiyla(): void
     {
-        $user = $this->yonetici();
+        $user = User::factory()->create();
         $ikinci = CredentialGroup::factory()->create(['name' => 'Teknik PCler', 'position' => 2]);
         $birinci = CredentialGroup::factory()->create(['name' => 'Sunucular', 'position' => 1]);
         $this->yetkilendir($user, $ikinci, ['view', 'os_update']);
@@ -148,10 +142,14 @@ class OsUpdateTest extends TestCase
     #[Test]
     public function grup_surukleme_yalnizca_siralayabilene(): void
     {
-        $group = CredentialGroup::factory()->create();
+        [$user, $group] = $this->kurucu();
         $this->makine($group, 'srv-kutu', '10.0.9.9');
 
-        /* Ekran şimdilik yalnızca yöneticide; yönetici grupları sıralayabilir. */
+        $html = $this->actingAs($user)->get(route('os-updates.index'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('data-order="'.route('groups.reorder').'"', $html, 'yetkisiz sürükleyemez');
+        $this->assertStringNotContainsString('data-order-id', $html);
+
         $html = $this->actingAs($this->yonetici())->get(route('os-updates.index'))->assertOk()->getContent();
 
         $this->assertStringContainsString('data-order="'.route('groups.reorder').'"', $html);
@@ -182,18 +180,14 @@ class OsUpdateTest extends TestCase
             ->assertDontSee('Başka makinenin kurulumu')
             ->assertSee('aria-selected="true"', false);
 
-        /* Yönetici olmayan, grubu görse de kartı ve geçmişi açamaz: ekran kapalı. */
-        $this->actingAs($this->izleyici($group))->get(route('os-updates.index', ['kayit' => $makine->uuid]))
-            ->assertForbidden();
-    }
+        /* Yetkisi olmadığı grubun makinesi: kart açılmaz, adı sızmaz. */
+        $yabanciGrup = CredentialGroup::factory()->create();
+        $yabanci = $this->makine($yabanciGrup, 'srv-yabanci', '10.0.9.12');
 
-    /** Grubu yalnızca GÖREN, yönetici olmayan kullanıcı. */
-    private function izleyici(CredentialGroup $group, array $ekYetki = []): User
-    {
-        $user = User::factory()->create();
-        $this->yetkilendir($user, $group, ['view', ...$ekYetki]);
-
-        return $user;
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $yabanci->uuid]))
+            ->assertOk()
+            ->assertDontSee('srv-yabanci')
+            ->assertDontSee('Güncelleme geçmişi');
     }
 
     private function yonetici(): User
@@ -302,22 +296,13 @@ class OsUpdateTest extends TestCase
     }
 
     #[Test]
-    public function ekran_simdilik_yalnizca_yoneticiye_acik(): void
+    public function ekran_yetkisiz_kullaniciya_kapali_yetkiliye_acik(): void
     {
+        $yabanci = User::factory()->create();
+        $this->actingAs($yabanci)->get(route('os-updates.index'))->assertForbidden();
+
         [$user, $group] = $this->kurucu();
         $this->makine($group, 'web-01', '10.0.0.5');
-
-        /* Hiçbir grubu göremeyen de, grubu görüp güncelleme yetkisi olan da açamaz. */
-        $this->actingAs(User::factory()->create())->get(route('os-updates.index'))->assertForbidden();
-        $this->actingAs($this->izleyici($group, ['os_update', 'os_update_lock']))
-            ->get(route('os-updates.index'))
-            ->assertForbidden();
-
-        /* Üst menüde sekme de yok. */
-        $this->actingAs($this->izleyici($group, ['os_update']))->get(route('credentials.index'))
-            ->assertOk()
-            ->assertDontSee(route('os-updates.index'));
-        $this->actingAs($user)->get(route('credentials.index'))->assertSee(route('os-updates.index'));
 
         $this->actingAs($user)->get(route('os-updates.index'))
             ->assertOk()
@@ -326,31 +311,64 @@ class OsUpdateTest extends TestCase
     }
 
     /**
-     * ŞİMDİLİK YALNIZCA YÖNETİCİ İŞLEM YAPAR.
-     *
-     * Grupta os_update ve os_update_lock yetkisi olsa bile yönetici olmayan
-     * kullanıcı denetleyemez, kuramaz, kilitleyemez: ekranın düğmeleri
-     * görünmese de istek doğrudan gönderilebilir.
+     * YETKİ PANELDEN: grubu yalnızca GÖREN kullanıcı (güncelleme yetkisi
+     * verilmemiş) sekmeyi görmez, ekranı açamaz, hiçbir işlem yapamaz.
+     * Panelde "Sistem güncellemesi kur" verilince sekme ve ekran açılır.
      */
     #[Test]
-    public function yonetici_olmayan_islem_yapamaz(): void
+    public function guncelleme_yetkisi_panelden_verilmeyen_sekmeyi_gormez_islem_yapamaz(): void
     {
         Queue::fake();
         $group = CredentialGroup::factory()->create();
         $kayit = $this->makine($group, 'web-02', '10.0.0.6');
-        $user = $this->izleyici($group, ['os_update', 'os_update_lock']);
 
-        $this->actingAs($user)->post(route('os-updates.check'))->assertForbidden();
-        $this->actingAs($user)->post(route('os-updates.check'), ['kayitlar' => [$kayit->uuid], 'secilen' => 1])->assertForbidden();
-        $this->actingAs($user)
+        $gorur = User::factory()->create();
+        $this->yetkilendir($gorur, $group, ['view']);
+
+        $this->actingAs($gorur)->get(route('credentials.index'))
+            ->assertOk()
+            ->assertDontSee(route('os-updates.index'));
+        $this->actingAs($gorur)->get(route('os-updates.index'))->assertForbidden();
+
+        $this->actingAs($gorur)->post(route('os-updates.check'))->assertForbidden();
+        $this->actingAs($gorur)
             ->post(route('os-updates.apply'), ['kayitlar' => [$kayit->uuid], 'mod' => 'tumu', 'reason' => 'Deneme'])
             ->assertForbidden();
-        $this->actingAs($user)
+        $this->actingAs($gorur)
             ->post(route('os-updates.lock', $kayit), ['kilit' => 1, 'reason' => 'Deneme'])
             ->assertForbidden();
 
         Queue::assertNothingPushed();
-        $this->assertNull($kayit->osUpdateState()->first()?->locked_at);
+        $this->assertNull($kayit->osUpdateState()->first());
+
+        /* Panelde yetki verilen kullanıcıda sekme görünür, ekran açılır. */
+        $kuran = User::factory()->create();
+        $this->yetkilendir($kuran, $group, ['view', 'os_update']);
+
+        $this->actingAs($kuran)->get(route('credentials.index'))->assertSee(route('os-updates.index'));
+        $this->actingAs($kuran)->get(route('os-updates.index'))->assertOk()->assertSee('web-02');
+    }
+
+    /** Yalnızca kilit yetkisi: ekran açılır ama toplu araçlar ve seçim kutuları çizilmez. */
+    #[Test]
+    public function yalnizca_kilit_yetkisinde_toplu_araclar_cizilmez(): void
+    {
+        $group = CredentialGroup::factory()->create();
+        $kayit = $this->makine($group, 'web-03', '10.0.0.7');
+        $kilitci = User::factory()->create();
+        $this->yetkilendir($kilitci, $group, ['view', 'os_update_lock']);
+
+        $html = $this->actingAs($kilitci)->get(route('os-updates.index', ['kayit' => $kayit->uuid]))
+            ->assertOk()
+            ->assertSee('web-03')
+            ->getContent();
+
+        $this->assertStringNotContainsString('Toplu işlemler', $html);
+        $this->assertStringNotContainsString('data-bulk-item', $html);
+        $this->assertStringNotContainsString(route('os-updates.check'), $html);
+
+        /* Kilit düğmesi kartta durur. */
+        $this->assertStringContainsString(route('os-updates.lock', $kayit), $html);
     }
 
     #[Test]
@@ -447,17 +465,9 @@ class OsUpdateTest extends TestCase
         $this->yetkilendir($user, $digerGrup, ['view']);
         $yabanci = $this->makine($digerGrup, 'Baska', '10.0.1.1');
 
-        /*
-         * Yönetici her grubu görür; kapsam sınırı yönetici olmayan
-         * kullanıcıda anlamlı. Şimdilik o kullanıcı hiç kuramaz (403); işlem
-         * gruba açıldığında da başka grubun makinesi kurulmamalı.
-         */
-        $kisitli = $this->izleyici($group, ['os_update']);
-        $this->yetkilendir($kisitli, $digerGrup, ['view']);
-
-        $this->actingAs($kisitli)
+        $this->actingAs($user)
             ->post(route('os-updates.apply'), ['kayitlar' => [$yabanci->uuid], 'mod' => 'tumu', 'reason' => 'Deneme'])
-            ->assertForbidden();
+            ->assertSessionHas('error');
 
         Queue::assertNothingPushed();
     }
@@ -466,9 +476,7 @@ class OsUpdateTest extends TestCase
     public function kurma_yetkisi_kilidi_kaldiramaz_kilit_yetkisi_kurulum_yapamaz(): void
     {
         Queue::fake();
-        /* Yönetici her ikisini de yapar; ayrım yönetici olmayanda (şimdilik ikisi de kapalı). */
-        $group = CredentialGroup::factory()->create();
-        $kurucu = $this->izleyici($group, ['os_update']);
+        [$kurucu, $group] = $this->kurucu();
         $kayit = $this->makine($group, 'DB', '10.0.0.30');
         OsUpdateState::create(['credential_id' => $kayit->id, 'locked' => true, 'lock_reason' => 'Kritik']);
 
@@ -485,13 +493,15 @@ class OsUpdateTest extends TestCase
             ->post(route('os-updates.apply'), ['kayitlar' => [$kayit->uuid], 'mod' => 'tumu', 'reason' => 'Deneme'])
             ->assertForbidden();
 
-        $this->actingAs($kilitci)->get(route('os-updates.index'))->assertForbidden();
+        $this->actingAs($kilitci)->get(route('os-updates.index'))->assertOk();
     }
 
     #[Test]
     public function kilit_gerekceyle_konur_ve_islem_kaydina_yazilir(): void
     {
-        [$user, $group] = $this->kurucu(['os_update_lock']);
+        $user = User::factory()->create();
+        $group = CredentialGroup::factory()->create();
+        $this->yetkilendir($user, $group, ['view', 'os_update_lock']);
         $kayit = $this->makine($group, 'DB', '10.0.0.40');
 
         $this->actingAs($user)->post(route('os-updates.lock', $kayit), ['kilit' => 1])->assertSessionHasErrors('reason');

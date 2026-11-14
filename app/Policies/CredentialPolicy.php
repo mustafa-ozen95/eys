@@ -164,50 +164,45 @@ class CredentialPolicy
     }
 
     /**
-     * SİSTEM GÜNCELLEMELERİ — ŞİMDİLİK YALNIZCA YÖNETİCİ İŞLEM YAPAR.
+     * SİSTEM GÜNCELLEMELERİ — YETKİ PANELDEN.
      *
-     * Denetim, kurulum ve kilit yalnızca yöneticiye açık; diğer kullanıcılar
-     * ekranı görür (yalnızca görebildikleri makineler), hiçbir işlem
-     * yapamaz. Rol yetkileri (os_update, os_update_lock) yerinde duruyor:
-     * işlem ileride role açılacaksa yalnızca `isAdmin()` koşulu kalkar.
+     * Kim denetler/kurar ve kim kilitler, Kullanıcılar → Yetkiler (ve rol
+     * şablonları) ekranından GRUP BAZINDA verilir: "Sistem güncellemesi kur
+     * (Linux)" (os_update) ve "Güncelleme kilidini değiştir" (os_update_lock).
+     * Yönetici her ikisini de yapar (UserPermissionResolver). Kodda ayrıca bir
+     * "yalnızca yönetici" koşulu YOK: panelde verilen yetki çalışmasaydı
+     * ekran yalan söylerdi.
      *
      * Cihazı değiştirir: "Düzenle" kapsamaz. Kilit ayrıca uygulanır
      * (OsUpdateTargets::kilit) — yetki kilidi aşmaz.
      */
     public function osUpdate(User $user, Credential $credential): bool
     {
-        return $user->isAdmin()
-            && $this->can($user, 'os_update', $credential)
+        return $this->can($user, 'os_update', $credential)
             && $this->can($user, 'view', $credential);
     }
 
     public function osUpdateAny(User $user): bool
     {
-        return $user->isAdmin()
-            && $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
+        return $this->resolver->allowsAny($user, self::RESOURCE, 'os_update');
     }
 
-    /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. Şimdilik yalnızca yönetici. */
+    /** Güncelleme kilidini açıp kapatmak; kurulum yetkisinden ayrı. */
     public function osUpdateLock(User $user, Credential $credential): bool
     {
-        return $user->isAdmin()
-            && $this->can($user, 'os_update_lock', $credential)
+        return $this->can($user, 'os_update_lock', $credential)
             && $this->can($user, 'view', $credential);
     }
 
     /**
-     * "Sistem güncellemeleri" ekranı ve üst menüdeki sekmesi: ŞİMDİLİK
-     * YALNIZCA YÖNETİCİ görür.
-     *
-     * Ekran yalnızca görme yetkisine hazır: liste kullanıcının görebildiği
-     * makinelerle sınırlı (visibleTo), işlem düğmeleri yukarıdaki yetkilere
-     * bağlı ve yetkisizde hiç çizilmez. Ekran başkalarına açılacaksa
-     * `isAdmin()` koşulu kalkar; hiçbir grubu göremeyene yine açılmaz.
+     * "Sistem güncellemeleri" ekranı ve üst menüdeki sekmesi: iki yetkiden
+     * biri yeter. Hiçbiri yoksa sekme de görünmez. Yalnızca kilit yetkisi
+     * olan ekranı görür ama toplu araçlar çizilmez (canAct).
      */
     public function osUpdatePage(User $user): bool
     {
-        return $user->isAdmin()
-            && $this->resolver->allowsAny($user, self::RESOURCE, 'view');
+        return $this->osUpdateAny($user)
+            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_update_lock');
     }
 
     /**

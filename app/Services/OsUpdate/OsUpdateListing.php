@@ -64,7 +64,7 @@ class OsUpdateListing
             'sections' => $bolumler,
             'rows' => $liste,
             'canOrder' => $sirala,
-            /* Toplu araçlar ve seçim kutuları: işlem yetkisi yoksa hiç çizilmez (şimdilik yalnızca yönetici). */
+            /* Toplu araçlar ve seçim kutuları: kurma/denetleme yetkisi yoksa hiç çizilmez (yalnızca kilit yetkisi olan). */
             'canAct' => $user->can('osUpdateAny', Credential::class),
             'selectable' => $liste->where('selectable', true)->count(),
             'checkable' => $satirlar->where('canApply', true)->count(),

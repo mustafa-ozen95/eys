@@ -2,7 +2,7 @@
     <div class="page">
         <div class="page__inner page__inner--wide">
             <x-ui.page-head title="Sistem güncellemeleri"
-                            subtitle="SSH bilgisi olan Linux kayıtları. Denetim yalnızca okur; kurulum gerekçe ister, kilitli makineye hiçbir yoldan kurulum yapılmaz.">
+                            subtitle="SSH bilgisi olan Linux kayıtları (işletim sistemi belirtilmemiş SSH kayıtları dahil). Denetim yalnızca okur; kurulum gerekçe ister, kilitli makineye hiçbir yoldan kurulum yapılmaz.">
                 <x-slot:actions>
                     {{-- Açıklama düğmenin altında: yan yana dururken satır hizası kayıyordu. --}}
                     <div class="stack stack--tight">
@@ -26,9 +26,10 @@
 
             <x-ui.flash />
 
-            @if ($round)
+            {{-- Kurulum ve denetim ayrı kartlar; ikisi aynı anda sürebilir. --}}
+            @foreach ($rounds as $round)
                 @include('credentials.partials.bulk-progress', ['tur' => $round])
-            @endif
+            @endforeach
 
             <div class="figures">
                 <div class="figure">
@@ -86,7 +87,7 @@
             <x-ui.panel flush>
                 @if ($rows->isEmpty())
                     <x-ui.empty title="Makine yok"
-                                text="SSH bilgisi (adres, kullanıcı adı, parola) olan etkin bir Linux kaydı yok." />
+                                text="SSH bilgisi (adres, kullanıcı adı, parola) olan etkin bir Linux kaydı yok. Kullanıcı adı ya da parolası boş kayıtlar listelenmez." />
                 @else
                     <table class="table">
                         <thead>
@@ -115,53 +116,68 @@
                                     </td>
 
                                     <td data-label="Makine">
-                                        <span class="satir-baslik">{{ $row['name'] }}</span>
-                                        <span class="text-sm text-muted">{{ $row['group'] }}</span>
-                                        @if ($row['locked'])
-                                            <div>
-                                                <x-ui.badge variant="gray">Kilitli</x-ui.badge>
-                                                <span class="text-sm text-muted">
-                                                    {{ $row['lockReason'] }}
-                                                    @if (! $row['lockHere']) · «{{ $row['lockFrom'] }}» kaydından @endif
-                                                    @if ($row['lockBy']) · {{ $row['lockBy'] }}, {{ $row['lockAt'] }} @endif
-                                                </span>
-                                            </div>
-                                        @endif
+                                        {{-- Tek blok: telefonda hücre yatay diziliyor, parçalar dağılıyordu. --}}
+                                        <div>
+                                            <span class="satir-baslik">{{ $row['name'] }}</span>
+                                            <span class="text-sm text-muted">{{ $row['group'] }}</span>
+                                            {{-- Denetimin makineden okuduğu ad (/etc/os-release). --}}
+                                            @if ($row['os'])
+                                                <div class="text-sm text-muted">{{ $row['os'] }}</div>
+                                            @endif
+                                            @if ($row['locked'])
+                                                <div>
+                                                    <x-ui.badge variant="gray">Kilitli</x-ui.badge>
+                                                    <span class="text-sm text-muted">
+                                                        {{ $row['lockReason'] }}
+                                                        @if (! $row['lockHere']) · «{{ $row['lockFrom'] }}» kaydından @endif
+                                                        @if ($row['lockBy']) · {{ $row['lockBy'] }}, {{ $row['lockAt'] }} @endif
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
                                     </td>
 
                                     <td data-label="Bekleyen">
-                                        @if (! $row['checked'])
-                                            <x-ui.badge variant="gray">Denetlenmedi</x-ui.badge>
-                                        @elseif ($row['pending'] === 0)
-                                            <x-ui.badge variant="green">Güncel</x-ui.badge>
-                                        @else
-                                            @if ($row['critical'] > 0)
-                                                <x-ui.badge variant="red">{{ $row['critical'] }} kritik</x-ui.badge>
-                                            @endif
-                                            @if ($row['normal'] > 0)
-                                                <x-ui.badge variant="yellow">{{ $row['normal'] }} normal</x-ui.badge>
-                                            @endif
-                                        @endif
-
-                                        @if ($row['reboot'])
-                                            <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
-                                        @endif
-
-                                        @if ($row['packages'] !== [])
-                                            <x-ui.collapsible title="Paketler" class="mono text-sm">
-                                                <ul>
-                                                    @foreach ($row['packages'] as $paket)
-                                                        <li>
-                                                            {{ $paket['name'] }} {{ $paket['version'] }}
-                                                            @if ($paket['critical']) <x-ui.badge variant="red">kritik</x-ui.badge> @endif
-                                                        </li>
-                                                    @endforeach
-                                                    @if ($row['packageMore'] > 0)
-                                                        <li class="text-muted">… {{ $row['packageMore'] }} paket daha</li>
+                                        {{-- Rozetler bir satırda, paket listesi altında ayrı (yan yana yapışıyorlardı);
+                                             tek yığın, çünkü telefonda hücre yatay diziliyor. --}}
+                                        <div class="stack stack--tight">
+                                            <div class="row row--wrap row--tight">
+                                                @if (! $row['checked'])
+                                                    <x-ui.badge variant="gray">Denetlenmedi</x-ui.badge>
+                                                @elseif ($row['pending'] === 0)
+                                                    <x-ui.badge variant="green">Güncel</x-ui.badge>
+                                                @else
+                                                    @if ($row['critical'] > 0)
+                                                        <x-ui.badge variant="red">{{ $row['critical'] }} kritik</x-ui.badge>
                                                     @endif
-                                                </ul>
-                                            </x-ui.collapsible>
-                                        @endif
+                                                    @if ($row['normal'] > 0)
+                                                        <x-ui.badge variant="yellow">{{ $row['normal'] }} normal</x-ui.badge>
+                                                    @endif
+                                                @endif
+
+                                                @if ($row['reboot'])
+                                                    <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
+                                                @endif
+                                            </div>
+
+                                            @if ($row['packages'] !== [])
+                                                <details class="package-list">
+                                                    <summary>Paket listesi</summary>
+                                                    <ul class="package-list__items">
+                                                        @foreach ($row['packages'] as $paket)
+                                                            <li class="package-list__item">
+                                                                <span class="package-list__name">{{ $paket['name'] }}</span>
+                                                                <span class="package-list__version">{{ $paket['version'] }}</span>
+                                                                @if ($paket['critical']) <x-ui.badge variant="red">kritik</x-ui.badge> @endif
+                                                            </li>
+                                                        @endforeach
+                                                        @if ($row['packageMore'] > 0)
+                                                            <li class="package-list__item text-muted">… {{ $row['packageMore'] }} paket daha</li>
+                                                        @endif
+                                                    </ul>
+                                                </details>
+                                            @endif
+                                        </div>
                                     </td>
 
                                     <td data-label="Son denetim" class="mono text-muted">

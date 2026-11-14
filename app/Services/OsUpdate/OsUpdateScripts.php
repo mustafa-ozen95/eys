@@ -29,18 +29,26 @@ final class OsUpdateScripts
      *
      * TERM=dumb: yum/dnf paket adını kalın basmasın (bkz. PackageReport::temizle).
      *
+     * PAGER=cat ve `| cat`: komut uçbirimle (PTY) çalışıyor; apt 3.x
+     * (Ubuntu 26.04) listeyi uçbirimde sayfalayıcıyla açıp tuş bekliyordu.
+     * Denetim zaman aşımına kadar asılı kalıp "komut tamamlanmadı" ile
+     * düşüyordu.
+     *
+     * EYS-OS: /etc/os-release'teki ad; ekranda makine adının altında durur.
+     *
      * Son satır `true`: betiğin çıkış kodu "denetim koştu" demektir;
      * deponun yenilenememesi ayrı bir işaretle (EYS-UYARI:depo) bildirilir.
      */
     public static function denetim(): string
     {
         return <<<'SH'
-export LC_ALL=C TERM=dumb
+export LC_ALL=C TERM=dumb PAGER=cat
+if [ -r /etc/os-release ]; then ( . /etc/os-release; echo "EYS-OS:${PRETTY_NAME:-$NAME $VERSION_ID}" ); fi
 if command -v apt-get >/dev/null 2>&1; then
   echo EYS-PM:apt
   apt-get update -qq -o DPkg::Lock::Timeout=60 >/dev/null 2>&1 || echo EYS-UYARI:depo
   echo EYS-BOLUM:liste
-  apt list --upgradable 2>/dev/null
+  apt list --upgradable 2>/dev/null | cat
   echo EYS-BOLUM:son
 elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
   pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum
@@ -93,7 +101,7 @@ SH;
         $dnf = 'pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum; '
             .'$pm -y -q upgrade'.($kritik ? ' --security' : '');
 
-        $is = 'export LC_ALL=C TERM=dumb DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1; '
+        $is = 'export LC_ALL=C TERM=dumb PAGER=cat DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1; '
             .'date; '
             .'if command -v apt-get >/dev/null 2>&1; then '.$apt.'; '
             .'elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then '.$dnf.'; '

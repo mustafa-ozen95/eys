@@ -49,6 +49,7 @@ class OsUpdater
 
         $this->yaz($credential, [
             'package_manager' => $rapor->manager,
+            'os_name' => $rapor->os,
             'critical_count' => $rapor->critical,
             'normal_count' => $rapor->normal,
             'packages' => $rapor->packages,

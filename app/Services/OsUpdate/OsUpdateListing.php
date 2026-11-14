@@ -41,7 +41,7 @@ class OsUpdateListing
             'checkable' => $satirlar->where('canApply', true)->count(),
             'checkText' => $this->denetimMetni((int) config('os_update.check_hours', 4)),
             'modes' => [OsUpdateScripts::KRITIK => 'Yalnızca kritik', OsUpdateScripts::TUMU => 'Tüm güncellemeler'],
-            'round' => OsUpdateRound::kart($user),
+            'rounds' => OsUpdateRound::kartlar($user),
         ];
     }
 
@@ -63,6 +63,7 @@ class OsUpdateListing
             'uuid' => $kayit->uuid,
             'name' => OsUpdateTargets::ad($kayit),
             'group' => $kayit->group?->name,
+            'os' => $durum?->os_name,
             'checked' => $denetlendi,
             'checkedAt' => $durum?->checked_at?->translatedFormat('d.m.Y H:i'),
             'checkedAgo' => $durum?->checked_at?->diffForHumans(),

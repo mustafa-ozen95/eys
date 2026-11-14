@@ -53,10 +53,12 @@ class OsUpdateLauncher
 
     /**
      * Denetimi sıraya alır (yalnızca okur; kilit denetime engel değildir).
+     * Makine başına bir iş; dönen liste o işlerin kayıt kimlikleri.
      *
      * @param  Collection<int, Credential>  $kayitlar
+     * @return list<int>
      */
-    public function denetle(Collection $kayitlar, User $user): int
+    public function denetle(Collection $kayitlar, User $user): array
     {
         $gorulen = [];
 
@@ -67,11 +69,11 @@ class OsUpdateLauncher
                 continue;
             }
 
-            $gorulen[$makine] = true;
+            $gorulen[$makine] = $kayit->getKey();
             CheckOsUpdatesJob::dispatch($kayit);
         }
 
-        return count($gorulen);
+        return array_values($gorulen);
     }
 
     /** @param  array<string, true>  $gorulen */
@@ -82,7 +84,7 @@ class OsUpdateLauncher
         }
 
         if (! $this->targets->hedefMi($kayit)) {
-            return 'SSH bilgisi olan etkin bir Linux kaydı değil';
+            return 'SSH bilgisi tam, etkin bir Linux kaydı değil';
         }
 
         if (isset($gorulen[OsUpdateTargets::makine($kayit)])) {

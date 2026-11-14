@@ -46,11 +46,16 @@ class OsUpdateController extends Controller implements HasMiddleware
 
     public function check(CheckOsUpdateRequest $request, OsUpdateLauncher $launcher): RedirectResponse
     {
-        $sayi = $launcher->denetle($request->credentials(), $request->user());
+        $baslangic = now()->timestamp;
+        $kimlikler = $launcher->denetle($request->credentials(), $request->user());
 
-        return $sayi === 0
-            ? back()->with('error', 'Denetlenebilecek makine yok.')
-            : back()->with('status', "{$sayi} makinenin denetimi sıraya alındı; sonuç birkaç dakika içinde listede görünür.");
+        if ($kimlikler === []) {
+            return back()->with('error', 'Denetlenebilecek makine yok.');
+        }
+
+        OsUpdateRound::baslat($request->user(), $kimlikler, OsUpdateRound::DENETIM, $baslangic);
+
+        return back()->with('status', count($kimlikler).' makinenin denetimi sıraya alındı; ilerleme yukarıdaki kartta.');
     }
 
     public function apply(ApplyOsUpdateRequest $request, OsUpdateLauncher $launcher): RedirectResponse

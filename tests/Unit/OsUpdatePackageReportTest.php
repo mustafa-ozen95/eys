@@ -87,10 +87,29 @@ class OsUpdatePackageReportTest extends TestCase
     }
 
     #[Test]
-    public function denetim_ve_kurulum_betigi_uclbirimi_renksiz_ister(): void
+    public function denetim_ve_kurulum_betigi_uclbirimi_renksiz_ve_sayfalayicisiz_ister(): void
     {
-        $this->assertStringContainsString('TERM=dumb', OsUpdateScripts::denetim());
-        $this->assertStringContainsString('TERM=dumb', OsUpdateScripts::kurulum(OsUpdateScripts::TUMU));
+        foreach ([OsUpdateScripts::denetim(), OsUpdateScripts::kurulum(OsUpdateScripts::TUMU)] as $betik) {
+            $this->assertStringContainsString('TERM=dumb', $betik);
+            /* apt 3.x uçbirimde sayfalayıcı açıp tuş bekliyordu (Ubuntu 26.04). */
+            $this->assertStringContainsString('PAGER=cat', $betik);
+        }
+
+        $this->assertStringContainsString('apt list --upgradable 2>/dev/null | cat', OsUpdateScripts::denetim());
+    }
+
+    #[Test]
+    public function isletim_sistemi_adi_okunur(): void
+    {
+        $rapor = PackageReport::parse(implode("\n", [
+            'EYS-OS:Ubuntu 26.04.1 LTS',
+            'EYS-PM:apt',
+            'EYS-BOLUM:liste',
+            'EYS-BOLUM:son',
+        ]));
+
+        $this->assertSame('Ubuntu 26.04.1 LTS', $rapor->os);
+        $this->assertNull(PackageReport::parse("EYS-PM:yok\n")->os);
     }
 
     #[Test]

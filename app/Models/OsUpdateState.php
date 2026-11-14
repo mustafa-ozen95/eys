@@ -30,6 +30,7 @@ class OsUpdateState extends Model
     protected $fillable = [
         'credential_id',
         'package_manager',
+        'os_name',
         'critical_count',
         'normal_count',
         'packages',

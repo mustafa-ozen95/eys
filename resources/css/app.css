@@ -22,6 +22,7 @@
 @import './components/pagination.css';
 @import './components/rotation-progress.css';
 @import './components/bulk-progress.css';
+@import './components/package-list.css';
 @import './components/record-form.css';
 @import './components/hint.css';
 @import './components/collapsible.css';

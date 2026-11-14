@@ -29,12 +29,14 @@ final class PackageReport
         public readonly int $normal,
         public readonly bool $rebootRequired,
         public readonly bool $repoWarning,
+        public readonly ?string $os = null,
     ) {}
 
     public static function parse(string $cikti): self
     {
         $satirlar = preg_split('/\r\n|\r|\n/', self::temizle($cikti)) ?: [];
         $yonetici = null;
+        $isletim = null;
         $bolum = null;
         $liste = [];
         $guvenlik = [];
@@ -44,6 +46,12 @@ final class PackageReport
 
             if (preg_match('/^EYS-PM:(apt|dnf|yum|yok)$/', $satir, $m) === 1) {
                 $yonetici = $m[1] === 'yok' ? null : $m[1];
+
+                continue;
+            }
+
+            if (preg_match('/^EYS-OS:(.+)$/', $satir, $m) === 1) {
+                $isletim = mb_substr(trim($m[1]), 0, 100) ?: null;
 
                 continue;
             }
@@ -78,6 +86,7 @@ final class PackageReport
             count($paketler) - $kritik,
             preg_match('/^EYS-REBOOT\s*$/m', $cikti) === 1,
             preg_match('/^EYS-UYARI:depo\s*$/m', $cikti) === 1,
+            $isletim,
         );
     }
 

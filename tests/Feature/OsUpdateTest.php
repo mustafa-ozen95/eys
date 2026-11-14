@@ -17,6 +17,7 @@ use App\Models\OsUpdateState;
 use App\Models\SubGroup;
 use App\Models\User;
 use App\Services\OsUpdate\OsUpdater;
+use App\Services\OsUpdate\OsUpdateRound;
 use App\Services\OsUpdate\OsUpdateScripts;
 use App\Services\OsUpdate\OsUpdateShell;
 use App\Services\OsUpdate\OsUpdateTargets;
@@ -66,7 +67,7 @@ class OsUpdateTest extends TestCase
 
         return str_contains($betik, 'setsid')
             ? ''
-            : "EYS-PM:apt\nEYS-BOLUM:liste\nopenssl/noble-security 3.1 amd64 [upgradable from: 3.0]\n"
+            : "EYS-OS:Ubuntu 24.04.3 LTS\nEYS-PM:apt\nEYS-BOLUM:liste\nopenssl/noble-security 3.1 amd64 [upgradable from: 3.0]\n"
                 ."vim/noble-updates 9.1 amd64 [upgradable from: 9.0]\nEYS-BOLUM:son\nEYS-REBOOT\n";
     }
 
@@ -108,6 +109,58 @@ class OsUpdateTest extends TestCase
         $this->yetkilendir($user, $group, ['view', 'os_update', ...$ekYetki]);
 
         return [$user, $group];
+    }
+
+    /** Monitor kaydı işletim sistemi "bilinmiyor" diye SSH bilgisi olduğu hâlde gelmiyordu. */
+    #[Test]
+    public function isletim_sistemi_bilinmeyen_ssh_kaydi_gelir_gomulu_cihaz_ve_eksik_bilgili_gelmez(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $this->makine($group, 'Monitor-SSH', '10.0.0.7', ['operating_system' => OperatingSystem::Unknown]);
+        $this->makine($group, 'Switch-SSH', '10.0.0.8', ['operating_system' => OperatingSystem::Embedded]);
+        $this->makine($group, 'Sensor-SSH', '10.0.0.9', ['username' => null, 'password' => null]);
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertOk()
+            ->assertSee('Monitor-SSH')
+            ->assertDontSee('Switch-SSH')
+            ->assertDontSee('Sensor-SSH');
+    }
+
+    /** Denetim de kurulum gibi ilerleme kartı açar; sonuç geldikçe sayılır. */
+    #[Test]
+    public function denetim_ilerleme_karti_acar_ve_sonuclari_sayar(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $bir = $this->makine($group, 'Bir', '10.0.0.1');
+        $iki = $this->makine($group, 'Iki', '10.0.0.2');
+        $this->makine($group, 'Bir-root', '10.0.0.1');
+
+        $this->actingAs($user)->post(route('os-updates.check'))->assertSessionHas('status');
+        Queue::assertPushed(CheckOsUpdatesJob::class, 2);
+
+        $parti = OsUpdateRound::son($user, OsUpdateRound::DENETIM);
+        $this->assertNotNull($parti);
+        $this->assertNull(OsUpdateRound::son($user), 'denetim kurulum kartının yerine geçmez');
+
+        $this->actingAs($user)->get(route('os-updates.index'))
+            ->assertOk()
+            ->assertSee('Güncelleme denetimi')
+            ->assertSee(route('os-updates.round.status', $parti), false);
+
+        $this->actingAs($user)->getJson(route('os-updates.round.status', $parti))
+            ->assertOk()
+            ->assertJson(['running' => true, 'total' => 2, 'done' => 0]);
+
+        $this->travel(1)->seconds();
+        OsUpdateState::query()->create(['credential_id' => $bir->id, 'checked_at' => now(), 'check_error' => null]);
+        OsUpdateState::query()->create(['credential_id' => $iki->id, 'checked_at' => now(), 'check_error' => 'Bağlanılamadı.']);
+
+        $this->actingAs($user)->getJson(route('os-updates.round.status', $parti))
+            ->assertOk()
+            ->assertJson(['running' => false, 'done' => 2, 'success' => 1, 'failed' => 1])
+            ->assertJsonPath('problems.0.status', 'Bağlanılamadı.');
     }
 
     #[Test]
@@ -278,7 +331,7 @@ class OsUpdateTest extends TestCase
     {
         Queue::fake();
         [$user, $group] = $this->kurucu();
-        $win = $this->makine($group, 'Win', '10.0.2.1', ['operating_system' => OperatingSystem::Windows, 'access_type' => AccessType::Rdp]);
+        $win = $this->makine($group, 'WinRDP-kaydi', '10.0.2.1', ['operating_system' => OperatingSystem::Windows, 'access_type' => AccessType::Rdp]);
         $pasif = $this->makine($group, 'Pasif', '10.0.2.2', ['is_active' => false]);
         $kisisel = $this->makine($group, 'Kisisel', '10.0.2.3', ['owner_id' => $user->id]);
 
@@ -289,7 +342,7 @@ class OsUpdateTest extends TestCase
         Queue::assertNothingPushed();
 
         $this->actingAs($user)->get(route('os-updates.index'))
-            ->assertDontSee('Win')->assertDontSee('Pasif')->assertDontSee('Kisisel');
+            ->assertDontSee('WinRDP-kaydi')->assertDontSee('Pasif')->assertDontSee('Kisisel');
     }
 
     #[Test]
@@ -324,6 +377,10 @@ class OsUpdateTest extends TestCase
         $this->assertCount(2, $this->calisan);
         $this->assertStringContainsString('setsid', $this->calisan[0]);
         $this->assertSame(OsUpdateState::BASARILI, $kayit->osUpdateState()->first()->apply_status);
+
+        /* Yeniden denetim işletim sistemi adını da yazar; ekranda adın altında durur. */
+        $this->assertSame('Ubuntu 24.04.3 LTS', $kayit->osUpdateState()->first()->os_name);
+        $this->actingAs($user)->get(route('os-updates.index'))->assertSee('Ubuntu 24.04.3 LTS');
 
         $log = ActivityLog::query()->where('action', ActivityAction::OsUpdate->value)->latest('id')->first();
         $this->assertSame('Aylık yama', $log->reason);

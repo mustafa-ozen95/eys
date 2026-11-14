@@ -1,4 +1,3 @@
-import { $ } from '../lib/dom.js';
 import { refresh } from './navigation.js';
 
 /**
@@ -35,13 +34,20 @@ const LABELS = [
 
 const NAMES = Object.fromEntries(LABELS.map(([k, name]) => [k, name.charAt(0).toLocaleUpperCase('tr') + name.slice(1)]));
 
-let timer = null;
+/*
+ * Kart başına bir zamanlayıcı: sistem güncellemeleri ekranında kurulum ve
+ * denetim kartı aynı anda sürebilir.
+ */
+const timers = new Map();
+
+function stopOne(root) {
+    clearTimeout(timers.get(root));
+    timers.delete(root);
+}
 
 function stop() {
-    if (timer !== null) {
-        clearTimeout(timer);
-        timer = null;
-    }
+    timers.forEach((timer) => clearTimeout(timer));
+    timers.clear();
 }
 
 /*
@@ -113,7 +119,7 @@ async function poll(root, remaining) {
     const url = root.dataset.bulkRoundProgressUrl;
 
     if (!url || remaining <= 0) {
-        stop();
+        stopOne(root);
 
         return;
     }
@@ -128,7 +134,7 @@ async function poll(root, remaining) {
 
         if (response.status === 404) {
             /* Parti düştü (süresi doldu ya da kapatıldı): soracak bir şey yok. */
-            stop();
+            stopOne(root);
 
             return;
         }
@@ -140,7 +146,7 @@ async function poll(root, remaining) {
         data = await response.json();
     } catch {
         /* Tek başarısız yoklama turu durdurmaz; sayaç işliyor. */
-        timer = setTimeout(() => poll(root, remaining - 1), INTERVAL);
+        timers.set(root, setTimeout(() => poll(root, remaining - 1), INTERVAL));
 
         return;
     }
@@ -151,7 +157,8 @@ async function poll(root, remaining) {
         /*
          * Parti bitti: sonuç kartı, sorunlu makinelerin adları ve satırların
          * son hâli sunucuda çiziliyor — sayfa YERİNDE tazelenir, açık olan
-         * sağ panel kapanmaz.
+         * sağ panel kapanmaz. Tazelenen sayfa süren öbür kartın
+         * yoklamasını yeniden başlatır (init).
          */
         stop();
         refresh();
@@ -159,24 +166,17 @@ async function poll(root, remaining) {
         return;
     }
 
-    timer = setTimeout(() => poll(root, remaining - 1), INTERVAL);
+    timers.set(root, setTimeout(() => poll(root, remaining - 1), INTERVAL));
 }
 
 export function init() {
     stop();
 
     /* Bitmiş kartın halkası da dolu çizilsin: ilk değer sunucudan. */
-    const card = $('[data-bulk-round-root]');
-    if (card) {
+    document.querySelectorAll('[data-bulk-round-root]').forEach((card) => {
         writePercent(card, Number(card.dataset.bulkRoundPercent) || 0);
-    }
-
-    const root = $('[data-bulk-round-progress]');
-
-    if (!root) {
-        return;
-    }
+    });
 
     /* İlk yoklama HEMEN: sayfa açıldığında iki saniye eski görüntü kalmasın. */
-    poll(root, MAX);
+    document.querySelectorAll('[data-bulk-round-progress]').forEach((root) => poll(root, MAX));
 }

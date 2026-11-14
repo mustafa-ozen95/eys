@@ -16,7 +16,10 @@ use Illuminate\Database\Eloquent\Collection;
  * Sistem güncellemesinin HEDEFLERİ ve KİLİDİ — tek yerde.
  *
  * Hedef: kişisel olmayan, etkin, SSH erişimli Linux kaydı; adresi, kullanıcı
- * adı ve parolası kayıtlı. Ekran, toplu uç, zamanlayıcı ve kuyruk işi aynı
+ * adı ve parolası kayıtlı. İşletim sistemi "bilinmiyor" girilmiş SSH kaydı
+ * da hedeftir: SSH bilgisi olduğu hâlde ekrana gelmiyordu. Betik paket
+ * yöneticisini kendisi arar; bulamazsa yalnızca bunu bildirir. Gömülü
+ * cihazlar (switch vb.) hedef DEĞİL: apt/dnf yok, kabuğu Linux kabuğu değil. Ekran, toplu uç, zamanlayıcı ve kuyruk işi aynı
  * sorguyu kullanır: biri genişletilip öteki dar kalırsa ekranda seçilemeyen
  * kayda uçtan kurulum yapılabilirdi.
  *
@@ -31,7 +34,7 @@ class OsUpdateTargets
     {
         return Credential::query()
             ->otomasyon()
-            ->where('operating_system', OperatingSystem::Linux)
+            ->whereIn('operating_system', [OperatingSystem::Linux, OperatingSystem::Unknown])
             ->where('access_type', AccessType::Ssh)
             ->where('is_active', true)
             ->whereNotNull('host')->where('host', '!=', '')

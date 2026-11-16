@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OsUpdate;
 
 use App\Enums\ActivityAction;
+use App\Jobs\CheckOsUpdatesJob;
 use App\Models\Credential;
 use App\Models\OsUpdateState;
 use App\Models\User;
@@ -23,6 +24,13 @@ use Illuminate\Support\Str;
  */
 class OsUpdater
 {
+    /** Kurulumdan sonra yeniden denetim: hemen, gecikmeli ya da hiç. */
+    private const HEMEN = 'hemen';
+
+    private const SONRA = 'sonra';
+
+    private const YOK = 'yok';
+
     public function __construct(
         private OsUpdateShell $shell,
         private OsUpdateTargets $targets,
@@ -89,6 +97,16 @@ class OsUpdater
             $this->durum($credential, OsUpdateState::SURUYOR);
             $etiket = $mod === OsUpdateScripts::KRITIK ? 'yalnızca kritik' : 'tümü';
 
+            /*
+             * Kurulumdan sonra bekleyen sayılar tazelenir — BAŞARISIZ olsa da:
+             *  - hatayla bitti (kod var): paketlerin bir kısmı kurulmuş olabilir, hemen denetlenir;
+             *  - sonuç okunamadı (süre doldu): kurulum makinede oturumdan bağımsız sürüyor
+             *    olabilir (bkz. OsUpdateScripts::kurulum); şimdi denetlemek apt/dnf kilidine
+             *    takılır, recheck_after saniye sonra denetlenir;
+             *  - bağlantı/kimlik hatası: makineye ulaşılamıyor, denetim de ulaşamaz.
+             */
+            $yeniden = self::HEMEN;
+
             try {
                 $cikti = $this->shell->calistir(
                     $credential,
@@ -96,26 +114,36 @@ class OsUpdater
                     (int) config('os_update.apply_timeout', 840),
                     'Güncelleme kurulamadı; ayrıntı makinede '.OsUpdateScripts::GUNLUK.'.',
                 );
-                $hata = self::kurulumHatasi(...OsUpdateScripts::kurulumSonucu($cikti));
+                [$kod, $satirlar] = OsUpdateScripts::kurulumSonucu($cikti);
+                $hata = self::kurulumHatasi($kod, $satirlar);
+
+                if ($kod === null) {
+                    $yeniden = self::SONRA;
+                    $hata .= ' Makinede sürüyor olabilir; '.intdiv((int) config('os_update.recheck_after', 900), 60).' dk sonra yeniden denetlenir.';
+                }
             } catch (RotationException $e) {
                 $hata = $e->getMessage();
+                $yeniden = self::YOK;
             }
 
             if ($hata !== null) {
                 $this->durum($credential, OsUpdateState::BASARISIZ, $hata);
                 $this->activity->record(ActivityAction::OsUpdate, "Sistem güncellemesi kurulamadı ({$etiket}): ".Str::limit($hata, 150), $credential, $reason, $actor);
-
-                return;
+            } else {
+                $this->durum($credential, OsUpdateState::BASARILI);
+                $this->activity->record(ActivityAction::OsUpdate, "Sistem güncellemesi kuruldu ({$etiket})", $credential, $reason, $actor);
             }
-
-            $this->durum($credential, OsUpdateState::BASARILI);
-            $this->activity->record(ActivityAction::OsUpdate, "Sistem güncellemesi kuruldu ({$etiket})", $credential, $reason, $actor);
         } finally {
             $makineKilidi->release();
         }
 
-        /* Kurulumdan sonra sayılar ve "yeniden başlatma gerekli" tazelenir. */
-        $this->denetle($credential);
+        /* Sayılar ve "yeniden başlatma gerekli" tazelenir. */
+        match ($yeniden) {
+            self::HEMEN => $this->denetle($credential),
+            self::SONRA => CheckOsUpdatesJob::dispatch($credential, elle: true)
+                ->delay(now()->addSeconds((int) config('os_update.recheck_after', 900))),
+            self::YOK => null,
+        };
     }
 
     /**

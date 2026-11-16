@@ -38,6 +38,12 @@ return [
     'apply_timeout' => (int) env('OS_UPDATE_APPLY_TIMEOUT', 840),
 
     /*
+     * Süresi dolan kurulumdan sonra yeniden denetim (sn). Kurulum makinede
+     * sürüyor olabilir; hemen denetlemek paket yöneticisinin kilidine takılır.
+     */
+    'recheck_after' => (int) env('OS_UPDATE_RECHECK_AFTER', 900),
+
+    /*
      * İşlerin kuyruğu. Kurulum dakikalar sürer; parola döndürmenin 300 sn
      * sınırlı işçisini meşgul etmesin diye ayrı işçide koşar
      * (docker/rootfs/etc/supervisor/supervisord.conf · isci-guncelleme).

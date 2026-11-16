@@ -26,6 +26,7 @@ use App\Services\OsUpdate\OsUpdateRound;
 use App\Services\OsUpdate\OsUpdateScripts;
 use App\Services\OsUpdate\OsUpdateShell;
 use App\Services\OsUpdate\OsUpdateTargets;
+use App\Services\Rotation\RotationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
@@ -52,6 +53,9 @@ class OsUpdateTest extends TestCase
     /** Sahte kurulumun çıktısı; null ise başarılı. */
     public ?string $kurulumCiktisi = null;
 
+    /** Doluysa sahte kurulum bağlanamaz (bağlantı/kimlik hatası). */
+    public ?string $kurulumBaglantiHatasi = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -72,6 +76,10 @@ class OsUpdateTest extends TestCase
     public function sahteCalistir(string $betik): string
     {
         $this->calisan[] = $betik;
+
+        if ($this->kurulumBaglantiHatasi !== null && str_contains($betik, 'setsid')) {
+            throw new RotationException($this->kurulumBaglantiHatasi);
+        }
 
         return str_contains($betik, 'setsid')
             ? ($this->kurulumCiktisi ?? "EYS-SONUC:0\n")
@@ -777,7 +785,49 @@ class OsUpdateTest extends TestCase
         $durum = $kayit->osUpdateState()->first();
         $this->assertSame(OsUpdateState::BASARISIZ, $durum->apply_status);
         $this->assertSame('Kurulum hatayla bitti (kod 1). Error: Problem: cannot install the best update candidate', $durum->apply_error);
-        $this->assertCount(1, $this->calisan, 'başarısız kurulumdan sonra yeniden denetlenmez');
+        $this->assertCount(2, $this->calisan, 'hatayla biten kurulum kısmen kurmuş olabilir: hemen yeniden denetlenir');
+        $this->assertNotNull($durum->checked_at);
+        $this->assertSame(1, $durum->critical_count, 'bekleyen sayılar denetimden tazelenir');
+    }
+
+    /**
+     * Süresi dolan kurulumun sonucu okunamaz; kurulum makinede sürüyor olabilir.
+     * Bekleyen sayılar eskide kalmasın diye gecikmeli bir denetim sıraya girer
+     * (hemen denetim paket yöneticisinin kilidine takılırdı).
+     */
+    #[Test]
+    public function sonucu_okunamayan_kurulum_gecikmeli_yeniden_denetlenir(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Mint', '10.0.4.3');
+        $this->kurulumCiktisi = "Reading package lists...\n";
+
+        app(OsUpdater::class)->kur($kayit, OsUpdateScripts::KRITIK, $user, 'Aylık yama');
+
+        $durum = $kayit->osUpdateState()->first();
+        $this->assertSame(OsUpdateState::BASARISIZ, $durum->apply_status);
+        $this->assertStringContainsString('sonucu okunamadı', $durum->apply_error);
+        $this->assertStringContainsString('15 dk sonra yeniden denetlenir', $durum->apply_error);
+        $this->assertCount(1, $this->calisan, 'kurulum sürüyor olabilir: hemen bağlanılmaz');
+        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $is): bool => $is->uniqueId() === (new CheckOsUpdatesJob($kayit, elle: true))->uniqueId()
+            && $is->delay !== null);
+    }
+
+    /** Makineye ulaşılamayan kurulumdan sonra denetim de denenmez. */
+    #[Test]
+    public function baglanamayan_kurulumdan_sonra_yeniden_denetlenmez(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Kapali', '10.0.4.4');
+        $this->kurulumBaglantiHatasi = 'Kimlik doğrulaması reddedildi.';
+
+        app(OsUpdater::class)->kur($kayit, OsUpdateScripts::KRITIK, $user, 'Aylık yama');
+
+        $this->assertSame(OsUpdateState::BASARISIZ, $kayit->osUpdateState()->first()->apply_status);
+        $this->assertCount(1, $this->calisan);
+        Queue::assertNotPushed(CheckOsUpdatesJob::class);
     }
 
     /** Elle denetim, otomatik turun beklettiği işin arkasında kalmaz; o arada denetlenen makineye otomatik iş yeniden bağlanmaz. */

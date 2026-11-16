@@ -87,6 +87,10 @@ class OsUpdateLauncher
             return 'SSH bilgisi tam, etkin bir Linux kaydı değil';
         }
 
+        if ($this->targets->panelSunucusu($kayit)) {
+            return OsUpdater::PANEL_SUNUCUSU;
+        }
+
         if (isset($gorulen[OsUpdateTargets::makine($kayit)])) {
             return 'aynı makine zaten sırada';
         }

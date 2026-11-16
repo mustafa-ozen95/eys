@@ -953,4 +953,67 @@ class OsUpdateTest extends TestCase
         Queue::assertNotPushed(ApplyOsUpdatesJob::class);
         $this->assertNotNull($yeni);
     }
+
+    /**
+     * EYS'nin kendi sunucusu (16.11.2026: Docker yükseltmesi EYS'yi kilitledi,
+     * bütün siteler düştü): kilit olmasa da kurulum ve yeniden başlatma yok,
+     * ekranda seçilemez; denetim serbest.
+     */
+    #[Test]
+    public function panelin_kendi_sunucusuna_kurulum_ve_yeniden_baslatma_yapilmaz(): void
+    {
+        Queue::fake();
+        config(['os_update.panel_hosts' => '10.0.9.9, 10.0.9.10']);
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $panel = $this->makine($group, 'NineDeploy', '10.0.9.9');
+        $diger = $this->makine($group, 'App', '10.0.9.11');
+        OsUpdateState::query()->create(['credential_id' => $panel->id, 'reboot_required' => true, 'checked_at' => now()]);
+
+        $sonuc = app(OsUpdateLauncher::class)->kur(collect([$panel, $diger]), OsUpdateScripts::TUMU, $user, 'deneme');
+        $this->assertSame([$diger->id], $sonuc['queued']);
+        $this->assertSame(OsUpdater::PANEL_SUNUCUSU, $sonuc['skipped']['NineDeploy'] ?? null);
+
+        /* Sıraya önceden girmiş iş de bağlanmadan biter. */
+        app(OsUpdater::class)->kur($panel, OsUpdateScripts::TUMU, $user, 'deneme');
+        $this->assertSame([], $this->calisan);
+        $this->assertSame(OsUpdateState::ATLANDI, $panel->osUpdateState()->first()->apply_status);
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $panel), ['reason' => 'Çekirdek yaması'])->assertSessionHas('error');
+        Queue::assertNotPushed(RebootOsJob::class);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $panel->uuid]))
+            ->assertSee('NineDeploy seçilemez: '.OsUpdater::PANEL_SUNUCUSU, false)
+            ->assertDontSee(route('os-updates.reboot', $panel), false);
+
+        $this->assertSame([$panel->id], app(OsUpdateLauncher::class)->denetle(collect([$panel]), $user), 'denetim serbest');
+    }
+
+    /**
+     * Kuyruk silinince (Redis yeniden başladı) "sırada/kuruluyor" kayıt asılı
+     * kalıp makineyi seçilemez yapıyordu. Kuyruk boşsa düşer; kuyrukta iş
+     * varsa ya da kayıt yeni değiştiyse dokunulmaz.
+     */
+    #[Test]
+    public function kuyrukta_isi_olmayan_asili_kurulum_dusurulur(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $asili = $this->makine($group, 'Asili', '10.0.9.20');
+        $yeni = $this->makine($group, 'Yeni', '10.0.9.21');
+        OsUpdateState::query()->create(['credential_id' => $asili->id, 'apply_status' => OsUpdateState::SIRADA, 'apply_queued_at' => now()]);
+        $this->travel(10)->minutes();
+        OsUpdateState::query()->create(['credential_id' => $yeni->id, 'apply_status' => OsUpdateState::SURUYOR, 'apply_queued_at' => now()]);
+
+        /* Kuyrukta bir iş varsa hiçbir kayda dokunulmaz. */
+        CheckOsUpdatesJob::dispatch($yeni, elle: true);
+        $this->artisan('os-update:reconcile')->assertSuccessful();
+        $this->assertSame(OsUpdateState::SIRADA, $asili->osUpdateState()->first()->apply_status);
+
+        Queue::fake();
+        $this->artisan('os-update:reconcile')->assertSuccessful();
+
+        $this->assertSame(OsUpdateState::BASARISIZ, $asili->osUpdateState()->first()->apply_status);
+        $this->assertStringContainsString('kuyrukta yok', $asili->osUpdateState()->first()->apply_error);
+        $this->assertSame(OsUpdateState::SURUYOR, $yeni->osUpdateState()->first()->apply_status, 'yeni değişen kayda dokunulmaz');
+    }
 }

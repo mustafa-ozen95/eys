@@ -44,6 +44,14 @@ return [
     'recheck_after' => (int) env('OS_UPDATE_RECHECK_AFTER', 900),
 
     /*
+     * EYS'nin üzerinde çalıştığı sunucunun adresleri (virgülle). Bunlara
+     * panelden kurulum ve yeniden başlatma yapılmaz (bkz.
+     * OsUpdateTargets::panelSunucusu). APP_URL'nin çözüldüğü IP'ler zaten
+     * sayılır; burası APP_URL'nin göstermediği adresler için.
+     */
+    'panel_hosts' => env('OS_UPDATE_PANEL_HOSTS', ''),
+
+    /*
      * İşlerin kuyruğu. Kurulum dakikalar sürer; parola döndürmenin 300 sn
      * sınırlı işçisini meşgul etmesin diye ayrı işçide koşar
      * (docker/rootfs/etc/supervisor/supervisord.conf · isci-guncelleme).

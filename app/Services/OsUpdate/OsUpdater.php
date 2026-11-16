@@ -31,6 +31,9 @@ class OsUpdater
 
     private const YOK = 'yok';
 
+    /** Panelin kendi sunucusuna kurulum/yeniden başlatma neden yapılmaz (bkz. OsUpdateTargets::panelSunucusu). */
+    public const PANEL_SUNUCUSU = 'EYS bu sunucuda çalışıyor; panelden kurulum ve yeniden başlatma yapılmaz';
+
     public function __construct(
         private OsUpdateShell $shell,
         private OsUpdateTargets $targets,
@@ -73,6 +76,12 @@ class OsUpdater
 
     public function kur(Credential $credential, string $mod, ?User $actor, ?string $reason): void
     {
+        if ($this->targets->panelSunucusu($credential)) {
+            $this->durum($credential, OsUpdateState::ATLANDI, self::PANEL_SUNUCUSU.'.');
+
+            return;
+        }
+
         $kilit = $this->targets->kilit($credential);
 
         if ($kilit !== null) {

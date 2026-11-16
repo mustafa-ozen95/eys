@@ -87,6 +87,10 @@ class OsRebooter
             return 'SSH bilgisi tam, etkin bir Linux kaydı değil.';
         }
 
+        if ($this->targets->panelSunucusu($credential)) {
+            return OsUpdater::PANEL_SUNUCUSU.'.';
+        }
+
         $kilit = $this->targets->kilit($credential);
 
         if ($kilit !== null) {

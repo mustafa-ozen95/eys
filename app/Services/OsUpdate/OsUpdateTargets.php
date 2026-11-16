@@ -120,6 +120,47 @@ class OsUpdateTargets
             ->first();
     }
 
+    /** @var list<string>|null */
+    private ?array $panelAdresleri = null;
+
+    /**
+     * EYS'NİN KENDİ SUNUCUSU MU — kilitten bağımsız, kurulum ve yeniden
+     * başlatma YAPILMAZ (denetim serbest).
+     *
+     * 16.11.2026: panelden NineDeploy'a (EYS'nin üzerinde çalıştığı sunucu)
+     * "tüm güncellemeler" kuruldu. Docker yükseltmesi EYS konteynerini
+     * durdurmaya çalıştı; EYS'nin kuyruk işçisi o kurulumun bitmesini
+     * beklediği için Docker açılamadı, bütün siteler düştü.
+     *
+     * Adresler: panelin kendi adresinin (APP_URL) çözüldüğü IP'ler ve
+     * os_update.panel_hosts. Vekil başka makinedeyse APP_URL vekili gösterir;
+     * o da korunur, yanlış yön yalnızca "fazla koruma"dır.
+     */
+    public function panelSunucusu(Credential $credential): bool
+    {
+        $this->panelAdresleri ??= self::panelAdresleri();
+
+        return in_array(mb_strtolower(trim((string) $credential->host)), $this->panelAdresleri, true);
+    }
+
+    /** @return list<string> */
+    private static function panelAdresleri(): array
+    {
+        $adresler = array_map(
+            fn (string $a): string => mb_strtolower(trim($a)),
+            array_filter(explode(',', (string) config('os_update.panel_hosts', ''))),
+        );
+        $ad = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        if (is_string($ad) && $ad !== '') {
+            $adresler[] = mb_strtolower($ad);
+            $adresler = [...$adresler, ...(filter_var($ad, FILTER_VALIDATE_IP) ? [] : (gethostbynamel($ad) ?: []))];
+        }
+
+        /* Yerel adres "panel sunucusu" sayılmaz: geliştirmede her kayıt öyle görünürdü. */
+        return array_values(array_unique(array_diff($adresler, ['localhost', '127.0.0.1', '::1'])));
+    }
+
     /**
      * Kilitli makinelerin anahtarları → kilidi taşıyan durum. Liste ekranı
      * satır başına sorgu atmasın diye tek seferde.

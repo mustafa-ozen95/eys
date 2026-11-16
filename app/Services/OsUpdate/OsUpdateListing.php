@@ -147,6 +147,7 @@ class OsUpdateListing
         $normal = $denetlendi ? (int) $durum->normal_count : 0;
         $kurabilir = $user->can('osUpdate', $kayit);
         $mesgul = $durum?->isBusy() === true;
+        $panel = $this->targets->panelSunucusu($kayit);
 
         return [
             'uuid' => $kayit->uuid,
@@ -175,10 +176,11 @@ class OsUpdateListing
             'canApply' => $kurabilir,
             'canLock' => $user->can('osUpdateLock', $kayit),
             /* Düğme yalnızca gerektiğinde: kilitli ya da kurulumu süren makinede yok (karar OsRebooter'da da). */
-            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && $user->can('osReboot', $kayit),
-            'selectable' => $kurabilir && $kilit === null && ! $mesgul,
+            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && ! $panel && $user->can('osReboot', $kayit),
+            'selectable' => $kurabilir && $kilit === null && ! $mesgul && ! $panel,
             'blocked' => match (true) {
                 ! $kurabilir => 'Bu kayıtta sistem güncellemesi kurma yetkiniz yok.',
+                $panel => OsUpdater::PANEL_SUNUCUSU.'.',
                 $kilit !== null => 'Kilitli: '.$kilit->lock_reason,
                 $mesgul => 'Kurulum sürüyor.',
                 default => null,

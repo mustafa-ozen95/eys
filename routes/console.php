@@ -84,3 +84,11 @@ Schedule::command('os-update:check')
     ->hourly()
     ->withoutOverlapping(30)
     ->runInBackground();
+
+/*
+ * Kuyrukta işi kalmamış "sırada/kuruluyor" kayıtları düşer; yoksa makine bir
+ * daha seçilemez (bkz. OsUpdateReconcileCommand). Makineye bağlanmaz.
+ */
+Schedule::command('os-update:reconcile')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);

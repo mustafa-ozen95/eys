@@ -325,7 +325,7 @@
                     </div>
                 </div>
 
-                @if ($selected['canApply'] || ($selected['canLock'] && (! $selected['locked'] || $selected['lockHere'])))
+                @if ($selected['canApply'] || $selected['canReboot'] || ($selected['canLock'] && (! $selected['locked'] || $selected['lockHere'])))
                     <div class="detail__foot">
                         @if ($selected['canApply'])
                             <form method="POST" action="{{ route('os-updates.check') }}" data-inline>
@@ -348,6 +348,17 @@
                                 @csrf
                                 <input type="hidden" name="kilit" value="{{ $selected['locked'] ? 0 : 1 }}">
                                 <button type="submit" class="btn btn--sm">{{ $selected['locked'] ? 'Kilidi kaldır' : 'Kilitle' }}</button>
+                            </form>
+                        @endif
+
+                        @if ($selected['canReboot'])
+                            <form method="POST" action="{{ route('os-updates.reboot', $selected['uuid']) }}"
+                                  data-inline
+                                  data-confirm-title="Yeniden başlat"
+                                  data-confirm="{{ $selected['name'] }} bir dakika sonra yeniden başlatılacak; makinedeki hizmetler birkaç dakika kesilir."
+                                  data-confirm-variant="danger">
+                                @csrf
+                                <button type="submit" class="btn btn--sm">Yeniden başlat</button>
                             </form>
                         @endif
                     </div>

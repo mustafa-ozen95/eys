@@ -55,6 +55,9 @@ enum ActivityAction: string
     /* Bir makinenin güncelleme kilidi açıldı ya da kapatıldı. */
     case OsUpdateLock = 'os_update_lock';
 
+    /* Linux makine panelden yeniden başlatıldı (ya da başlatılamadı). */
+    case OsReboot = 'os_reboot';
+
     public function label(): string
     {
         return match ($this) {
@@ -75,6 +78,7 @@ enum ActivityAction: string
             self::UpdateStarted => 'Güncelleme başlatıldı',
             self::OsUpdate => 'Sistem güncellemesi',
             self::OsUpdateLock => 'Güncelleme kilidi',
+            self::OsReboot => 'Yeniden başlatma',
         };
     }
 
@@ -92,6 +96,7 @@ enum ActivityAction: string
             self::ConsoleClosed => BadgeVariant::Gray,
             self::OsUpdate => BadgeVariant::Purple,
             self::OsUpdateLock => BadgeVariant::Orange,
+            self::OsReboot => BadgeVariant::Red,
             self::LoggedIn => BadgeVariant::Gray,
         };
     }

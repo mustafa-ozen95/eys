@@ -90,15 +90,20 @@ class OsUpdater
             $etiket = $mod === OsUpdateScripts::KRITIK ? 'yalnızca kritik' : 'tümü';
 
             try {
-                $this->shell->calistir(
+                $cikti = $this->shell->calistir(
                     $credential,
                     OsUpdateScripts::kurulum($mod),
                     (int) config('os_update.apply_timeout', 840),
                     'Güncelleme kurulamadı; ayrıntı makinede '.OsUpdateScripts::GUNLUK.'.',
                 );
+                $hata = self::kurulumHatasi(...OsUpdateScripts::kurulumSonucu($cikti));
             } catch (RotationException $e) {
-                $this->durum($credential, OsUpdateState::BASARISIZ, $e->getMessage());
-                $this->activity->record(ActivityAction::OsUpdate, "Sistem güncellemesi kurulamadı ({$etiket}): ".Str::limit($e->getMessage(), 150), $credential, $reason, $actor);
+                $hata = $e->getMessage();
+            }
+
+            if ($hata !== null) {
+                $this->durum($credential, OsUpdateState::BASARISIZ, $hata);
+                $this->activity->record(ActivityAction::OsUpdate, "Sistem güncellemesi kurulamadı ({$etiket}): ".Str::limit($hata, 150), $credential, $reason, $actor);
 
                 return;
             }
@@ -111,6 +116,30 @@ class OsUpdater
 
         /* Kurulumdan sonra sayılar ve "yeniden başlatma gerekli" tazelenir. */
         $this->denetle($credential);
+    }
+
+    /**
+     * Kurulumun sonucu: null başarılı demek. Başarısızsa günlüğün SON
+     * satırları iletiye girer — sığmazsa baştakiler atılır, hatanın kendisi
+     * genellikle sondadır.
+     *
+     * @param  list<string>  $satirlar
+     */
+    public static function kurulumHatasi(?int $kod, array $satirlar): ?string
+    {
+        if ($kod === 0) {
+            return null;
+        }
+
+        $bas = $kod === null
+            ? 'Kurulumun sonucu okunamadı; ayrıntı makinede '.OsUpdateScripts::GUNLUK.'.'
+            : "Kurulum hatayla bitti (kod {$kod}).";
+
+        while ($satirlar !== [] && mb_strlen($bas.' '.implode(' · ', $satirlar)) > 285) {
+            array_shift($satirlar);
+        }
+
+        return $satirlar === [] ? $bas : $bas.' '.implode(' · ', $satirlar);
     }
 
     /** Kilidi koyar ya da kaldırır; kim, ne zaman, neden işlem kaydına yazılır. */

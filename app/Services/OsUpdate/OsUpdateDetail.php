@@ -33,7 +33,7 @@ class OsUpdateDetail
      */
     public function build(User $user, Credential $kayit, array $satir, Collection $gorunenler): array
     {
-        $gecmisGorur = $satir['canApply'] || $satir['canLock'] || $user->can('viewAny', ActivityLog::class);
+        $gecmisGorur = $satir['canApply'] || $satir['canLock'] || $satir['canReboot'] || $user->can('viewAny', ActivityLog::class);
 
         return [
             ...$satir,
@@ -70,7 +70,7 @@ class OsUpdateDetail
         return ActivityLog::query()
             ->where('subject_type', $kayit->getMorphClass())
             ->whereIn('subject_id', $kimlikler)
-            ->whereIn('action', [ActivityAction::OsUpdate, ActivityAction::OsUpdateLock])
+            ->whereIn('action', [ActivityAction::OsUpdate, ActivityAction::OsUpdateLock, ActivityAction::OsReboot])
             ->latest('id')
             ->limit(self::GECMIS)
             ->get()

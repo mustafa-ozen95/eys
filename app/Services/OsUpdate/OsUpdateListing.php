@@ -174,6 +174,8 @@ class OsUpdateListing
             'busy' => $mesgul,
             'canApply' => $kurabilir,
             'canLock' => $user->can('osUpdateLock', $kayit),
+            /* Düğme yalnızca gerektiğinde: kilitli ya da kurulumu süren makinede yok (karar OsRebooter'da da). */
+            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && $user->can('osReboot', $kayit),
             'selectable' => $kurabilir && $kilit === null && ! $mesgul,
             'blocked' => match (true) {
                 ! $kurabilir => 'Bu kayıtta sistem güncellemesi kurma yetkiniz yok.',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Services\OsUpdate\OsUpdater;
 use App\Services\OsUpdate\OsUpdateScripts;
 use App\Services\OsUpdate\PackageReport;
 use InvalidArgumentException;
@@ -185,7 +186,8 @@ class OsUpdatePackageReportTest extends TestCase
 
         foreach ([$kritik, $tumu] as $betik) {
             $this->assertStringStartsWith('setsid sh -c ', $betik);
-            $this->assertStringEndsWith('& wait $!', $betik);
+            $this->assertStringContainsString('& wait $!; rc=$?', $betik);
+            $this->assertStringEndsWith('; true', $betik);
             $this->assertStringContainsString('--force-confold', $betik);
             $this->assertDoesNotMatchRegularExpression('/(^|[;&|\s])(reboot|shutdown)(\s|;|$)/m', $betik);
         }
@@ -194,6 +196,25 @@ class OsUpdatePackageReportTest extends TestCase
         $this->assertStringContainsString('upgrade --security', $kritik);
         $this->assertStringContainsString('upgrade --with-new-pkgs', $tumu);
         $this->assertStringNotContainsString('--security', $tumu);
+    }
+
+    /** Başarısız kurulumun nedeni panele gelir: kod ve günlüğün son satırları. */
+    #[Test]
+    public function kurulum_sonucu_kodu_ve_gunluk_satirlarini_okur(): void
+    {
+        $basarisiz = "dgn parola yankisi\r\nEYS-SONUC:1\r\nEYS-GUNLUK:bas\r\nError: Transaction test error:\r\n  file /usr/lib conflicts\r\n\r\nEYS-GUNLUK:son\r\n";
+
+        $this->assertSame([1, ['Error: Transaction test error:', 'file /usr/lib conflicts']], OsUpdateScripts::kurulumSonucu($basarisiz));
+        $this->assertSame([0, []], OsUpdateScripts::kurulumSonucu("EYS-SONUC:0\n"));
+        $this->assertSame([null, []], OsUpdateScripts::kurulumSonucu('bağlantı yarıda'));
+
+        $this->assertNull(OsUpdater::kurulumHatasi(0, []));
+        $this->assertSame('Kurulum hatayla bitti (kod 1). Error: x · y', OsUpdater::kurulumHatasi(1, ['Error: x', 'y']));
+        $this->assertStringStartsWith('Kurulumun sonucu okunamadı', OsUpdater::kurulumHatasi(null, []));
+
+        $uzun = OsUpdater::kurulumHatasi(1, [str_repeat('a', 200), str_repeat('b', 200), 'Error: son satır']);
+        $this->assertLessThanOrEqual(290, mb_strlen($uzun));
+        $this->assertStringEndsWith('Error: son satır', $uzun);
     }
 
     #[Test]

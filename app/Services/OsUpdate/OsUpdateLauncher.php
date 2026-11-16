@@ -70,7 +70,7 @@ class OsUpdateLauncher
             }
 
             $gorulen[$makine] = $kayit->getKey();
-            CheckOsUpdatesJob::dispatch($kayit);
+            CheckOsUpdatesJob::dispatch($kayit, elle: true);
         }
 
         return array_values($gorulen);

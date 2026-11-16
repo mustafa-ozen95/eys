@@ -24,6 +24,16 @@ final class OsUpdateScripts
     /** Kurulum günlüğü: ayrıntı (hata satırları) makinede burada kalır, panele taşınmaz. */
     public const GUNLUK = '/var/log/eys-sistem-guncelleme.log';
 
+    /** Kurulumun sonuç işaretleri (bkz. kurulumSonucu). */
+    public const SONUC = 'EYS-SONUC:';
+
+    public const GUNLUK_BAS = 'EYS-GUNLUK:bas';
+
+    public const GUNLUK_SON = 'EYS-GUNLUK:son';
+
+    /** Başarısız kurulumda panele taşınan günlük satırı sayısı. */
+    public const GUNLUK_SATIR = 8;
+
     /**
      * Denetim: depo listesini yeniler ve bekleyenleri sayar. KURULUM YAPMAZ.
      *
@@ -107,6 +117,47 @@ SH;
             .'elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then '.$dnf.'; '
             .'else echo "paket yoneticisi yok"; exit 3; fi';
 
-        return 'setsid sh -c '.escapeshellarg($is).' >'.self::GUNLUK.' 2>&1 </dev/null & wait $!';
+        /*
+         * Sonuç ÇIKIŞ KODUYLA DEĞİL, işaretle döner: komut sıfırdan farklı
+         * biterse taşıma çıktıyı hiç vermiyor (PTY yankısında parola var), panel
+         * yalnızca "kod 1" yazabiliyordu. Başarısızlıkta günlüğün son satırları
+         * EYS-GUNLUK işaretleri arasında gelir; günlüğe parola girmez (sudo
+         * parolası betikten önce okunur), yine de kabuk çıktıyı maskeler.
+         */
+        return 'setsid sh -c '.escapeshellarg($is).' >'.self::GUNLUK.' 2>&1 </dev/null & wait $!; '
+            .'rc=$?; echo "'.self::SONUC.'$rc"; '
+            .'if [ "$rc" != 0 ]; then echo '.self::GUNLUK_BAS.'; tail -n '.self::GUNLUK_SATIR.' '.self::GUNLUK.'; echo '.self::GUNLUK_SON.'; fi; true';
+    }
+
+    /**
+     * Yeniden başlatma: bir dakika SONRAYA kurulur ve hemen döner. Bağlantı
+     * temiz kapanır, oturumdaki kullanıcılar uyarıyı görür. Panelden başka
+     * bir yolla ÇAĞRILMAZ (bkz. OsRebooter).
+     */
+    public static function yenidenBaslatma(): string
+    {
+        return "shutdown -r +1 'EYS: panelden yeniden baslatma'";
+    }
+
+    /**
+     * Kurulum çıktısından çıkış kodu ve (başarısızsa) günlüğün son satırları.
+     * İşaret yoksa kod null: kurulumun sonucu okunamadı.
+     *
+     * @return array{0: int|null, 1: list<string>}
+     */
+    public static function kurulumSonucu(string $cikti): array
+    {
+        $cikti = str_replace("\r", '', $cikti);
+        $kod = preg_match('/^'.self::SONUC.'(\d+)\s*$/m', $cikti, $m) === 1 ? (int) $m[1] : null;
+        $satirlar = [];
+
+        if (preg_match('/^'.self::GUNLUK_BAS.'\s*$(.*?)^'.self::GUNLUK_SON.'\s*$/ms', $cikti, $g) === 1) {
+            $satirlar = array_values(array_filter(
+                array_map(fn (string $s): string => trim(preg_replace('/\e\[[0-9;]*[A-Za-z]/', '', $s) ?? $s), explode("\n", $g[1])),
+                fn (string $s): bool => $s !== '',
+            ));
+        }
+
+        return [$kod, $satirlar];
     }
 }

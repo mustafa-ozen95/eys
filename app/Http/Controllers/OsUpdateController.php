@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\OsUpdate\ApplyOsUpdateRequest;
 use App\Http\Requests\OsUpdate\CheckOsUpdateRequest;
 use App\Http\Requests\OsUpdate\LockOsUpdateRequest;
+use App\Http\Requests\OsUpdate\RebootOsRequest;
 use App\Models\Credential;
+use App\Services\OsUpdate\OsRebooter;
 use App\Services\OsUpdate\OsUpdateLauncher;
 use App\Services\OsUpdate\OsUpdateListing;
 use App\Services\OsUpdate\OsUpdater;
@@ -26,6 +28,7 @@ use Illuminate\View\View;
  *
  * Kurulum ve denetim ayrı yetki ister ('os_update'); kilit ayrı bir yetkidir
  * ('os_update_lock'). Kayıt başına yetki ve kilit OsUpdateLauncher'da sorulur.
+ * Yeniden başlatma da ayrı yetkidir ('os_reboot'; RebootOsRequest + OsRebooter).
  */
 class OsUpdateController extends Controller implements HasMiddleware
 {
@@ -36,6 +39,7 @@ class OsUpdateController extends Controller implements HasMiddleware
             new Middleware('can:osUpdateAny,'.Credential::class, only: ['check', 'apply', 'status', 'dismiss']),
             ...RequestLimit::icin('os_update', ['apply']),
             ...RequestLimit::icin('os_update_check', ['check']),
+            ...RequestLimit::icin('os_reboot', ['reboot']),
         ];
     }
 
@@ -98,6 +102,18 @@ class OsUpdateController extends Controller implements HasMiddleware
         return back()->with('status', $kilitli
             ? "{$ad} kilitlendi: bu makineye güncelleme kurulmaz."
             : "{$ad} kilidi kaldırıldı.");
+    }
+
+    public function reboot(RebootOsRequest $request, Credential $credential, OsUpdateTargets $targets, OsRebooter $rebooter): RedirectResponse
+    {
+        abort_unless($targets->kullaniciIcin($request->user())->whereKey($credential->getKey())->exists(), 404);
+
+        $ad = OsUpdateTargets::ad($credential->loadMissing('altGrup'));
+        $engel = $rebooter->baslat($credential, $request->user(), $request->string('reason')->value());
+
+        return $engel === null
+            ? back()->with('status', "{$ad} bir dakika içinde yeniden başlatılacak; birkaç dakika sonra yeniden denetlenir.")
+            : back()->with('error', "{$ad} yeniden başlatılmadı: {$engel}");
     }
 
     public function status(Request $request, string $parti): JsonResponse

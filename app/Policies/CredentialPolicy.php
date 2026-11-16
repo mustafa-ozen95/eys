@@ -205,6 +205,18 @@ class CredentialPolicy
     }
 
     /**
+     * Makineyi yeniden başlatmak (kurulumdan sonra "yeniden başlatma
+     * gerekli" kalan Linux makine). Kurulum yetkisinden AYRI: kurulum cihazı
+     * değiştirir, yeniden başlatma onu bir süre kapatır. Kilit ayrıca
+     * uygulanır (OsRebooter) — yetki kilidi aşmaz.
+     */
+    public function osReboot(User $user, Credential $credential): bool
+    {
+        return $this->can($user, 'os_reboot', $credential)
+            && $this->can($user, 'view', $credential);
+    }
+
+    /**
      * "Sistem güncellemeleri" ekranı ve üst menüdeki sekmesi: iki yetkiden
      * biri yeter. Hiçbiri yoksa sekme de görünmez. Yalnızca kilit yetkisi
      * olan ekranı görür ama toplu araçlar çizilmez (canAct).
@@ -212,7 +224,8 @@ class CredentialPolicy
     public function osUpdatePage(User $user): bool
     {
         return $this->osUpdateAny($user)
-            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_update_lock');
+            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_update_lock')
+            || $this->resolver->allowsAny($user, self::RESOURCE, 'os_reboot');
     }
 
     /**

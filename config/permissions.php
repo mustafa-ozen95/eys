@@ -32,6 +32,7 @@ return [
         'connect' => 'Konsol aç (SSH / uzak masaüstü)',
         'os_update' => 'Sistem güncellemesi kur (Linux)',
         'os_update_lock' => 'Güncelleme kilidini değiştir',
+        'os_reboot' => 'Makineyi yeniden başlat (Linux)',
     ],
 
     /*
@@ -162,6 +163,14 @@ return [
                  * kaldıramasın.
                  */
                 'os_update_lock',
+
+                /*
+                 * Yeniden başlatmak makineyi bir süre KAPATIR: kurulum
+                 * yetkisi bunu kapsamaz. Kurulum hiçbir zaman yeniden
+                 * başlatmaz; gereken yeniden başlatma bu yetkiyle, gerekçe
+                 * yazılarak ayrıca yapılır.
+                 */
+                'os_reboot',
             ],
         ],
     ],

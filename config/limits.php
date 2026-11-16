@@ -46,6 +46,9 @@ return [
     /* Bekleyen güncelleme denetimi: makinelere bağlanır ama yazmaz. */
     'os_update_check' => (int) env('LIMIT_OS_UPDATE_CHECK', 6),
 
+    /* Yeniden başlatma: makineyi kapatır; dakikada birkaç tane yeter. */
+    'os_reboot' => (int) env('LIMIT_OS_REBOOT', 5),
+
     /* Yarım kalmış turu onarma — aynı gerekçeyle sınırsız. */
     'rotate_repair' => (int) env('LIMIT_ROTATE_REPAIR', 0),
 

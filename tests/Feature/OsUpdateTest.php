@@ -10,6 +10,7 @@ use App\Enums\OperatingSystem;
 use App\Enums\PermissionEffect;
 use App\Jobs\ApplyOsUpdatesJob;
 use App\Jobs\CheckOsUpdatesJob;
+use App\Jobs\RebootOsJob;
 use App\Models\ActivityLog;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
@@ -18,6 +19,7 @@ use App\Models\Role;
 use App\Models\SubGroup;
 use App\Models\User;
 use App\Services\ActivityRecorder;
+use App\Services\OsUpdate\OsRebooter;
 use App\Services\OsUpdate\OsUpdateLauncher;
 use App\Services\OsUpdate\OsUpdater;
 use App\Services\OsUpdate\OsUpdateRound;
@@ -47,6 +49,9 @@ class OsUpdateTest extends TestCase
     /** @var list<string> sahte kabuğa gelen betikler */
     private array $calisan = [];
 
+    /** Sahte kurulumun çıktısı; null ise başarılı. */
+    public ?string $kurulumCiktisi = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -69,7 +74,7 @@ class OsUpdateTest extends TestCase
         $this->calisan[] = $betik;
 
         return str_contains($betik, 'setsid')
-            ? ''
+            ? ($this->kurulumCiktisi ?? "EYS-SONUC:0\n")
             : "EYS-OS:Ubuntu 24.04.3 LTS\nEYS-PM:apt\nEYS-BOLUM:liste\nopenssl/noble-security 3.1 amd64 [upgradable from: 3.0]\n"
                 ."vim/noble-updates 9.1 amd64 [upgradable from: 9.0]\nEYS-BOLUM:son\nEYS-REBOOT\n";
     }
@@ -253,7 +258,7 @@ class OsUpdateTest extends TestCase
         $this->actingAs($user)->post(route('os-updates.check'), ['secilen' => 1, 'kayitlar' => [$bir->uuid]])
             ->assertSessionHas('status');
         Queue::assertPushed(CheckOsUpdatesJob::class, 1);
-        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $j): bool => $j->uniqueId() === 'denetim:10.0.7.1:22');
+        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $j): bool => $j->uniqueId() === 'denetim-elle:10.0.7.1:22');
 
         $this->actingAs($user)->get(route('os-updates.index'))
             ->assertSee('Seçilenleri denetle')
@@ -757,6 +762,110 @@ class OsUpdateTest extends TestCase
         $log = ActivityLog::query()->where('action', ActivityAction::OsUpdate->value)->latest('id')->first();
         $this->assertSame('Aylık yama', $log->reason);
         $this->assertStringContainsString('yalnızca kritik', $log->summary);
+    }
+
+    /** Başarısız kurulumun nedeni ekranda: yalnızca "kod 1" değil, günlüğün son satırları. Parola maskelenir. */
+    #[Test]
+    public function basarisiz_kurulum_gunlugun_son_satirlarini_gosterir(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Rocky', '10.0.4.2');
+        $this->kurulumCiktisi = "EYS-SONUC:1\nEYS-GUNLUK:bas\nError: Problem: cannot install the best update candidate\nEYS-GUNLUK:son\n";
+
+        app(OsUpdater::class)->kur($kayit, OsUpdateScripts::KRITIK, $user, 'Aylık yama');
+
+        $durum = $kayit->osUpdateState()->first();
+        $this->assertSame(OsUpdateState::BASARISIZ, $durum->apply_status);
+        $this->assertSame('Kurulum hatayla bitti (kod 1). Error: Problem: cannot install the best update candidate', $durum->apply_error);
+        $this->assertCount(1, $this->calisan, 'başarısız kurulumdan sonra yeniden denetlenmez');
+    }
+
+    /** Elle denetim, otomatik turun beklettiği işin arkasında kalmaz; o arada denetlenen makineye otomatik iş yeniden bağlanmaz. */
+    #[Test]
+    public function elle_denetim_otomatik_sirayi_beklemez_otomatik_is_tekrar_baglanmaz(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Srv', '10.0.6.1');
+
+        $otomatik = new CheckOsUpdatesJob($kayit);
+        $elle = new CheckOsUpdatesJob($kayit, elle: true);
+        $this->assertNotSame($otomatik->uniqueId(), $elle->uniqueId(), 'elle iş otomatik işin tekillik kilidine takılmaz');
+
+        $this->travel(1)->seconds();
+        $elle->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+        $this->assertCount(1, $this->calisan);
+
+        $otomatik->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+        $this->assertCount(1, $this->calisan, 'beklerken denetlenen makineye yeniden bağlanılmaz');
+
+        $this->travel(1)->seconds();
+        (new CheckOsUpdatesJob($kayit))->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+        $this->assertCount(2, $this->calisan, 'sonradan sıraya alınan otomatik iş bağlanır');
+    }
+
+    /** Yeniden başlatma AYRI yetki: kurulum yetkisi kapsamaz; düğme yetkisize çizilmez. */
+    #[Test]
+    public function yeniden_baslatma_kurulum_yetkisiyle_yapilamaz(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Srv', '10.0.8.1');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), ['reason' => 'Çekirdek yaması'])->assertForbidden();
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $kayit->uuid]))
+            ->assertOk()
+            ->assertDontSee(route('os-updates.reboot', $kayit), false);
+        Queue::assertNothingPushed();
+    }
+
+    /** Yalnızca "yeniden başlatma gerekli" olan, kilitsiz makine; gerekçe zorunlu; üst üste ikinci kez gönderilmez. */
+    #[Test]
+    public function yeniden_baslatma_dar_kapidan_ve_gerekceyle_siraya_girer(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $kayit = $this->makine($group, 'Srv', '10.0.8.2');
+        $durum = OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => false, 'checked_at' => now()]);
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), ['reason' => 'Çekirdek yaması'])->assertSessionHas('error');
+        Queue::assertNothingPushed();
+
+        $durum->update(['reboot_required' => true]);
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $kayit->uuid]))
+            ->assertSee(route('os-updates.reboot', $kayit), false);
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), [])->assertSessionHasErrors('reason');
+        Queue::assertNothingPushed();
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), ['reason' => 'Çekirdek yaması'])->assertSessionHas('status');
+        Queue::assertPushed(RebootOsJob::class, 1);
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), ['reason' => 'Çekirdek yaması'])->assertSessionHas('error');
+        Queue::assertPushed(RebootOsJob::class, 1);
+
+        /* Kilitli makine: düğme yok, uç reddeder. */
+        $diger = $this->makine($group, 'Kritik', '10.0.8.3');
+        OsUpdateState::query()->create(['credential_id' => $diger->id, 'reboot_required' => true, 'locked' => true, 'lock_reason' => 'Üretim DB']);
+        $this->actingAs($user)->post(route('os-updates.reboot', $diger), ['reason' => 'Çekirdek yaması'])->assertSessionHas('error');
+        Queue::assertPushed(RebootOsJob::class, 1);
+    }
+
+    /** İş: komut makinede çalışır, gerekçe işlem kaydına yazılır, makine kalkınca yeniden denetlenir. */
+    #[Test]
+    public function yeniden_baslatma_isi_kaydeder_ve_sonra_denetler(): void
+    {
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $kayit = $this->makine($group, 'Srv', '10.0.8.4');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
+
+        Queue::fake([CheckOsUpdatesJob::class]);
+        (new RebootOsJob($kayit, $user, 'Çekirdek yaması'))->handle(app(OsRebooter::class));
+
+        $this->assertSame([OsUpdateScripts::yenidenBaslatma()], $this->calisan);
+        $log = ActivityLog::query()->where('action', ActivityAction::OsReboot->value)->latest('id')->first();
+        $this->assertSame('Çekirdek yaması', $log->reason);
+        Queue::assertPushed(CheckOsUpdatesJob::class, 1);
     }
 
     #[Test]

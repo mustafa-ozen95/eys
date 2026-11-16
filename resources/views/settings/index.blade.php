@@ -1,6 +1,6 @@
 <x-layout.app title="Ayarlar">
     <div class="page">
-        <div class="page__inner">
+        <div class="page__inner page__inner--wide">
             <x-ui.page-head title="Ayarlar" :subtitle="$definition['description'] ?? null" />
 
             <x-ui.tabs :items="$tabs" />

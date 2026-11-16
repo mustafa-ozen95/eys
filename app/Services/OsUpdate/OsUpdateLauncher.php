@@ -95,11 +95,28 @@ class OsUpdateLauncher
             return 'kilitli';
         }
 
-        if ($kayit->osUpdateState?->isBusy()) {
+        /*
+         * Makinenin HERHANGİ bir kaydında kurulum sürüyorsa: iş makine başına
+         * tekil (ApplyOsUpdatesJob::uniqueId), kardeş kayıttan verilen iş
+         * sessizce düşüyor, kayıt "sırada"da asılı kalıyordu.
+         */
+        if ($this->makineMesgul($kayit)) {
             return 'kurulum zaten sürüyor';
         }
 
         return null;
+    }
+
+    private function makineMesgul(Credential $kayit): bool
+    {
+        if ($kayit->osUpdateState?->isBusy()) {
+            return true;
+        }
+
+        return OsUpdateState::query()
+            ->whereIn('credential_id', $this->targets->kardesler($kayit)->modelKeys())
+            ->whereIn('apply_status', [OsUpdateState::SIRADA, OsUpdateState::SURUYOR])
+            ->exists();
     }
 
     /** @param  array<string, string>  $atlananlar */

@@ -38,24 +38,44 @@ class OsUpdateRound
     ];
 
     /**
+     * Turu başlatır; aynı türden SÜREN bir tur varsa yenisini açmaz, kayıtları
+     * ona ekler. Süren denetimin üstüne elle bir denetim daha başlatılınca
+     * eski kart kayboluyor, yerine tek makinelik yeni kart açılıyordu.
+     *
+     * Her kaydın kendi başlangıç anı tutulur: tura sonradan eklenen (ya da
+     * yeniden denetlenen) makine, önceki sonucuyla "bitti" sayılmasın.
+     *
      * @param  list<int>  $kimlikler
      * @param  int|null  $baslangic  İşler sıraya alınmadan ÖNCEKİ an: hızlı biten
      *                               bir iş turun başlangıcından önce yazılmış sayılmasın.
      */
     public static function baslat(User $kullanici, array $kimlikler, string $tur = self::KURULUM, ?int $baslangic = null): string
     {
-        $parti = (string) Str::uuid();
+        $baslangic ??= now()->timestamp;
+        $kimlikler = array_values(array_unique($kimlikler));
 
-        Cache::put(self::PARTI.$parti, [
-            'kullanici' => $kullanici->getKey(),
-            'tur' => $tur,
-            'kayitlar' => array_values(array_unique($kimlikler)),
-            'baslangic' => $baslangic ?? now()->timestamp,
-        ], self::OMUR);
+        return Cache::lock(self::PARTI.'kilit:'.$kullanici->getKey(), 10)->block(5, function () use ($kullanici, $kimlikler, $tur, $baslangic): string {
+            $parti = self::son($kullanici, $tur);
+            $veri = $parti === null ? null : Cache::get(self::PARTI.$parti);
 
-        Cache::put(self::sonAnahtari($kullanici, $tur), $parti, self::OMUR);
+            if (! is_array($veri) || ! (self::durum($kullanici, $parti)['running'] ?? false)) {
+                $parti = (string) Str::uuid();
+                $veri = ['kullanici' => $kullanici->getKey(), 'tur' => $tur, 'kayitlar' => [], 'baslangic' => $baslangic, 'baslangiclar' => []];
+            }
 
-        return $parti;
+            $veri['baslangiclar'] ??= array_fill_keys($veri['kayitlar'], $veri['baslangic']);
+
+            foreach ($kimlikler as $id) {
+                $veri['baslangiclar'][$id] = $baslangic;
+            }
+
+            $veri['kayitlar'] = array_values(array_unique([...$veri['kayitlar'], ...$kimlikler]));
+
+            Cache::put(self::PARTI.$parti, $veri, self::OMUR);
+            Cache::put(self::sonAnahtari($kullanici, $tur), $parti, self::OMUR);
+
+            return $parti;
+        });
     }
 
     public static function son(User $kullanici, string $tur = self::KURULUM): ?string
@@ -98,7 +118,10 @@ class OsUpdateRound
         $isSuresi = $tur === self::DENETIM
             ? (int) config('os_update.check_timeout', 180)
             : (int) config('os_update.apply_timeout', 840);
-        $zamanAsimi = now()->timestamp - $veri['baslangic'] > count($kimlikler) * ($isSuresi + 120);
+        /* Süre en son eklenen kayıttan sayılır: sonradan eklenen makine hemen "başlamadı" olmasın. */
+        $baslangiclar = $veri['baslangiclar'] ?? [];
+        $sonEkleme = max([$veri['baslangic'], ...array_values($baslangiclar)]);
+        $zamanAsimi = now()->timestamp - $sonEkleme > count($kimlikler) * ($isSuresi + 120);
 
         $sayilar = ['success' => 0, 'failed' => 0, 'unverified' => 0, 'unstarted' => 0, 'pending' => 0];
         $suren = null;
@@ -108,9 +131,10 @@ class OsUpdateRound
         foreach ($kimlikler as $id) {
             $ad = (string) ($adlar[$id] ?? "#{$id}");
             $durum = $durumlar->get($id);
+            $kayitBaslangici = (int) ($baslangiclar[$id] ?? $veri['baslangic']);
             $anahtar = $tur === self::DENETIM
-                ? self::denetimAnahtari($durum, $veri['baslangic'], $zamanAsimi)
-                : self::anahtar($durum, $veri['baslangic'], $zamanAsimi);
+                ? self::denetimAnahtari($durum, $kayitBaslangici, $zamanAsimi)
+                : self::anahtar($durum, $kayitBaslangici, $zamanAsimi);
 
             match ($anahtar) {
                 'success' => $sayilar['success']++,

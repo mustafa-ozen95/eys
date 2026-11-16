@@ -40,6 +40,29 @@ const NAMES = Object.fromEntries(LABELS.map(([k, name]) => [k, name.charAt(0).to
  */
 const timers = new Map();
 
+/*
+ * Kartın son gördüğü "biten" sayısı. Tur SÜRERKEN bir makine bitince
+ * satırları (bekleyen sayıları, son denetim/kurulum) beklemeden tazelemek
+ * için: yalnızca kart ilerleyip satırlar eski kalıyordu, tur bitene ya da
+ * sayfa elle yenilenene dek "48 normal" yazmaya devam ediyordu.
+ */
+const seen = new Map();
+
+/* İki ara tazeleme arasında en az bu kadar (ms): çok makine aynı anda biterse sayfa titremesin. */
+const REFRESH_GAP = 4000;
+
+let lastRefresh = 0;
+
+/*
+ * Kullanıcı bir şeyle uğraşırken gövde değiştirilmez: seçili kutular, açık
+ * onay penceresi ve yazılan gerekçe gövdeyle birlikte silinirdi. Tazeleme
+ * bir sonraki yoklamaya kalır; tur bitince yine kesin yapılır.
+ */
+function busy() {
+    return document.querySelector('[data-bulk-item]:checked, [data-confirm-dialog]:not([hidden]), [data-modal]:not([hidden])') !== null
+        || document.activeElement?.matches?.('input:not([type=checkbox]), textarea, select') === true;
+}
+
 function stopOne(root) {
     clearTimeout(timers.get(root));
     timers.delete(root);
@@ -152,6 +175,23 @@ async function poll(root, remaining) {
     }
 
     render(root, data);
+
+    const before = seen.get(root.dataset.bulkRoundProgressUrl);
+    seen.set(root.dataset.bulkRoundProgressUrl, data.done);
+
+    if (data.running !== false && before !== undefined && data.done > before) {
+        root.dataset.bulkRoundStale = '';
+    }
+
+    if (data.running !== false && root.dataset.bulkRoundStale !== undefined
+        && Date.now() - lastRefresh >= REFRESH_GAP && !busy()) {
+        /* Ara tazeleme: satırlar sunucudan; yeni sayfa yoklamayı yeniden başlatır (init). */
+        lastRefresh = Date.now();
+        stop();
+        refresh();
+
+        return;
+    }
 
     if (data.running === false) {
         /*

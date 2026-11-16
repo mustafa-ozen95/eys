@@ -65,6 +65,9 @@ class OsUpdateController extends Controller implements HasMiddleware
 
     public function apply(ApplyOsUpdateRequest $request, OsUpdateLauncher $launcher): RedirectResponse
     {
+        /* Sıraya almadan ÖNCEKİ an: sıraya alma bir saniyeyi aşarsa ilk makinelerin
+         * apply_queued_at'i turdan eski sayılıp "başlamadı"ya düşüyordu. */
+        $baslangic = now()->timestamp;
         $sonuc = $launcher->kur(
             $request->credentials(),
             $request->string('mod')->value(),
@@ -76,7 +79,7 @@ class OsUpdateController extends Controller implements HasMiddleware
             return back()->with('error', 'Hiçbir makineye kurulum başlatılmadı. '.OsUpdateLauncher::ozet($sonuc['skipped']));
         }
 
-        OsUpdateRound::baslat($request->user(), $sonuc['queued']);
+        OsUpdateRound::baslat($request->user(), $sonuc['queued'], OsUpdateRound::KURULUM, $baslangic);
 
         $not = $sonuc['skipped'] === [] ? '' : ' Atlanan: '.OsUpdateLauncher::ozet($sonuc['skipped']);
 

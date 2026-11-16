@@ -18,6 +18,7 @@ use App\Models\Role;
 use App\Models\SubGroup;
 use App\Models\User;
 use App\Services\ActivityRecorder;
+use App\Services\OsUpdate\OsUpdateLauncher;
 use App\Services\OsUpdate\OsUpdater;
 use App\Services\OsUpdate\OsUpdateRound;
 use App\Services\OsUpdate\OsUpdateScripts;
@@ -293,6 +294,78 @@ class OsUpdateTest extends TestCase
             ->assertOk()
             ->assertJson(['running' => false, 'done' => 2, 'success' => 1, 'failed' => 1])
             ->assertJsonPath('problems.0.status', 'Bağlanılamadı.');
+    }
+
+    /** Süren denetimin üstüne başlatılan denetim YENİ kart açmaz; kayıtlar aynı karta eklenir. */
+    #[Test]
+    public function suren_denetime_eklenen_denetim_ayni_karta_girer(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $bir = $this->makine($group, 'Bir', '10.0.0.1');
+        $iki = $this->makine($group, 'Iki', '10.0.0.2');
+
+        $this->actingAs($user)->post(route('os-updates.check'), ['kayitlar' => [$bir->uuid]])->assertSessionHas('status');
+        $ilk = OsUpdateRound::son($user, OsUpdateRound::DENETIM);
+
+        $this->travel(5)->seconds();
+        $this->actingAs($user)->post(route('os-updates.check'), ['kayitlar' => [$iki->uuid]])->assertSessionHas('status');
+
+        $this->assertSame($ilk, OsUpdateRound::son($user, OsUpdateRound::DENETIM), 'süren kart korunur');
+        $this->actingAs($user)->getJson(route('os-updates.round.status', $ilk))
+            ->assertJson(['running' => true, 'total' => 2, 'done' => 0]);
+
+        /* İlk makine eklemeden ÖNCE, ikinci makine eklemeden SONRA bitti. */
+        $this->travel(1)->seconds();
+        OsUpdateState::query()->create(['credential_id' => $bir->id, 'checked_at' => now()->subSeconds(3)]);
+        OsUpdateState::query()->create(['credential_id' => $iki->id, 'checked_at' => now()]);
+
+        $this->actingAs($user)->getJson(route('os-updates.round.status', $ilk))
+            ->assertJson(['running' => false, 'done' => 2, 'success' => 2]);
+    }
+
+    /** Biten turdan sonra başlatılan denetim yeni kart açar; tura sonradan eklenen makine eski sonucuyla bitmiş sayılmaz. */
+    #[Test]
+    public function bitmis_ture_eklenmez_yeniden_eklenen_makine_bastan_beklenir(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $bir = $this->makine($group, 'Bir', '10.0.0.1');
+        $iki = $this->makine($group, 'Iki', '10.0.0.2');
+
+        $ilk = OsUpdateRound::baslat($user, [$bir->id, $iki->id], OsUpdateRound::DENETIM);
+        $this->travel(2)->seconds();
+        OsUpdateState::query()->create(['credential_id' => $bir->id, 'checked_at' => now()]);
+
+        /* Bir bitti, iki sürüyor: bir yeniden eklenince yeniden "sırada" olur. */
+        $this->travel(2)->seconds();
+        $this->assertSame($ilk, OsUpdateRound::baslat($user, [$bir->id], OsUpdateRound::DENETIM));
+        $this->assertSame(['running' => true, 'done' => 0], array_intersect_key(OsUpdateRound::durum($user, $ilk), ['running' => 1, 'done' => 1]));
+
+        $this->travel(1)->seconds();
+        OsUpdateState::query()->whereKey(OsUpdateState::query()->where('credential_id', $bir->id)->value('id'))->update(['checked_at' => now()]);
+        OsUpdateState::query()->create(['credential_id' => $iki->id, 'checked_at' => now()]);
+        $this->assertFalse(OsUpdateRound::durum($user, $ilk)['running']);
+
+        $this->assertNotSame($ilk, OsUpdateRound::baslat($user, [$bir->id], OsUpdateRound::DENETIM), 'biten tura eklenmez');
+    }
+
+    /** Kardeş kayıtta kurulum sürüyorsa ikinci kayıt sıraya alınmaz (iş makine başına tekil; sessizce düşüp "sırada" kalıyordu). */
+    #[Test]
+    public function kardes_kayitta_kurulum_surerken_ikinci_kayit_sirada_asili_kalmaz(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $dgn = $this->makine($group, 'dgn', '10.0.0.7');
+        $root = $this->makine($group, 'root', '10.0.0.7', ['username' => 'root']);
+        OsUpdateState::query()->create(['credential_id' => $dgn->id, 'apply_status' => OsUpdateState::SURUYOR, 'apply_queued_at' => now()]);
+
+        $sonuc = app(OsUpdateLauncher::class)->kur(collect([$root]), OsUpdateScripts::KRITIK, $user, 'deneme');
+
+        $this->assertSame([], $sonuc['queued']);
+        $this->assertContains('kurulum zaten sürüyor', $sonuc['skipped']);
+        $this->assertNull(OsUpdateState::query()->where('credential_id', $root->id)->value('apply_status'));
+        Queue::assertNothingPushed();
     }
 
     #[Test]

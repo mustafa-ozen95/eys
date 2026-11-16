@@ -2,28 +2,27 @@
 
 .tabs {
     display: flex;
-    gap: var(--space-5);
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
     margin-bottom: var(--space-5);
     border-bottom: 1px solid var(--color-line);
-    overflow-x: auto;
 }
 
 /*
- * DAR EKRANDA SEKMELER SARMALAR, YANA KAYMAZ.
+ * SEKMELER SARMALAR, YANA KAYMAZ — HER GENİŞLİKTE.
  *
- * Şerit telefonda ekrana sığmıyor ve sığmayan sekme (örneğin "API
- * jetonları") sağda kesik kalıyordu; oraya ulaşmanın tek yolu şeridi
- * parmakla yana kaydırmaktı ve bu hareket kolayca fark edilmiyor.
+ * Şerit sığmadığında sağda kesik kalıyordu ve sığmayan sekmeye ulaşmanın
+ * tek yolu şeridi yana kaydırmaktı; bu hareket kolayca fark edilmiyor.
+ * Önce yalnızca dar ekranda sarmalıyordu, ama ayar sayfası geniş ekranda da
+ * dar bir kutuda duruyor: sekmeler çoğalınca masaüstünde de "Veritabanı"
+ * kesiliyor, "Güncelleme" hiç görünmüyordu.
  *
- * Gizli kalan bir sekme, olmayan bir sekmedir: şerit artık alt satıra
- * geçiyor ve hepsi tek bakışta görünüyor. Geniş ekranda değişen bir şey
- * yok — orada zaten tek satıra sığıyor.
+ * Gizli kalan bir sekme, olmayan bir sekmedir: sığmayan sekme alt satıra
+ * geçer, hepsi tek bakışta görünür. Sığan şeritte değişen bir şey yok.
  */
 @media (max-width: 820px) {
     .tabs {
-        flex-wrap: wrap;
         gap: var(--space-3) var(--space-4);
-        overflow-x: visible;
     }
 }
 

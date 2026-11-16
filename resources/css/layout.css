@@ -23,6 +23,20 @@
     border-bottom: 1px solid var(--color-line);
     background: var(--color-column);
     flex-shrink: 0;
+
+    /*
+     * Üst çubuk sayfa içeriğinin ÜSTÜNDEDİR.
+     *
+     * Bunsuz, içinden açılan bildirim paneli yapışkan tablo başlığının
+     * altında kalır: ikisi de --z-sticky kullanır ve eşit değerde DOM'da
+     * sonra gelen kazanır.
+     *
+     * Ayrıca AÇILIR PANELLERİN DAYANAĞIDIR: dar ekranda bildirim paneli
+     * düğmeye değil başlığa yaslanır ve böylece ekranın dışına taşmaz
+     * (bkz. components/notification.css).
+     */
+    position: relative;
+    z-index: var(--z-dropdown);
 }
 
 .topbar__mark {
@@ -66,6 +80,25 @@
     background: var(--color-selected);
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
+}
+
+/* ── Kırıntı yolu ── */
+
+.crumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+}
+
+.crumbs__sep {
+    color: var(--color-line-strong);
+}
+
+.crumbs__item--current {
+    color: var(--color-text);
 }
 
 /* ── Sütun şeridi ── */
@@ -463,6 +496,13 @@
         display: none;
     }
 
+    /* Kırıntı yolu geri dönüş yoludur; gizlenmez, gerekirse yatay kayar. */
+    .crumbs {
+        min-width: 0;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
     /*
      * Telefonda her bölme TAM ekran kaplar ve bir parmak hareketi bir bölme
      * ilerletir.
@@ -532,6 +572,18 @@
 .topbar__nav {
     display: flex;
     gap: var(--space-1);
+
+    /*
+     * Şerit DARALIR ve kendi içinde kayar; belgeyi genişletmez.
+     *
+     * Şerit bağlantılarla (aşağıdaki .topbar__link) aynı bloğa girip
+     * flex-shrink: 0 alırsa tablet genişliğinde üst çubuk satırı ekrandan
+     * taşar: ÜST ÇUBUK sabit olduğu için taşma tüm belgeye geçer ve panelin
+     * HER sayfası yatay kayar. min-width olmadan flex öğesi içeriğinden dar
+     * olamaz; ikisi birlikte gerekir.
+     */
+    min-width: 0;
+    overflow-x: auto;
 }
 
 /*
@@ -546,6 +598,7 @@
  * kimi şeritte çubuk çıkar kimisinde çıkmaz.
  */
 .topbar__nav,
+.crumbs,
 .tabs,
 .pagination,
 .columns {
@@ -554,6 +607,7 @@
 }
 
 .topbar__nav::-webkit-scrollbar,
+.crumbs::-webkit-scrollbar,
 .tabs::-webkit-scrollbar,
 .pagination::-webkit-scrollbar,
 .columns::-webkit-scrollbar {

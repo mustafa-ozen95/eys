@@ -192,6 +192,9 @@
                                 @if ($row['reboot'])
                                     <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
                                 @endif
+                                @if ($row['bootLow'])
+                                    <x-ui.badge variant="orange" :title="$row['bootLow']">/boot dolu</x-ui.badge>
+                                @endif
                                 @if ($row['locked'])
                                     <x-ui.badge variant="gray">Kilitli</x-ui.badge>
                                 @endif
@@ -254,6 +257,9 @@
 
                         @if ($selected['checkError'])
                             <div class="alert alert--danger detail__block text-sm">{{ $selected['checkError'] }}</div>
+                        @endif
+                        @if ($selected['bootLow'])
+                            <div class="alert alert--warning detail__block text-sm">{{ $selected['bootLow'] }}</div>
                         @endif
                         @if ($selected['apply'] && $selected['apply']['error'])
                             <div class="alert alert--danger detail__block text-sm">{{ $selected['apply']['error'] }}</div>

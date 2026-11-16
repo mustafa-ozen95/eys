@@ -33,6 +33,7 @@ final class PackageReport
         public readonly bool $rebootRequired,
         public readonly bool $repoWarning,
         public readonly ?string $os = null,
+        public readonly ?int $bootFreeMb = null,
     ) {}
 
     public static function parse(string $cikti): self
@@ -100,6 +101,7 @@ final class PackageReport
             preg_match('/^EYS-REBOOT\s*$/m', $cikti) === 1,
             preg_match('/^EYS-UYARI:depo\s*$/m', $cikti) === 1,
             $isletim,
+            preg_match('/^EYS-BOOT:(\d+)\s*$/m', $cikti, $b) === 1 ? (int) $b[1] : null,
         );
     }
 

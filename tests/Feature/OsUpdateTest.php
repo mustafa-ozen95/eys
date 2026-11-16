@@ -1016,4 +1016,24 @@ class OsUpdateTest extends TestCase
         $this->assertStringContainsString('kuyrukta yok', $asili->osUpdateState()->first()->apply_error);
         $this->assertSame(OsUpdateState::SURUYOR, $yeni->osUpdateState()->first()->apply_status, 'yeni değişen kayda dokunulmaz');
     }
+
+    /** /boot'ta yer azsa ekran kurulumdan ÖNCE uyarır; yeterliyse susar. */
+    #[Test]
+    public function boot_dolu_makine_ekranda_uyarilir(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $dolu = $this->makine($group, 'Barkod', '10.0.9.30');
+        $rahat = $this->makine($group, 'Rahat', '10.0.9.31');
+        OsUpdateState::query()->create(['credential_id' => $dolu->id, 'package_manager' => 'dnf', 'checked_at' => now(), 'boot_free_mb' => 40]);
+        OsUpdateState::query()->create(['credential_id' => $rahat->id, 'package_manager' => 'apt', 'checked_at' => now(), 'boot_free_mb' => 700]);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $dolu->uuid]))
+            ->assertOk()
+            ->assertSeeText('/boot dolu')
+            ->assertSeeText('/boot bölümünde yalnızca 40 MB boş');
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $rahat->uuid]))
+            ->assertOk()
+            ->assertDontSeeText('/boot bölümünde yalnızca');
+    }
 }

@@ -78,6 +78,41 @@ class OsUpdatePackageReportTest extends TestCase
         $this->assertStringContainsString('apt-get -s', OsUpdateScripts::denetim(), 'ertelenenler simülasyondan okunur, kurulmaz');
     }
 
+    /** /boot boş alanı okunur; satır yoksa (eski betik, okunamadı) boş kalır. */
+    #[Test]
+    public function boot_bos_alani_okunur(): void
+    {
+        $this->assertSame(42, PackageReport::parse("EYS-PM:dnf\nEYS-BOLUM:liste\nEYS-BOLUM:son\nEYS-BOOT:42\n")->bootFreeMb);
+        $this->assertNull(PackageReport::parse("EYS-PM:apt\nEYS-BOLUM:liste\nEYS-BOLUM:son\n")->bootFreeMb);
+        $this->assertStringContainsString('df -Pm /boot', OsUpdateScripts::denetim());
+    }
+
+    /**
+     * /boot dolunca yeni çekirdek sığmıyor, kurulum hiç başlamıyordu
+     * (Barkod Yazıcı, 16.11.2026). Kurulum önce eski çekirdekleri siler;
+     * apt'de YALNIZCA linux-* paketleri, başka "gereksiz" paket değil.
+     * Denetim hâlâ hiçbir şey silmez.
+     */
+    #[Test]
+    public function kurulum_once_eski_cekirdekleri_temizler_denetim_temizlemez(): void
+    {
+        foreach (OsUpdateScripts::MODLAR as $mod) {
+            $betik = OsUpdateScripts::kurulum($mod);
+
+            $this->assertStringContainsString('remove --oldinstallonly --setopt installonly_limit=2 || true', $betik);
+            $this->assertStringContainsString('package-cleanup -y -q --oldkernels --count=2 || true', $betik);
+            $this->assertStringContainsString('s/^Remv \\(linux-[^ ]*\\) .*/\\1/p', $betik, 'apt: yalnızca çekirdek paketleri');
+            $this->assertStringNotContainsString('apt-get -y -q $o autoremove', $betik, 'apt: toplu autoremove yok');
+            $this->assertLessThan(strpos($betik, '$pm -y -q upgrade'), strpos($betik, 'oldinstallonly'), 'dnf: temizlik kurulumdan önce');
+            $aptKurulum = $mod === OsUpdateScripts::KRITIK ? 'install --only-upgrade' : 'apt-get -y -q $o upgrade';
+            $this->assertLessThan(strpos($betik, $aptKurulum), strpos($betik, 'purge $ak'), 'apt: temizlik kurulumdan önce');
+        }
+
+        foreach (['purge', 'remove', 'autoremove -y', 'package-cleanup'] as $yasak) {
+            $this->assertStringNotContainsString($yasak, OsUpdateScripts::denetim());
+        }
+    }
+
     #[Test]
     public function debian_guvenlik_kolu_da_kritiktir_ama_adinda_security_gecen_kol_degildir(): void
     {

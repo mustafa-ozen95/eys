@@ -65,6 +65,7 @@ class OsUpdater
             'normal_count' => $rapor->normal,
             'packages' => $rapor->packages,
             'reboot_required' => $rapor->rebootRequired,
+            'boot_free_mb' => $rapor->bootFreeMb,
             'checked_at' => now(),
             'check_error' => match (true) {
                 $rapor->manager === null => 'Desteklenen paket yöneticisi (apt, dnf, yum) bulunamadı.',

@@ -52,6 +52,12 @@ return [
     'panel_hosts' => env('OS_UPDATE_PANEL_HOSTS', ''),
 
     /*
+     * /boot'ta bundan az boş alan (MB) varsa ekran uyarır: yeni çekirdek
+     * (vmlinuz + initramfs) sığmayabilir, kurulum hiç başlamadan düşer.
+     */
+    'boot_min_free_mb' => (int) env('OS_UPDATE_BOOT_MIN_FREE_MB', 150),
+
+    /*
      * İşlerin kuyruğu. Kurulum dakikalar sürer; parola döndürmenin 300 sn
      * sınırlı işçisini meşgul etmesin diye ayrı işçide koşar
      * (docker/rootfs/etc/supervisor/supervisord.conf · isci-guncelleme).

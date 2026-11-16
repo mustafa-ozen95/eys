@@ -111,6 +111,19 @@ class OsUpdateListing
             ->all();
     }
 
+    /** /boot'ta yeni çekirdeğe yer azsa uyarı metni; yoksa null. */
+    private static function bootUyarisi(?OsUpdateState $durum): ?string
+    {
+        $bos = $durum?->boot_free_mb;
+
+        if ($bos === null || $bos >= (int) config('os_update.boot_min_free_mb', 150)) {
+            return null;
+        }
+
+        return "/boot bölümünde yalnızca {$bos} MB boş; yeni çekirdek sığmayabilir. "
+            .'Kurulum önce eski çekirdekleri temizler; yetmezse makinede /boot\'ta yer açın.';
+    }
+
     /** @param  Collection<int, array<string, mixed>>  $satirlar */
     private function bolumOzeti(Collection $satirlar): string
     {
@@ -163,6 +176,7 @@ class OsUpdateListing
             'normal' => $normal,
             'pending' => $kritik + $normal,
             'reboot' => (bool) $durum?->reboot_required,
+            'bootLow' => self::bootUyarisi($durum),
             'packages' => collect($durum?->packages ?? [])->take(150)->all(),
             'packageMore' => max(0, count($durum?->packages ?? []) - 150),
             'locked' => $kilit !== null,

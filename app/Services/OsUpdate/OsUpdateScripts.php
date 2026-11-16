@@ -52,6 +52,9 @@ final class OsUpdateScripts
      * listeler. Bekleyen sayılsaydı "tümünü kur" sonrasında da kalıyorlardı.
      * Simülasyondan (-s) okunur: hiçbir şey kurulmaz, kilit alınmaz.
      *
+     * EYS-BOOT: /boot'un bulunduğu bölümde boş alan (MB). Yeni çekirdek
+     * sığmazsa kurulum hiç başlamadan düşer; ekran önceden uyarır.
+     *
      * Son satır `true`: betiğin çıkış kodu "denetim koştu" demektir;
      * deponun yenilenememesi ayrı bir işaretle (EYS-UYARI:depo) bildirilir.
      */
@@ -85,6 +88,7 @@ else
   echo EYS-PM:yok
 fi
 if [ -f /var/run/reboot-required ]; then echo EYS-REBOOT; fi
+df -Pm /boot 2>/dev/null | awk 'NR==2{print "EYS-BOOT:"$4}'
 true
 SH;
     }
@@ -100,6 +104,17 @@ SH;
      * Etkileşim yok: yapılandırma dosyası sorusu mevcut dosyayı korur
      * (confdef/confold), needrestart yalnızca listeler. Yeniden başlatma
      * YAPILMAZ; gerekiyorsa denetim onu ayrıca bildirir.
+     *
+     * ESKİ ÇEKİRDEKLER ÖNCE TEMİZLENİR: /boot dolunca yeni çekirdek
+     * sığmıyor, kurulum hiç başlamadan düşüyordu (16.11.2026, Barkod
+     * Yazıcı). Çalışan çekirdeğe dokunulmaz; temizlik başarısız olsa da
+     * kurulum denenir.
+     *   dnf — `remove --oldinstallonly`: çalışan + en yeni 2 sürüm kalır
+     *         (kernel, kernel-core, kernel-modules… hepsi).
+     *   yum — package-cleanup varsa aynı sınırla.
+     *   apt — YALNIZCA autoremove'un eski saydığı linux-* paketleri; başka
+     *         "artık gereksiz" paket silinmez. Hangi çekirdeğin korunacağını
+     *         apt kendisi bilir (çalışan + en yeni; 01autoremove-kernels).
      */
     public static function kurulum(string $mod): string
     {
@@ -111,12 +126,16 @@ SH;
 
         $apt = 'o="-o DPkg::Lock::Timeout=120 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"; '
             .'apt-get update -qq $o || true; '
+            .'ak=$(apt-get -s $o autoremove 2>/dev/null | sed -n "s/^Remv \\(linux-[^ ]*\\) .*/\\1/p" | tr "\n" " "); '
+            .'if [ -n "$ak" ]; then echo "eski cekirdekler: $ak"; apt-get -y -q $o purge $ak || true; fi; '
             .($kritik
                 ? 'pk=$(apt list --upgradable 2>/dev/null | grep -e "-security" | cut -d/ -f1 | tr "\n" " "); '
                     .'if [ -n "$pk" ]; then apt-get -y -q $o install --only-upgrade $pk; fi'
                 : 'apt-get -y -q $o upgrade --with-new-pkgs');
 
         $dnf = 'pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum; '
+            .'if [ "$pm" = dnf ]; then dnf -y -q remove --oldinstallonly --setopt installonly_limit=2 || true; '
+            .'elif command -v package-cleanup >/dev/null 2>&1; then package-cleanup -y -q --oldkernels --count=2 || true; fi; '
             .'$pm -y -q upgrade'.($kritik ? ' --security' : '');
 
         $is = 'export LC_ALL=C TERM=dumb PAGER=cat DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l NEEDRESTART_SUSPEND=1; '

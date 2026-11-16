@@ -48,6 +48,36 @@ class OsUpdatePackageReportTest extends TestCase
         $this->assertSame('3.0.13-0ubuntu3.5', $rapor->packages[1]['version']);
     }
 
+    /**
+     * Ubuntu'nun aşamalı (phased) güncellemesi: apt list gösterir ama apt
+     * sıra gelene kadar kurmaz. Bekleyen sayılsaydı MailGateway'de "tümünü
+     * kur" sonrasında da 3 paket kalıyordu (16.11.2026).
+     */
+    #[Test]
+    public function asamali_apt_guncellemesi_bekleyen_sayilmaz(): void
+    {
+        $rapor = PackageReport::parse(implode("\n", [
+            'EYS-PM:apt',
+            'EYS-BOLUM:liste',
+            'Listing...',
+            'distro-info/noble-updates 1.7ubuntu0.1 amd64 [upgradable from: 1.7build1]',
+            'python3-distro-info/noble-updates 1.7ubuntu0.1 all [upgradable from: 1.7build1]',
+            'snapd/noble-updates 2.78+ubuntu24.04 amd64 [upgradable from: 2.77]',
+            'libc6/noble-updates,noble-security 2.39-0ubuntu8.7 amd64 [upgradable from: 2.39-0ubuntu8.6]',
+            'curl/noble-updates 8.5.0-2ubuntu10.7 amd64 [upgradable from: 8.5.0-2ubuntu10.6]',
+            'EYS-BOLUM:ertelenen',
+            '  distro-info python3-distro-info',
+            '  snapd libc6:i386',
+            'EYS-BOLUM:son',
+        ]));
+
+        $this->assertSame(0, $rapor->critical, 'aşamalı dağıtım mimariden bağımsız: libc6:i386 ertelendiyse libc6 de');
+        $this->assertSame(1, $rapor->normal);
+        $this->assertSame(['curl'], array_column(array_filter($rapor->packages, fn (array $p): bool => ! $p['critical']), 'name'));
+        $this->assertStringContainsString('EYS-BOLUM:ertelenen', OsUpdateScripts::denetim());
+        $this->assertStringContainsString('apt-get -s', OsUpdateScripts::denetim(), 'ertelenenler simülasyondan okunur, kurulmaz');
+    }
+
     #[Test]
     public function debian_guvenlik_kolu_da_kritiktir_ama_adinda_security_gecen_kol_degildir(): void
     {
@@ -170,8 +200,15 @@ class OsUpdatePackageReportTest extends TestCase
     {
         $betik = OsUpdateScripts::denetim();
 
-        foreach (['apt-get -y', 'apt-get install', ' upgrade', 'dnf -y', 'yum -y'] as $yasak) {
+        foreach (['apt-get -y', 'apt-get install', 'dist-upgrade', 'full-upgrade', 'dnf -y', 'yum -y'] as $yasak) {
             $this->assertStringNotContainsString($yasak, $betik, "denetim betiğinde '{$yasak}' olmamalı");
+        }
+
+        /* "upgrade" yalnızca listede ya da SİMÜLASYONDA (-s ilk bayrak) geçer. */
+        foreach (preg_split('/\n/', $betik) ?: [] as $satir) {
+            if (preg_match('/\supgrade(\s|$)/', $satir) === 1) {
+                $this->assertMatchesRegularExpression('/^\s*apt-get -s\s/', $satir, 'kuran upgrade: '.$satir);
+            }
         }
 
         /* /var/run/reboot-required yalnızca OKUNUR; komut olarak reboot/shutdown yok. */

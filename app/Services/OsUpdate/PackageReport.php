@@ -12,6 +12,9 @@ namespace App\Services\OsUpdate;
  *         (noble-security, bookworm-security; Mint de Ubuntu'nunkini kullanır).
  *   dnf — paket bir güvenlik bildirisine (…/Sec.) bağlıdır.
  *
+ * AŞAMALI (phased) apt güncellemesi bekleyen SAYILMAZ: apt onu sıra gelene
+ * kadar kurmaz, kurulabilir değildir (bkz. OsUpdateScripts::denetim).
+ *
  * Yalnızca tanınan satırlar okunur; geri kalan her şey (uçbirim yankısı,
  * uyarılar) yok sayılır. Paket listesi en çok LIMIT satır saklanır.
  */
@@ -40,6 +43,7 @@ final class PackageReport
         $bolum = null;
         $liste = [];
         $guvenlik = [];
+        $ertelenen = [];
 
         foreach ($satirlar as $satir) {
             $satir = trim($satir);
@@ -56,7 +60,7 @@ final class PackageReport
                 continue;
             }
 
-            if (preg_match('/^EYS-BOLUM:(liste|guvenlik|son)$/', $satir, $m) === 1) {
+            if (preg_match('/^EYS-BOLUM:(liste|guvenlik|ertelenen|son)$/', $satir, $m) === 1) {
                 $bolum = $m[1];
 
                 continue;
@@ -66,6 +70,13 @@ final class PackageReport
                 $liste[] = $satir;
             } elseif ($bolum === 'guvenlik') {
                 $guvenlik[] = $satir;
+            } elseif ($bolum === 'ertelenen') {
+                /* "libc6:i386" gibi mimari eki apt list'te yok. */
+                foreach (preg_split('/\s+/', $satir) ?: [] as $ad) {
+                    if (preg_match('/^([a-z0-9][a-z0-9.+-]*)(:[a-z0-9]+)?$/', $ad, $m) === 1) {
+                        $ertelenen[$m[1]] = true;
+                    }
+                }
             }
         }
 
@@ -74,6 +85,8 @@ final class PackageReport
             'dnf', 'yum' => self::dnf($liste, $guvenlik),
             default => [],
         };
+
+        $paketler = array_values(array_filter($paketler, fn (array $p): bool => ! isset($ertelenen[$p['name']])));
 
         usort($paketler, fn (array $a, array $b): int => [$b['critical'], $a['name']] <=> [$a['critical'], $b['name']]);
 

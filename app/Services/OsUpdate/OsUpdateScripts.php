@@ -46,6 +46,12 @@ final class OsUpdateScripts
      *
      * EYS-OS: /etc/os-release'teki ad; ekranda makine adının altında durur.
      *
+     * EYS-BOLUM:ertelenen (apt): Ubuntu'nun AŞAMALI güncellemeleri. Yeni sürüm
+     * önce makinelerin bir yüzdesine açılır; apt sıra gelene kadar onu
+     * KURMAZ ("deferred due to phasing"), `apt list --upgradable` ise yine
+     * listeler. Bekleyen sayılsaydı "tümünü kur" sonrasında da kalıyorlardı.
+     * Simülasyondan (-s) okunur: hiçbir şey kurulmaz, kilit alınmaz.
+     *
      * Son satır `true`: betiğin çıkış kodu "denetim koştu" demektir;
      * deponun yenilenememesi ayrı bir işaretle (EYS-UYARI:depo) bildirilir.
      */
@@ -59,6 +65,8 @@ if command -v apt-get >/dev/null 2>&1; then
   apt-get update -qq -o DPkg::Lock::Timeout=60 >/dev/null 2>&1 || echo EYS-UYARI:depo
   echo EYS-BOLUM:liste
   apt list --upgradable 2>/dev/null | cat
+  echo EYS-BOLUM:ertelenen
+  apt-get -s -o Debug::NoLocking=1 upgrade 2>/dev/null | sed -n '/deferred due to phasing:/,/^[^ ]/{/^ /p}' | cat
   echo EYS-BOLUM:son
 elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
   pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum

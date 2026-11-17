@@ -104,6 +104,8 @@ class OsUpdateListing
                     'name' => (string) ($grup?->name ?? 'Grupsuz'),
                     'count' => $satirlar->count(),
                     'critical' => $satirlar->where('critical', '>', 0)->count(),
+                    /* Bölüm başlığındaki "alt grubun hepsini seç" kutusu için. */
+                    'selectable' => $satirlar->where('selectable', true)->count(),
                     'rows' => $satirlar->all(),
                 ];
             })
@@ -161,6 +163,7 @@ class OsUpdateListing
         $kurabilir = $user->can('osUpdate', $kayit);
         $mesgul = $durum?->isBusy() === true;
         $panel = $this->targets->panelSunucusu($kayit);
+        $haric = (bool) $durum?->excluded;
 
         return [
             'uuid' => $kayit->uuid,
@@ -185,16 +188,19 @@ class OsUpdateListing
             'lockReason' => $kilit?->lock_reason,
             'lockBy' => $kilit?->locker?->name,
             'lockAt' => $kilit?->locked_at?->translatedFormat('d.m.Y H:i'),
+            'excluded' => $haric,
+            'excludeReason' => $durum?->exclude_reason,
             'apply' => $this->kurulum($durum),
             'busy' => $mesgul,
             'canApply' => $kurabilir,
             'canLock' => $user->can('osUpdateLock', $kayit),
             /* Düğme yalnızca gerektiğinde: kilitli ya da kurulumu süren makinede yok (karar OsRebooter'da da). */
-            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && ! $panel && $user->can('osReboot', $kayit),
-            'selectable' => $kurabilir && $kilit === null && ! $mesgul && ! $panel,
+            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && ! $panel && ! $haric && $user->can('osReboot', $kayit),
+            'selectable' => $kurabilir && $kilit === null && ! $mesgul && ! $panel && ! $haric,
             'blocked' => match (true) {
                 ! $kurabilir => 'Bu kayıtta sistem güncellemesi kurma yetkiniz yok.',
                 $panel => OsUpdater::PANEL_SUNUCUSU.'.',
+                $haric => 'Güncellemeden hariç: '.$durum->exclude_reason,
                 $kilit !== null => 'Kilitli: '.$kilit->lock_reason,
                 $mesgul => 'Kurulum sürüyor.',
                 default => null,

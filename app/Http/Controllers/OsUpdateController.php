@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\OsUpdate\ApplyOsUpdateRequest;
 use App\Http\Requests\OsUpdate\CheckOsUpdateRequest;
+use App\Http\Requests\OsUpdate\ExcludeOsUpdateRequest;
 use App\Http\Requests\OsUpdate\LockOsUpdateRequest;
 use App\Http\Requests\OsUpdate\RebootOsRequest;
 use App\Models\Credential;
@@ -102,6 +103,21 @@ class OsUpdateController extends Controller implements HasMiddleware
         return back()->with('status', $kilitli
             ? "{$ad} kilitlendi: bu makineye güncelleme kurulmaz."
             : "{$ad} kilidi kaldırıldı.");
+    }
+
+    /** Kayıt bazlı hariç tutma; kilit makine bazlıdır (bkz. OsUpdater::haricTut). */
+    public function exclude(ExcludeOsUpdateRequest $request, Credential $credential, OsUpdateTargets $targets, OsUpdater $updater): RedirectResponse
+    {
+        abort_unless($targets->kullaniciIcin($request->user())->whereKey($credential->getKey())->exists(), 404);
+
+        $haric = $request->boolean('haric');
+        $updater->haricTut($credential, $haric, $request->user(), $request->string('reason')->value());
+
+        $ad = OsUpdateTargets::ad($credential->loadMissing('altGrup'));
+
+        return back()->with('status', $haric
+            ? "{$ad} güncellemeden hariç tutuldu: bu kayıtla makineye bağlanılmaz."
+            : "{$ad} yeniden güncellemeye dahil.");
     }
 
     public function reboot(RebootOsRequest $request, Credential $credential, OsUpdateTargets $targets, OsRebooter $rebooter): RedirectResponse

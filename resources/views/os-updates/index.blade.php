@@ -146,6 +146,15 @@
                     {{-- Hepsi görünümünde grup başlığı; grup seçiliyken başlık yok. --}}
                     @if ($bolum['name'] !== null)
                         <div class="credential-section">
+                            {{-- Alt grubun seçilebilen makinelerinin hepsi (bulk.js, data-bulk-group-all). --}}
+                            @if ($canAct)
+                                <span class="os-update-row__select">
+                                    <input type="checkbox" data-bulk-group-all="{{ $loop->index }}"
+                                           @disabled($bolum['selectable'] === 0)
+                                           title="{{ $bolum['selectable'] }}/{{ $bolum['count'] }} seçilebilir"
+                                           aria-label="{{ $bolum['name'] }}: seçilebilen makinelerin hepsini seç">
+                                </span>
+                            @endif
                             <span class="credential-section__name">{{ $bolum['name'] }}</span>
                         </div>
                     @endif
@@ -159,6 +168,7 @@
                                 @elseif ($row['selectable'])
                                     <input type="checkbox" form="os-update-form" name="kayitlar[]"
                                            value="{{ $row['uuid'] }}" data-bulk-item
+                                           data-bulk-group="{{ $loop->parent->index }}"
                                            aria-label="{{ $row['name'] }}">
                                 @else
                                     {{-- Kapalı ve nedenini söylüyor: neden seçilemediği satırda okunsun. --}}
@@ -197,6 +207,9 @@
                                 @endif
                                 @if ($row['locked'])
                                     <x-ui.badge variant="gray">Kilitli</x-ui.badge>
+                                @endif
+                                @if ($row['excluded'])
+                                    <x-ui.badge variant="gray" :title="$row['excludeReason']">Hariç</x-ui.badge>
                                 @endif
                             </span>
 
@@ -279,6 +292,15 @@
                         </div>
                     @endif
 
+                    @if ($selected['excluded'])
+                        <div class="detail__section">
+                            <span class="eyebrow">Güncellemeden hariç</span>
+                            <p class="text-sm detail__block">
+                                {{ $selected['excludeReason'] }} · Bu kayıtla makineye bağlanılmaz; makine kardeş kayıttan güncellenir.
+                            </p>
+                        </div>
+                    @endif
+
                     @if ($selected['packages'] !== [])
                         <div class="detail__section">
                             <span class="eyebrow">Bekleyen paketler</span>
@@ -331,9 +353,9 @@
                     </div>
                 </div>
 
-                @if ($selected['canApply'] || $selected['canReboot'] || ($selected['canLock'] && (! $selected['locked'] || $selected['lockHere'])))
+                @if ($selected['canApply'] || $selected['canReboot'] || $selected['canLock'])
                     <div class="detail__foot">
-                        @if ($selected['canApply'])
+                        @if ($selected['canApply'] && ! $selected['excluded'])
                             <form method="POST" action="{{ route('os-updates.check') }}" data-inline>
                                 @csrf
                                 <input type="hidden" name="kayitlar[]" value="{{ $selected['uuid'] }}">
@@ -354,6 +376,23 @@
                                 @csrf
                                 <input type="hidden" name="kilit" value="{{ $selected['locked'] ? 0 : 1 }}">
                                 <button type="submit" class="btn btn--sm">{{ $selected['locked'] ? 'Kilidi kaldır' : 'Kilitle' }}</button>
+                            </form>
+                        @endif
+
+                        {{-- Kayıt bazlı; kilit makine bazlı. Aynı makinede yetkisiz/yanlış kimlikli ikinci kayıt için. --}}
+                        @if ($selected['canLock'])
+                            <form method="POST" action="{{ route('os-updates.exclude', $selected['uuid']) }}"
+                                  data-inline
+                                  data-confirm-title="{{ $selected['excluded'] ? 'Güncellemeye dahil et' : 'Güncellemeden hariç tut' }}"
+                                  @if ($selected['excluded'])
+                                      data-confirm="{{ $selected['name'] }} yeniden güncellemeye dahil edilecek: bu kayıtla makineye bağlanılabilir."
+                                      data-confirm-variant="danger"
+                                  @else
+                                      data-confirm="{{ $selected['name'] }} güncellemeden hariç tutulacak: bu kayıtla makineye bağlanılmaz (kurulum, yeniden başlatma, denetim). Makine kardeş kayıttan güncellenir; kilit konmaz."
+                                  @endif>
+                                @csrf
+                                <input type="hidden" name="haric" value="{{ $selected['excluded'] ? 0 : 1 }}">
+                                <button type="submit" class="btn btn--sm">{{ $selected['excluded'] ? 'Dahil et' : 'Hariç tut' }}</button>
                             </form>
                         @endif
 

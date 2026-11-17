@@ -120,6 +120,39 @@ class OsUpdateTargets
             ->first();
     }
 
+    /**
+     * Kayıt güncellemeden HARİÇ mi (kayıt bazlı; kilit ise makine bazlı).
+     * Hariç kayıtla makineye bağlanılmaz: kurulum, yeniden başlatma, denetim.
+     */
+    public function haricMi(Credential $credential): bool
+    {
+        return OsUpdateState::query()
+            ->where('credential_id', $credential->getKey())
+            ->where('excluded', true)
+            ->exists();
+    }
+
+    /**
+     * Makineye bağlanılacak kayıt: kayıt hariçse hariç olmayan ilk kardeşi,
+     * o da yoksa null. Yalnızca sistemin kendi işleri için (zamanlanmış ve
+     * gecikmeli denetim); kişinin seçimi kardeşe AKTARILMAZ (OsUpdateLauncher).
+     */
+    public function baglanilacak(Credential $credential): ?Credential
+    {
+        if (! $this->haricMi($credential)) {
+            return $credential;
+        }
+
+        $kardesler = $this->kardesler($credential);
+        $haric = OsUpdateState::query()
+            ->whereIn('credential_id', $kardesler->modelKeys())
+            ->where('excluded', true)
+            ->pluck('credential_id')
+            ->all();
+
+        return $kardesler->sortBy('id')->first(fn (Credential $k): bool => ! in_array($k->getKey(), $haric, true));
+    }
+
     /** @var list<string>|null */
     private ?array $panelAdresleri = null;
 

@@ -41,7 +41,9 @@ class OsUpdateCheckCommand extends Command
         $sinir = now()->subHours(max($saat, 1))->addMinutes(5);
         $aralik = (int) config('os_update.stagger_seconds', 20);
 
+        /* Hariç kayıtla bağlanılmaz: makine başına seçilen kayıt hariç olmayanlardan. */
         $kayitlar = $targets->sorgu()
+            ->whereDoesntHave('osUpdateState', fn (Builder $d) => $d->where('excluded', true))
             ->when(! $hepsi, fn (Builder $q) => $q->where(fn (Builder $w) => $w
                 ->whereDoesntHave('osUpdateState')
                 ->orWhereHas('osUpdateState', fn (Builder $d) => $d

@@ -258,6 +258,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('check', 'check')->name('check');
         Route::post('apply', 'apply')->name('apply');
         Route::post('{credential}/lock', 'lock')->name('lock');
+        Route::post('{credential}/exclude', 'exclude')->name('exclude');
         Route::post('{credential}/reboot', 'reboot')->name('reboot');
         Route::get('round/{parti}/status', 'status')->whereUuid('parti')->name('round.status');
         Route::delete('round/{parti}', 'dismiss')->whereUuid('parti')->name('round.dismiss');

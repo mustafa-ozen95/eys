@@ -34,6 +34,9 @@ class OsUpdater
     /** Panelin kendi sunucusuna kurulum/yeniden başlatma neden yapılmaz (bkz. OsUpdateTargets::panelSunucusu). */
     public const PANEL_SUNUCUSU = 'EYS bu sunucuda çalışıyor; panelden kurulum ve yeniden başlatma yapılmaz';
 
+    /** Kayıt güncellemeden hariç (bkz. haricTut). */
+    public const HARIC = 'Bu kayıt güncellemeden hariç; makine kardeş kayıttan güncellenir';
+
     public function __construct(
         private OsUpdateShell $shell,
         private OsUpdateTargets $targets,
@@ -43,9 +46,16 @@ class OsUpdater
     /** Bekleyen güncellemeleri okur; hiçbir şey kurmaz. Sonuç makinenin bütün kayıtlarına yazılır. */
     public function denetle(Credential $credential): void
     {
+        /* Hariç kayıtla bağlanılmaz; makine kardeş kayıttan denetlenir, sonuç yine hepsine yazılır. */
+        $baglanti = $this->targets->baglanilacak($credential);
+
+        if ($baglanti === null) {
+            return;
+        }
+
         try {
             $cikti = $this->shell->calistir(
-                $credential,
+                $baglanti,
                 OsUpdateScripts::denetim(),
                 (int) config('os_update.check_timeout', 180),
                 'Denetim yapılamadı.',
@@ -79,6 +89,12 @@ class OsUpdater
     {
         if ($this->targets->panelSunucusu($credential)) {
             $this->durum($credential, OsUpdateState::ATLANDI, self::PANEL_SUNUCUSU.'.');
+
+            return;
+        }
+
+        if ($this->targets->haricMi($credential)) {
+            $this->durum($credential, OsUpdateState::ATLANDI, self::HARIC.'.');
 
             return;
         }
@@ -194,6 +210,34 @@ class OsUpdater
             $this->activity->record(
                 ActivityAction::OsUpdateLock,
                 $kilitli ? 'Güncelleme kilidi kondu: bu makineye güncelleme kurulmaz' : 'Güncelleme kilidi kaldırıldı',
+                $credential,
+                $reason,
+                $actor,
+            );
+        });
+    }
+
+    /**
+     * Kaydı güncellemeden hariç tutar ya da geri alır (KAYIT bazlı; kilit
+     * makine bazlıdır). Hariç tutulunca kaydın eski kurulum sonucu silinir:
+     * o kayıtla bir daha kurulum yapılmayacak, "Kurulamadı" anlamını yitirir.
+     * Kim, ne zaman, neden işlem kaydına yazılır.
+     */
+    public function haricTut(Credential $credential, bool $haric, User $actor, string $reason): void
+    {
+        DB::transaction(function () use ($credential, $haric, $actor, $reason): void {
+            $alanlar = ['excluded' => $haric, 'exclude_reason' => $haric ? $reason : null];
+            $durum = OsUpdateState::query()->where('credential_id', $credential->getKey())->first();
+
+            if ($haric && $durum?->isBusy() !== true) {
+                $alanlar += ['apply_status' => null, 'apply_error' => null];
+            }
+
+            OsUpdateState::query()->updateOrCreate(['credential_id' => $credential->getKey()], $alanlar);
+
+            $this->activity->record(
+                ActivityAction::OsUpdateLock,
+                $haric ? 'Güncellemeden hariç tutuldu: bu kayıtla makineye bağlanılmaz' : 'Güncellemeden hariç tutma kaldırıldı',
                 $credential,
                 $reason,
                 $actor,

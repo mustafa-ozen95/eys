@@ -44,6 +44,15 @@
 .os-update-row__checked { grid-area: denetim; }
 .os-update-row__apply   { grid-area: kurulum; }
 
+/*
+ * Grup başlığındaki "alt grubun hepsini seç" kutusu: satırların seçim
+ * sütunuyla aynı genişlik, kutular alt alta hizalı dursun.
+ */
+.credential-section .os-update-row__select {
+    flex: none;
+    width: var(--pick-width);
+}
+
 /* İlk grup başlığının üstünde sütun başlığı zaten bir çizgi. */
 .os-update-row__head + .credential-section {
     border-top: 0;

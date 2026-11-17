@@ -65,7 +65,8 @@ class OsUpdateLauncher
         foreach ($kayitlar as $kayit) {
             $makine = OsUpdateTargets::makine($kayit);
 
-            if (isset($gorulen[$makine]) || $user->cannot('osUpdate', $kayit) || ! $this->targets->hedefMi($kayit)) {
+            /* Hariç kayıtla bağlanılmaz; kişi makineyi kardeş kayıttan denetler. */
+            if (isset($gorulen[$makine]) || $user->cannot('osUpdate', $kayit) || ! $this->targets->hedefMi($kayit) || $this->targets->haricMi($kayit)) {
                 continue;
             }
 
@@ -89,6 +90,10 @@ class OsUpdateLauncher
 
         if ($this->targets->panelSunucusu($kayit)) {
             return OsUpdater::PANEL_SUNUCUSU;
+        }
+
+        if ($this->targets->haricMi($kayit)) {
+            return 'güncellemeden hariç';
         }
 
         if (isset($gorulen[OsUpdateTargets::makine($kayit)])) {

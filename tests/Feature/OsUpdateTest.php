@@ -50,6 +50,9 @@ class OsUpdateTest extends TestCase
     /** @var list<string> sahte kabuğa gelen betikler */
     private array $calisan = [];
 
+    /** @var list<int> sahte kabuğun bağlandığı kayıtlar (kimlik) */
+    private array $baglanan = [];
+
     /** Sahte kurulumun çıktısı; null ise başarılı. */
     public ?string $kurulumCiktisi = null;
 
@@ -68,14 +71,15 @@ class OsUpdateTest extends TestCase
 
             public function calistir(Credential $credential, string $betik, int $sure, string $hata): string
             {
-                return $this->test->sahteCalistir($betik);
+                return $this->test->sahteCalistir($betik, $credential);
             }
         });
     }
 
-    public function sahteCalistir(string $betik): string
+    public function sahteCalistir(string $betik, ?Credential $kayit = null): string
     {
         $this->calisan[] = $betik;
+        $this->baglanan[] = (int) $kayit?->getKey();
 
         if ($this->kurulumBaglantiHatasi !== null && str_contains($betik, 'setsid')) {
             throw new RotationException($this->kurulumBaglantiHatasi);
@@ -1035,5 +1039,105 @@ class OsUpdateTest extends TestCase
         $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $rahat->uuid]))
             ->assertOk()
             ->assertDontSeeText('/boot bölümünde yalnızca');
+    }
+
+    /**
+     * KAYIT bazlı hariç (17.11.2026, Barkod Yazıcı): aynı makinede root ve
+     * root yetkisi olmayan dgnbarkod kaydı. Hariç kayıtla hiçbir yoldan
+     * bağlanılmaz; makine kilitlenmez, root kaydından kurulur ve denetlenir.
+     */
+    #[Test]
+    public function haric_kayitla_baglanilmaz_makine_kardesten_guncellenir(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu(['os_update_lock', 'os_reboot']);
+        $root = $this->makine($group, 'Barkod', '10.0.9.40', ['username' => 'root']);
+        $dgn = $this->makine($group, 'Barkod (dgnbarkod)', '10.0.9.40', ['username' => 'dgnbarkod']);
+        OsUpdateState::query()->create(['credential_id' => $dgn->id, 'checked_at' => now(), 'reboot_required' => true,
+            'apply_status' => OsUpdateState::BASARISIZ, 'apply_error' => 'Kimlik doğrulaması reddedildi (dgnbarkod).']);
+
+        $this->actingAs($user)->post(route('os-updates.exclude', $dgn), ['haric' => 1])->assertSessionHasErrors('reason');
+        $this->actingAs($user)->post(route('os-updates.exclude', $dgn), ['haric' => 1, 'reason' => 'root yetkisi yok'])
+            ->assertSessionHas('status');
+
+        $durum = $dgn->osUpdateState()->first();
+        $this->assertTrue($durum->excluded);
+        $this->assertNull($durum->apply_status, 'eski "Kurulamadı" silinir');
+        $this->assertNull(app(OsUpdateTargets::class)->kilit($root), 'makine kilitlenmez');
+
+        $sonuc = app(OsUpdateLauncher::class)->kur(collect([$root, $dgn]), OsUpdateScripts::TUMU, $user, 'deneme');
+        $this->assertSame([$root->id], $sonuc['queued']);
+        $this->assertSame('güncellemeden hariç', $sonuc['skipped']['Barkod (dgnbarkod)'] ?? null);
+
+        app(OsUpdater::class)->kur($dgn, OsUpdateScripts::TUMU, $user, 'deneme');
+        $this->assertSame([], $this->baglanan, 'sıradaki iş de hariç kayıtla bağlanmaz');
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $dgn), ['reason' => 'Çekirdek'])->assertSessionHas('error');
+        Queue::assertNotPushed(RebootOsJob::class);
+
+        $this->assertSame([], app(OsUpdateLauncher::class)->denetle(collect([$dgn]), $user));
+
+        /* Sistemin kendi denetimi (gecikmeli/zamanlanmış) kardeşle bağlanır, sonuç ikisine de yazılır. */
+        app(OsUpdater::class)->denetle($dgn);
+        $this->assertSame([$root->id], $this->baglanan);
+        $this->assertSame(1, $dgn->osUpdateState()->first()->critical_count);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $dgn->uuid]))
+            ->assertOk()
+            ->assertSeeText('Hariç')
+            ->assertSee('Barkod (dgnbarkod) seçilemez: Güncellemeden hariç: root yetkisi yok', false)
+            ->assertDontSee('Barkod seçilemez: Güncellemeden hariç', false)
+            ->assertSee(route('os-updates.exclude', $dgn), false);
+
+        $this->actingAs($user)->post(route('os-updates.exclude', $dgn), ['haric' => 0, 'reason' => 'Parola düzeldi'])
+            ->assertSessionHas('status');
+        $this->assertFalse($dgn->osUpdateState()->first()->excluded);
+    }
+
+    /** Hariç tutmak kilit yetkisi ister; kurma yetkisi yetmez. */
+    #[Test]
+    public function haric_tutmak_kilit_yetkisi_ister(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Srv', '10.0.9.41');
+
+        $this->actingAs($user)->post(route('os-updates.exclude', $kayit), ['haric' => 1, 'reason' => 'Deneme'])->assertForbidden();
+        $this->assertFalse(OsUpdateState::query()->where('credential_id', $kayit->id)->where('excluded', true)->exists());
+    }
+
+    /** Zamanlanmış denetim makine başına hariç OLMAYAN kaydı seçer (eskisi önce gelse de). */
+    #[Test]
+    public function zamanlanmis_denetim_haric_kaydi_secmez(): void
+    {
+        Queue::fake();
+        [, $group] = $this->kurucu();
+        $dgn = $this->makine($group, 'Barkod (dgnbarkod)', '10.0.9.42', ['username' => 'dgnbarkod']);
+        $root = $this->makine($group, 'Barkod', '10.0.9.42', ['username' => 'root']);
+        OsUpdateState::query()->create(['credential_id' => $dgn->id, 'excluded' => true, 'exclude_reason' => 'root yetkisi yok']);
+
+        $this->artisan('os-update:check', ['--hepsi' => true])->assertSuccessful();
+
+        Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $is): bool => (fn () => $this->credential)->call($is)->is($root));
+    }
+
+    /** Alt grup başlığındaki kutu yalnızca o grubun seçilebilen satırlarını seçer; seçilebilen yoksa kapalı. */
+    #[Test]
+    public function alt_grup_basliginda_hepsini_sec_kutusu_var(): void
+    {
+        $user = User::factory()->create();
+        $sunucu = CredentialGroup::factory()->create(['name' => 'Sunucular', 'position' => 1]);
+        $teknik = CredentialGroup::factory()->create(['name' => 'Teknik PCler', 'position' => 2]);
+        $this->yetkilendir($user, $sunucu, ['view', 'os_update']);
+        $this->yetkilendir($user, $teknik, ['view', 'os_update']);
+        $kilitli = $this->makine($sunucu, 'DB', '10.0.9.50');
+        OsUpdateState::query()->create(['credential_id' => $kilitli->id, 'locked' => true, 'lock_reason' => 'Üretim']);
+        $pc = $this->makine($teknik, 'PC-1', '10.0.9.51');
+
+        $html = $this->actingAs($user)->get(route('os-updates.index'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/data-bulk-group-all="0"\s+disabled/', $html, 'kilitli tek makinenin grubu: kapalı');
+        $this->assertMatchesRegularExpression('/data-bulk-group-all="1"\s+title="1\/1 seçilebilir"/', $html);
+        $this->assertMatchesRegularExpression('/value="'.$pc->uuid.'" data-bulk-item\s+data-bulk-group="1"/', $html);
     }
 }

@@ -91,6 +91,10 @@ class OsRebooter
             return OsUpdater::PANEL_SUNUCUSU.'.';
         }
 
+        if ($this->targets->haricMi($credential)) {
+            return OsUpdater::HARIC.'.';
+        }
+
         $kilit = $this->targets->kilit($credential);
 
         if ($kilit !== null) {

@@ -48,6 +48,8 @@ class OsUpdateState extends Model
         'lock_reason',
         'locked_by',
         'locked_at',
+        'excluded',
+        'exclude_reason',
     ];
 
     protected function casts(): array
@@ -56,6 +58,7 @@ class OsUpdateState extends Model
             'packages' => 'array',
             'reboot_required' => 'boolean',
             'locked' => 'boolean',
+            'excluded' => 'boolean',
             'critical_count' => 'integer',
             'normal_count' => 'integer',
             'boot_free_mb' => 'integer',

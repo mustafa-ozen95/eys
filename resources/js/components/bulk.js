@@ -12,6 +12,11 @@ function items() {
     return $$('[data-bulk-item]');
 }
 
+/* Bir alt grubun (bölüm başlığı) seçilebilen kutuları. */
+function groupItems(key) {
+    return items().filter((item) => item.dataset.bulkGroup === key);
+}
+
 function selected() {
     return items().filter((box) => box.checked);
 }
@@ -43,6 +48,17 @@ function refresh() {
         everything.checked = chosen.length === all.length;
         everything.indeterminate = chosen.length > 0 && chosen.length < all.length;
     }
+
+    $$('[data-bulk-group-all]').forEach((box) => {
+        if (box.disabled) {
+            return;
+        }
+
+        const group = groupItems(box.dataset.bulkGroupAll);
+        const count = group.filter((item) => item.checked).length;
+        box.checked = group.length > 0 && count === group.length;
+        box.indeterminate = count > 0 && count < group.length;
+    });
 
     /*
      * Onay penceresi kaç kaydın etkileneceğini SAYIYLA söyler: "seçili
@@ -96,6 +112,14 @@ function copySelection(event, form) {
 export function init() {
     on('change', '[data-bulk-item]', refresh);
     on('eys:confirmed', 'form[data-bulk-copy]', copySelection);
+
+    on('change', '[data-bulk-group-all]', (event, box) => {
+        groupItems(box.dataset.bulkGroupAll).forEach((item) => {
+            item.checked = box.checked;
+        });
+
+        refresh();
+    });
 
     on('change', '[data-bulk-all]', (event, box) => {
         items().forEach((item) => {

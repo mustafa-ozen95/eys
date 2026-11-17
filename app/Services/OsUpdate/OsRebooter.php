@@ -31,7 +31,12 @@ class OsRebooter
     /** Aynı makineye üst üste ikinci yeniden başlatma gönderilmesin (sn). */
     private const ARALIK = 600;
 
-    /** Makine kalkınca "yeniden başlatma gerekli" tazelensin diye denetim (sn sonra). */
+    /**
+     * Makine kalkınca "yeniden başlatma gerekli" tazelensin diye denetim (sn
+     * sonra). Komut hiç gidemezse denetim BEKLEMEDEN yapılır: satır eski
+     * uyarıyla sessizce kalmasın, bağlantı hatası ekranda görünsün
+     * (17.11.2026: test sunucuları kapalıydı, "No route to host").
+     */
     private const DENETIM_GECIKMESI = 300;
 
     public function __construct(
@@ -73,6 +78,7 @@ class OsRebooter
         } catch (RotationException $e) {
             Cache::forget(self::anahtar($credential));
             $this->activity->record(ActivityAction::OsReboot, 'Yeniden başlatılamadı: '.Str::limit($e->getMessage(), 150), $credential, $reason, $actor);
+            CheckOsUpdatesJob::dispatch($credential, elle: true);
 
             return;
         }

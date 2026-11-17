@@ -59,6 +59,8 @@ class OsUpdateTest extends TestCase
     /** Doluysa sahte kurulum bağlanamaz (bağlantı/kimlik hatası). */
     public ?string $kurulumBaglantiHatasi = null;
 
+    public ?string $yenidenBaslatmaHatasi = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -80,6 +82,10 @@ class OsUpdateTest extends TestCase
     {
         $this->calisan[] = $betik;
         $this->baglanan[] = (int) $kayit?->getKey();
+
+        if ($this->yenidenBaslatmaHatasi !== null && $betik === OsUpdateScripts::yenidenBaslatma()) {
+            throw new RotationException($this->yenidenBaslatmaHatasi);
+        }
 
         if ($this->kurulumBaglantiHatasi !== null && str_contains($betik, 'setsid')) {
             throw new RotationException($this->kurulumBaglantiHatasi);
@@ -920,6 +926,28 @@ class OsUpdateTest extends TestCase
         $log = ActivityLog::query()->where('action', ActivityAction::OsReboot->value)->latest('id')->first();
         $this->assertSame('Çekirdek yaması', $log->reason);
         Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+    }
+
+    /**
+     * 17.11.2026, test sunucuları kapalı: komut gidemedi, satır "Yeniden
+     * başlatma gerekli" ile sessizce kaldı. Artık denetim hemen sıraya girer;
+     * bağlantı hatası satırda görünür, aynı makine yeniden denenebilir.
+     */
+    #[Test]
+    public function yeniden_baslatilamazsa_hemen_denetlenir(): void
+    {
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $kayit = $this->makine($group, 'Srv', '10.0.8.5');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
+        $this->yenidenBaslatmaHatasi = 'Bağlantı kurulamadı: No route to host';
+
+        Queue::fake([CheckOsUpdatesJob::class, RebootOsJob::class]);
+        $this->assertNull(app(OsRebooter::class)->baslat($kayit, $user, 'Çekirdek'));
+        (new RebootOsJob($kayit, $user, 'Çekirdek'))->handle(app(OsRebooter::class));
+
+        Queue::assertPushed(CheckOsUpdatesJob::class, fn (CheckOsUpdatesJob $is): bool => $is->delay === null);
+        $this->assertStringStartsWith('Yeniden başlatılamadı:', ActivityLog::query()->latest('id')->value('summary'));
+        $this->assertNull(app(OsRebooter::class)->baslat($kayit, $user, 'Tekrar'), 'başarısızlık sonrası yeniden denenebilir');
     }
 
     #[Test]

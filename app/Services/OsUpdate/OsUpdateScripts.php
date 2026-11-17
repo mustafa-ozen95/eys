@@ -174,7 +174,7 @@ SH;
      */
     public static function kurulumSonucu(string $cikti): array
     {
-        $cikti = str_replace("\r", '', $cikti);
+        $cikti = PackageReport::temizle(str_replace("\r", '', $cikti));
         $kod = preg_match('/^'.self::SONUC.'(\d+)\s*$/m', $cikti, $m) === 1 ? (int) $m[1] : null;
         $satirlar = [];
 

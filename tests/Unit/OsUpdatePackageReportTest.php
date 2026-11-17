@@ -113,6 +113,33 @@ class OsUpdatePackageReportTest extends TestCase
         }
     }
 
+    /**
+     * sudo'lu bağlantıda uçbirim girdi sonunu "^@" diye yankılıyor ve ilk
+     * satırın önüne yapıştırıyordu (Batuhan, Linux Mint 22.3, gerçek çıktı).
+     * Kurulum başarılı bittiği hâlde "sonucu okunamadı" sayılıyor, denetimde
+     * işletim sistemi adı düşüyordu.
+     */
+    #[Test]
+    public function sudo_yankisi_ilk_satiri_bozmaz(): void
+    {
+        $kurulum = "EYS-SUDO-PAROLA:\r\n\r\nNDSGT89033111\r\n^@EYS-SONUC:0\r\n\r\nNDSRC4456fe4686d1:0";
+        $this->assertSame([0, []], OsUpdateScripts::kurulumSonucu($kurulum));
+
+        $hata = "NDSGT1\r\n^@^DEYS-SONUC:100\r\nEYS-GUNLUK:bas\r\nE: dpkg was interrupted\r\nEYS-GUNLUK:son\r\nNDSRC1:0";
+        $this->assertSame([100, ['E: dpkg was interrupted']], OsUpdateScripts::kurulumSonucu($hata));
+
+        $denetim = PackageReport::parse(implode("\r\n", [
+            'EYS-SUDO-PAROLA:', '', 'NDSGT89033111',
+            '^@EYS-OS:Linux Mint 22.3',
+            'EYS-PM:apt', 'EYS-BOLUM:liste', 'Listing...',
+            'firefox/noble-updates 133.0+linuxmint1+zena amd64 [upgradable from: 132.0]',
+            'EYS-BOLUM:ertelenen', 'EYS-BOLUM:son', 'EYS-BOOT:58495', '', 'NDSRC4456fe4686d1:0',
+        ]));
+        $this->assertSame('Linux Mint 22.3', $denetim->os);
+        $this->assertSame(1, $denetim->normal);
+        $this->assertSame(58495, $denetim->bootFreeMb);
+    }
+
     #[Test]
     public function debian_guvenlik_kolu_da_kritiktir_ama_adinda_security_gecen_kol_degildir(): void
     {

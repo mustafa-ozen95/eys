@@ -193,10 +193,18 @@ final class PackageReport
      * sanılıp ekrana kare kare yazılıyordu; güvenlik bildirisiyle de
      * eşleşmediği için kritik paket normal sayılıyordu. Betik TERM=dumb
      * veriyor; bu temizlik ona uymayan araç için ikinci kat.
+     *
+     * SATIR BAŞINDAKİ ^@ / ^D: sudo'lu bağlantıda uçbirim, komuta yazılan
+     * girdi sonu karakterini görünür biçimde (^@) yankılıyor ve betiğin İLK
+     * satırının önüne yapışıyordu: "^@EYS-SONUC:0". Kurulum başarıyla bittiği
+     * hâlde "sonucu okunamadı" sayılıyor, denetimde işletim sistemi adı
+     * düşüyordu (16-17.11.2026, Teknik PC'ler; root ile bağlanan sunucularda
+     * görünmüyordu).
      */
-    private static function temizle(string $cikti): string
+    public static function temizle(string $cikti): string
     {
         $cikti = preg_replace('/\e\[[0-9;?]*[ -\/]*[@-~]|\e[()][0-9A-Za-z]|\e./', '', $cikti) ?? $cikti;
+        $cikti = preg_replace('/^(?:\^[@A-Z_?])+/m', '', $cikti) ?? $cikti;
 
         return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $cikti) ?? $cikti;
     }

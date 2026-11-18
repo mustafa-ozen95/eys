@@ -152,6 +152,23 @@ test('telefonda toplu islem dugmeleri ust uste binmez', async ({ page }) => {
     expect(tasan).toEqual([]);
 });
 
+/*
+ * Uzun özet "Toplu işlemler"i ezmez (19.11.2026, telefonda düğme özetin
+ * yanında sıfır genişliğe sığdırılıp yazısı çerçeveden taşıyordu).
+ */
+test('telefonda uzun ozet toplu islemler dugmesini ezmez', async ({ page }) => {
+    await girisYap(page);
+    await page.setViewportSize({ width: 402, height: 874 });
+    await page.goto('/system-updates?grup=hepsi');
+    await page.locator('.column__head .truncate').first()
+        .evaluate((ozet) => { ozet.textContent = '19 makine · 14 kritik bekleyen · 2 denetlenemedi'; });
+
+    const dugme = page.locator('.bulk-tools__button');
+    const olcu = await dugme.evaluate((d) => ({ genislik: d.clientWidth, icerik: d.scrollWidth }));
+    expect(olcu.icerik).toBeLessThanOrEqual(olcu.genislik);
+    expect((await dugme.boundingBox()).width).toBeGreaterThan(120);
+});
+
 test('telefonda denetimden sonra bakilan bolme korunur', async ({ page }) => {
     await girisYap(page);
     await page.setViewportSize({ width: 390, height: 844 });

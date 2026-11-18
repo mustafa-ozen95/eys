@@ -27,6 +27,9 @@ class OsUpdateShell
     /** Bağlantı kurma süresi; komut süresi ayrıca verilir. */
     private const BAGLANTI_SURESI = 20;
 
+    /** Sessiz bağlantıda yoklama aralığı (saniye); bkz. calistir. */
+    private const CANLI_TUT = 30;
+
     protected function defaultPort(): int
     {
         return 22;
@@ -50,6 +53,15 @@ class OsUpdateShell
             /** @var SSH2 $ssh */
             $ssh = $oturum->handle;
             $ssh->setTimeout($sure);
+            /*
+             * Sessiz geçen her CANLI_TUT saniyede bir yoklama paketi. Makine
+             * kurulum sürerken yeniden başlarsa eski bağlantının yanıtı
+             * hiç gelmez; panel komut süresi dolana dek (kurulumda ~16 dk)
+             * bekliyor, sıradaki makineler de onunla bekliyordu
+             * (19.11.2026, NS1). Yeniden açılan makine yoklamayı
+             * reddeder, bağlantının koptuğu hemen anlaşılır.
+             */
+            $ssh->setKeepAlive(self::CANLI_TUT);
 
             $cikti = $kullanici === 'root'
                 ? $this->execute($oturum, 'sh -c '.escapeshellarg($betik), $hata)

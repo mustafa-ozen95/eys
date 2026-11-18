@@ -160,12 +160,21 @@
         display: contents;
     }
 
-    /* Düğme ile "Yeni kayıt" aynı satırı paylaşır; araçlar açılınca altına iner. */
+    /*
+     * Düğme ile "Yeni kayıt" aynı satırı paylaşır; araçlar açılınca altına iner.
+     *
+     * En az yazısı kadar geniş: `min-width: 0` ve sıfır temel ile düğme
+     * başlık satırına sıfır genişlikte sığmış sayılıyordu; uzun özetin
+     * ("19 makine · 14 kritik bekleyen…") yanında ezilip yazısı çerçeveden
+     * taşıyordu (19.11.2026, Güncellemeler, telefon). Yer yoksa alt satıra
+     * iner ve orada genişler.
+     */
     .bulk-tools__button {
         display: inline-flex;
+        justify-content: center;
         order: 1;
         flex: 1 1 0;
-        min-width: 0;
+        min-width: max-content;
     }
 
     .bulk-tools__box:checked ~ .bulk-tools__button {

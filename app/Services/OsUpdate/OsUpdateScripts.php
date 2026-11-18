@@ -159,14 +159,33 @@ SH;
             .'if [ "$rc" != 0 ]; then echo '.self::GUNLUK_BAS.'; tail -n '.self::GUNLUK_SATIR.' '.self::GUNLUK.'; echo '.self::GUNLUK_SON.'; fi; true';
     }
 
+    /** Makinenin açılış anı (/proc/stat btime, unix): yeniden başladı mı diye bakılır. */
+    public const ACILIS = 'EYS-ACILIS:';
+
     /**
      * Yeniden başlatma: bir dakika SONRAYA kurulur ve hemen döner. Bağlantı
      * temiz kapanır, oturumdaki kullanıcılar uyarıyı görür. Panelden başka
      * bir yolla ÇAĞRILMAZ (bkz. OsRebooter).
+     *
+     * Önce açılış anını yazar: makine kalkınca yeni açılış anı bununla
+     * karşılaştırılır (bkz. acilisAni). Saat farkından etkilenmez, ikisi de
+     * makinenin kendi saati.
      */
     public static function yenidenBaslatma(): string
     {
-        return "shutdown -r +1 'EYS: panelden yeniden baslatma'";
+        return self::acilisAni()."; shutdown -r +1 'EYS: panelden yeniden baslatma'";
+    }
+
+    /** Açılış anını basan komut. */
+    public static function acilisAni(): string
+    {
+        return "awk '/^btime/{print \"".self::ACILIS."\"\$2}' /proc/stat";
+    }
+
+    /** Çıktıdaki açılış anı; yoksa null. Satır başına bağlanmaz (sudo çıktısının önündeki ^@). */
+    public static function acilisOku(string $cikti): ?int
+    {
+        return preg_match('/'.self::ACILIS.'(\d+)/', $cikti, $m) === 1 ? (int) $m[1] : null;
     }
 
     /**

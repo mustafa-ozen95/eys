@@ -199,7 +199,9 @@
                                         <x-ui.badge variant="yellow">{{ $row['normal'] }} normal</x-ui.badge>
                                     @endif
                                 @endif
-                                @if ($row['reboot'])
+                                @if ($row['rebooting'])
+                                    <x-ui.badge variant="blue">Yeniden başlatılıyor</x-ui.badge>
+                                @elseif ($row['reboot'])
                                     <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
                                 @endif
                                 @if ($row['bootLow'])
@@ -260,7 +262,9 @@
                                     <x-ui.badge variant="yellow">{{ $selected['normal'] }} normal</x-ui.badge>
                                 @endif
                             @endif
-                            @if ($selected['reboot'])
+                            @if ($selected['rebooting'])
+                                <x-ui.badge variant="blue">Yeniden başlatılıyor</x-ui.badge>
+                            @elseif ($selected['reboot'])
                                 <x-ui.badge variant="blue">Yeniden başlatma gerekli</x-ui.badge>
                             @endif
                             @if ($selected['apply'])

@@ -10,6 +10,7 @@ use App\Enums\OperatingSystem;
 use App\Enums\PermissionEffect;
 use App\Jobs\ApplyOsUpdatesJob;
 use App\Jobs\CheckOsUpdatesJob;
+use App\Jobs\RebootFollowUpJob;
 use App\Jobs\RebootOsJob;
 use App\Models\ActivityLog;
 use App\Models\ConsoleSession;
@@ -63,6 +64,9 @@ class OsUpdateTest extends TestCase
 
     public ?string $yenidenBaslatmaHatasi = null;
 
+    /** Yoklamada okunan açılış anı; null: makineye bağlanılamıyor (açılıyor). */
+    public ?int $acilis = 1000;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -87,6 +91,18 @@ class OsUpdateTest extends TestCase
 
         if ($this->yenidenBaslatmaHatasi !== null && $betik === OsUpdateScripts::yenidenBaslatma()) {
             throw new RotationException($this->yenidenBaslatmaHatasi);
+        }
+
+        if ($betik === OsUpdateScripts::yenidenBaslatma()) {
+            return "EYS-ACILIS:1000\n";
+        }
+
+        if ($betik === OsUpdateScripts::acilisAni()) {
+            if ($this->acilis === null) {
+                throw new RotationException('Bağlantı kurulamadı: Connection refused');
+            }
+
+            return "\0EYS-ACILIS:{$this->acilis}\n";
         }
 
         if ($this->kurulumBaglantiHatasi !== null && str_contains($betik, 'setsid')) {
@@ -1033,13 +1049,109 @@ class OsUpdateTest extends TestCase
         $kayit = $this->makine($group, 'Srv', '10.0.8.4');
         OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
 
-        Queue::fake([CheckOsUpdatesJob::class]);
+        Queue::fake([CheckOsUpdatesJob::class, RebootFollowUpJob::class]);
         (new RebootOsJob($kayit, $user, 'Çekirdek yaması'))->handle(app(OsRebooter::class));
 
         $this->assertSame([OsUpdateScripts::yenidenBaslatma()], $this->calisan);
         $log = ActivityLog::query()->where('action', ActivityAction::OsReboot->value)->latest('id')->first();
         $this->assertSame('Çekirdek yaması', $log->reason);
+        /* Kör 5 dk'lık denetim yok: açılış takibi başlar. */
+        Queue::assertPushed(RebootFollowUpJob::class, 1);
+        Queue::assertNotPushed(CheckOsUpdatesJob::class);
+        $this->assertSame(OsRebooter::SURUYOR, OsRebooter::sonuc($kayit->id)['durum']);
+    }
+
+    /**
+     * 19.11.2026, KAPI_DB ve MailGateway: yeniden başlatmadan sonra bekleyen
+     * denetim işi makinenin tekil anahtarını 5 dk tutuyordu; o sırada elle
+     * istenen denetim sessizce atılıyor, kart 0/2 "sırada" kalıyordu.
+     */
+    #[Test]
+    public function yeniden_baslatma_beklerken_elle_denetim_dusmez(): void
+    {
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $kayit = $this->makine($group, 'Srv', '10.0.8.7');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
+
+        Queue::fake([CheckOsUpdatesJob::class, RebootFollowUpJob::class]);
+        (new RebootOsJob($kayit, $user, 'Çekirdek'))->handle(app(OsRebooter::class));
+        CheckOsUpdatesJob::dispatch($kayit, elle: true);
+
         Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+    }
+
+    /** Açılış anı değişti: makine yeniden başlamış, uyarı hemen kalkar ve denetlenir. */
+    #[Test]
+    public function acilis_ani_degisince_uyari_kalkar_ve_denetlenir(): void
+    {
+        [, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Srv', '10.0.8.8');
+        $kardes = $this->makine($group, 'Srv root', '10.0.8.8', ['username' => 'root']);
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true]);
+        OsUpdateState::query()->create(['credential_id' => $kardes->id, 'reboot_required' => true]);
+        $this->acilis = 2000;
+
+        Queue::fake([CheckOsUpdatesJob::class, RebootFollowUpJob::class]);
+        app(OsRebooter::class)->acilisiTakipEt($kayit, 1000, now()->timestamp - 90);
+
+        $this->assertFalse(OsUpdateState::query()->where('credential_id', $kayit->id)->value('reboot_required'));
+        $this->assertFalse(OsUpdateState::query()->where('credential_id', $kardes->id)->value('reboot_required'));
+        $this->assertSame(OsRebooter::BASARILI, OsRebooter::sonuc($kayit->id)['durum']);
+        Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+        Queue::assertNotPushed(RebootFollowUpJob::class);
+    }
+
+    /** Henüz kalkmadı (bağlanılamıyor ya da açılış anı aynı): kısa süre sonra yeniden bakılır. */
+    #[Test]
+    public function makine_acilmadiysa_yeniden_bakilir_pencere_dolunca_basarisiz(): void
+    {
+        [, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'Srv', '10.0.8.9');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true]);
+        Queue::fake([CheckOsUpdatesJob::class, RebootFollowUpJob::class]);
+
+        $this->acilis = null;
+        app(OsRebooter::class)->acilisiTakipEt($kayit, 1000, now()->timestamp - 90);
+        $this->acilis = 1000;
+        app(OsRebooter::class)->acilisiTakipEt($kayit, 1000, now()->timestamp - 120);
+
+        Queue::assertPushed(RebootFollowUpJob::class, 2);
+        Queue::assertNotPushed(CheckOsUpdatesJob::class);
+        $this->assertTrue(OsUpdateState::query()->where('credential_id', $kayit->id)->value('reboot_required'));
+
+        $this->acilis = null;
+        app(OsRebooter::class)->acilisiTakipEt($kayit, 1000, now()->timestamp - 700);
+
+        $this->assertSame(OsRebooter::BASARISIZ, OsRebooter::sonuc($kayit->id)['durum']);
+        $this->assertStringContainsString('açılmadı', (string) OsRebooter::sonuc($kayit->id)['hata']);
+        Queue::assertPushed(CheckOsUpdatesJob::class, 1);
+    }
+
+    /** Yeniden başlatmanın kendi kartı: "Yeniden başlatma", makine açılınca başarılı. */
+    #[Test]
+    public function yeniden_baslatma_kendi_kartinda_ilerler(): void
+    {
+        [$user, $group] = $this->kurucu(['os_reboot']);
+        $kayit = $this->makine($group, 'Srv', '10.0.8.10');
+        OsUpdateState::query()->create(['credential_id' => $kayit->id, 'reboot_required' => true, 'checked_at' => now()]);
+        Queue::fake();
+
+        $this->actingAs($user)->post(route('os-updates.reboot', $kayit), ['reason' => 'Çekirdek'])->assertSessionHas('status');
+
+        $kart = collect(OsUpdateRound::kartlar($user))->firstWhere('title', 'Yeniden başlatma');
+        $this->assertNotNull($kart);
+        $this->assertTrue($kart['status']['running']);
+        $this->actingAs($user)->get(route('os-updates.index', ['grup' => 'hepsi']))->assertSee('Yeniden başlatılıyor');
+
+        (new RebootOsJob($kayit, $user, 'Çekirdek'))->handle(app(OsRebooter::class));
+        $this->assertSame('Yeniden başlatılıyor: Srv', OsUpdateRound::durum($user, $kart['round'])['text']);
+
+        $this->acilis = 2000;
+        app(OsRebooter::class)->acilisiTakipEt($kayit, 1000, now()->timestamp);
+
+        $durum = OsUpdateRound::durum($user, $kart['round']);
+        $this->assertFalse($durum['running']);
+        $this->assertSame(1, $durum['success']);
     }
 
     /**

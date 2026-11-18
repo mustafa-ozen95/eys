@@ -125,11 +125,17 @@ class OsUpdateController extends Controller implements HasMiddleware
         abort_unless($targets->kullaniciIcin($request->user())->whereKey($credential->getKey())->exists(), 404);
 
         $ad = OsUpdateTargets::ad($credential->loadMissing('altGrup'));
+        $baslangic = now()->timestamp;
         $engel = $rebooter->baslat($credential, $request->user(), $request->string('reason')->value());
 
-        return $engel === null
-            ? back()->with('status', "{$ad} bir dakika içinde yeniden başlatılacak; birkaç dakika sonra yeniden denetlenir.")
-            : back()->with('error', "{$ad} yeniden başlatılmadı: {$engel}");
+        if ($engel !== null) {
+            return back()->with('error', "{$ad} yeniden başlatılmadı: {$engel}");
+        }
+
+        /* İlerleme kartı: komut, makinenin kalkması, ardından denetim. */
+        OsUpdateRound::baslat($request->user(), [$credential->getKey()], OsUpdateRound::YENIDEN, $baslangic);
+
+        return back()->with('status', "{$ad} bir dakika içinde yeniden başlatılacak; açılınca denetlenir, ilerleme yukarıdaki kartta.");
     }
 
     public function status(Request $request, string $parti): JsonResponse

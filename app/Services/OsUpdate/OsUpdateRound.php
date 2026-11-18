@@ -26,6 +26,9 @@ class OsUpdateRound
 
     public const DENETIM = 'denetim';
 
+    /** Panelden yeniden başlatma: komut, makinenin kapanıp açılması ve ardından denetim (bkz. OsRebooter). */
+    public const YENIDEN = 'yeniden';
+
     private const PARTI = 'os-update:round:';
 
     private const SON = 'os-update:round-last:';
@@ -35,6 +38,7 @@ class OsUpdateRound
     private const BASLIKLAR = [
         self::KURULUM => 'Toplu sistem güncellemesi',
         self::DENETIM => 'Güncelleme denetimi',
+        self::YENIDEN => 'Yeniden başlatma',
     ];
 
     /**
@@ -120,9 +124,12 @@ class OsUpdateRound
         $durumlar = OsUpdateState::query()->whereIn('credential_id', $kimlikler)->get()->keyBy('credential_id');
 
         /* Kuyruk durmuşsa sonsuza dek "sürüyor" denmesin. */
-        $isSuresi = $tur === self::DENETIM
-            ? (int) config('os_update.check_timeout', 180)
-            : (int) config('os_update.apply_timeout', 840);
+        $isSuresi = match ($tur) {
+            self::DENETIM => (int) config('os_update.check_timeout', 180),
+            /* Komut + kapanıp açılma penceresi (bkz. OsRebooter::PENCERE). */
+            self::YENIDEN => 660,
+            default => (int) config('os_update.apply_timeout', 840),
+        };
         /* Süre en son eklenen kayıttan sayılır: sonradan eklenen makine hemen "başlamadı" olmasın. */
         $baslangiclar = $veri['baslangiclar'] ?? [];
         $sonEkleme = max([$veri['baslangic'], ...array_values($baslangiclar)]);
@@ -137,9 +144,11 @@ class OsUpdateRound
             $ad = (string) $adlar[$id];
             $durum = $durumlar->get($id);
             $kayitBaslangici = (int) ($baslangiclar[$id] ?? $veri['baslangic']);
-            $anahtar = $tur === self::DENETIM
-                ? self::denetimAnahtari($durum, $kayitBaslangici, $zamanAsimi)
-                : self::anahtar($durum, $kayitBaslangici, $zamanAsimi);
+            $anahtar = match ($tur) {
+                self::DENETIM => self::denetimAnahtari($durum, $kayitBaslangici, $zamanAsimi),
+                self::YENIDEN => self::yenidenAnahtari(OsRebooter::sonuc($id), $kayitBaslangici, $zamanAsimi),
+                default => self::anahtar($durum, $kayitBaslangici, $zamanAsimi),
+            };
 
             match ($anahtar) {
                 'success' => $sayilar['success']++,
@@ -150,7 +159,11 @@ class OsUpdateRound
             };
 
             if (in_array($anahtar, ['failed', 'unstarted'], true)) {
-                $hata = $tur === self::DENETIM ? $durum?->check_error : $durum?->apply_error;
+                $hata = match ($tur) {
+                    self::DENETIM => $durum?->check_error,
+                    self::YENIDEN => OsRebooter::sonuc($id)['hata'] ?? null,
+                    default => $durum?->apply_error,
+                };
                 $sorunlu[] = ['name' => $ad, 'status' => (string) ($hata ?? 'Yanıt yok')];
             }
 
@@ -170,10 +183,12 @@ class OsUpdateRound
             ...$sayilar,
             'current' => $calisiyor ? $suren : null,
             'text' => match (true) {
+                $calisiyor && $suren !== null && $tur === self::YENIDEN => "Yeniden başlatılıyor: {$suren}",
                 $calisiyor && $suren !== null => "Kuruluyor: {$suren}",
                 $calisiyor && $tur === self::DENETIM => 'Denetleniyor…',
                 $calisiyor => 'Sıradaki makine bekleniyor…',
                 $sorun === 0 && $tur === self::DENETIM => 'Tamamlandı, hepsi denetlendi.',
+                $sorun === 0 && $tur === self::YENIDEN => 'Tamamlandı, hepsi yeniden başladı.',
                 $sorun === 0 => 'Tamamlandı, hepsi başarılı.',
                 default => "Tamamlandı, {$sorun} makinede sorun var.",
             },
@@ -183,7 +198,7 @@ class OsUpdateRound
     }
 
     /**
-     * Ekrandaki kartlar: önce kurulum, sonra denetim; olmayan atlanır.
+     * Ekrandaki kartlar: önce kurulum, sonra denetim, sonra yeniden başlatma; olmayan atlanır.
      *
      * @return list<array<string, mixed>>
      */
@@ -192,6 +207,7 @@ class OsUpdateRound
         return array_values(array_filter([
             self::kart($kullanici, self::KURULUM),
             self::kart($kullanici, self::DENETIM),
+            self::kart($kullanici, self::YENIDEN),
         ]));
     }
 
@@ -244,6 +260,26 @@ class OsUpdateRound
             OsUpdateState::BASARILI => 'success',
             OsUpdateState::BASARISIZ, OsUpdateState::ATLANDI => 'failed',
             OsUpdateState::SURUYOR => $zamanAsimi ? 'unstarted' : 'running',
+            default => $zamanAsimi ? 'unstarted' : 'waiting',
+        };
+    }
+
+    /**
+     * Yeniden başlatmanın durumu: OsRebooter'ın makine başına yazdığı son
+     * sonuç. Bu turdan önceki bir yeniden başlatmanın sonucu sayılmaz.
+     *
+     * @param  array{durum: string, zaman: int, hata: string|null}|null  $sonuc
+     */
+    private static function yenidenAnahtari(?array $sonuc, int $baslangic, bool $zamanAsimi): string
+    {
+        if ($sonuc === null || $sonuc['zaman'] < $baslangic) {
+            return $zamanAsimi ? 'unstarted' : 'waiting';
+        }
+
+        return match ($sonuc['durum']) {
+            OsRebooter::BASARILI => 'success',
+            OsRebooter::BASARISIZ => 'failed',
+            OsRebooter::SURUYOR => $zamanAsimi ? 'unstarted' : 'running',
             default => $zamanAsimi ? 'unstarted' : 'waiting',
         };
     }

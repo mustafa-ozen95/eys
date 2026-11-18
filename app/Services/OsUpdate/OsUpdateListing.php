@@ -179,6 +179,8 @@ class OsUpdateListing
             'normal' => $normal,
             'pending' => $kritik + $normal,
             'reboot' => (bool) $durum?->reboot_required,
+            /* Panelden yeniden başlatıldı, makine henüz açılıp denetlenmedi (bkz. OsRebooter). */
+            'rebooting' => $yenidenBasliyor = OsRebooter::suruyorMu($kayit),
             'bootLow' => self::bootUyarisi($durum),
             'packages' => collect($durum?->packages ?? [])->take(150)->all(),
             'packageMore' => max(0, count($durum?->packages ?? []) - 150),
@@ -195,7 +197,7 @@ class OsUpdateListing
             'canApply' => $kurabilir,
             'canLock' => $user->can('osUpdateLock', $kayit),
             /* Düğme yalnızca gerektiğinde: kilitli ya da kurulumu süren makinede yok (karar OsRebooter'da da). */
-            'canReboot' => (bool) $durum?->reboot_required && $kilit === null && ! $mesgul && ! $panel && ! $haric && $user->can('osReboot', $kayit),
+            'canReboot' => (bool) $durum?->reboot_required && ! $yenidenBasliyor && $kilit === null && ! $mesgul && ! $panel && ! $haric && $user->can('osReboot', $kayit),
             'selectable' => $kurabilir && $kilit === null && ! $mesgul && ! $panel && ! $haric,
             'blocked' => match (true) {
                 ! $kurabilir => 'Bu kayıtta sistem güncellemesi kurma yetkiniz yok.',

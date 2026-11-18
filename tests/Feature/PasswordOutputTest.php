@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\AccessType;
 use App\Enums\ActivityAction;
 use App\Enums\PermissionEffect;
 use App\Models\ActivityLog;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\User;
+use App\Services\Export\Workbook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -116,6 +118,38 @@ final class PasswordOutputTest extends TestCase
 
         $this->assertStringContainsString('COK-GIZLI-PAROLA', $sayfa);
         $this->assertStringContainsString('Sunucu', $sayfa);
+    }
+
+    /**
+     * 18.11.2026, "daha anlaşılır, renkli": üst bilgi (başlık, gerekçe, GİZLİ
+     * uyarısı), donmuş başlık + süzgeç, erişim türü rozet renginde, parola
+     * ayrık biçemde. Değerler yine düz metin: "=" ile başlayan parola formül
+     * olmaz, sıfırla başlayan sayıya dönmez.
+     */
+    #[Test]
+    public function cikti_ust_bilgi_ve_renklerle_okunur(): void
+    {
+        [$user, $group] = $this->yetkili(['view', 'field.password', 'export']);
+        $kayit = $this->kayit($group, 'Sunucu', '=HYPERLINK("x")');
+        $kayit->forceFill(['access_type' => AccessType::Ssh])->save();
+
+        $icerik = (string) $this->actingAs($user)
+            ->post(route('credentials.export'), ['kapsam' => 'tumu', 'reason' => 'yil sonu denetimi'])
+            ->assertOk()->getContent();
+        $sayfa = $this->sayfa($icerik);
+
+        $this->assertStringContainsString('Parola çıktısı', $sayfa);
+        $this->assertStringContainsString('Gerekçe: yil sonu denetimi', $sayfa);
+        $this->assertStringContainsString('GİZLİ', $sayfa);
+        $this->assertStringContainsString('state="frozen"', $sayfa);
+        $this->assertMatchesRegularExpression('/<autoFilter ref="A\d+:J\d+"\/>/', $sayfa);
+        $this->assertStringNotContainsString('<f>', $sayfa, 'değer formül olarak yazılmaz');
+        $this->assertStringContainsString('t="inlineStr"><is><t xml:space="preserve">=HYPERLINK(&quot;x&quot;)</t>', $sayfa);
+
+        /* SSH hücresi yeşil rozet biçeminde, parola gizli biçemde. */
+        $yesil = 9 + array_search('green', array_keys(Workbook::RENKLER), true);
+        $this->assertMatchesRegularExpression('/s="'.$yesil.'" t="inlineStr"><is><t xml:space="preserve">SSH</', $sayfa);
+        $this->assertMatchesRegularExpression('/s="[78]" t="inlineStr"><is><t xml:space="preserve">=HYPERLINK/', $sayfa);
     }
 
     #[Test]

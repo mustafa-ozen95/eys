@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Export;
 
+use App\Enums\AccessType;
 use App\Enums\ActivityAction;
 use App\Models\Credential;
 use App\Models\User;
@@ -62,6 +63,7 @@ final class PasswordOutput
         foreach ($yazilacak as $credential) {
             $satirlar[] = [
                 (string) $credential->group?->name,
+                (string) $credential->altGrup?->name,
                 (string) $credential->name,
                 $credential->access_type?->label() ?? '',
                 $credential->operating_system?->label() ?? '',
@@ -94,13 +96,37 @@ final class PasswordOutput
 
         return [
             'icerik' => Workbook::uret($kapsam, [
-                'Grup', 'Kayıt', 'Erişim türü', 'Platform', 'Adres',
+                'Grup', 'Alt grup', 'Kayıt', 'Erişim türü', 'Platform', 'Adres',
                 'Kullanıcı', 'Parola', 'Bağlantı', 'Son güncelleme',
-            ], $satirlar),
+            ], $satirlar, $this->gorunum($kullanici, $gerekce, $kapsam, count($satirlar))),
             'ad' => 'kasa-'.now()->format('Y-m-d-Hi').'.xlsx',
             'yazilan' => count($satirlar),
             'yetkisiz' => $yetkisiz->count(),
             'parolasiz' => $parolasiz->count(),
+        ];
+    }
+
+    /**
+     * Dosyanın üst bilgisi ve renkleri. Açan kişi dosyanın ne olduğunu, kimin
+     * neden aldığını ve gizli olduğunu ilk satırlarda görür; erişim türü
+     * paneldeki rozet renginde, gruplar ayrı bantta, parola sütunu ayrık.
+     *
+     * @return array<string, mixed>
+     */
+    private function gorunum(User $kullanici, string $gerekce, string $kapsam, int $adet): array
+    {
+        return [
+            'baslik' => 'Erişim Yönetim Sistemi · Parola çıktısı',
+            'aciklama' => [
+                "Kapsam: {$kapsam} · {$adet} kayıt · ".now()->format('d.m.Y H:i').' · '.$kullanici->name,
+                'Gerekçe: '.$gerekce,
+            ],
+            'uyari' => 'GİZLİ: Bu dosya açık parola içerir. Paylaşmayın; işiniz bitince silin.',
+            'bant' => 0,
+            'gizli' => [7],
+            'renkler' => [3 => collect(AccessType::cases())
+                ->mapWithKeys(fn (AccessType $tur): array => [$tur->label() => $tur->badge()->value])
+                ->all()],
         ];
     }
 }

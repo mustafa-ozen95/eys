@@ -84,7 +84,7 @@ class PasswordExportRequest extends FormRequest
     /** @return Collection<int, Credential> */
     public function credentials(): Collection
     {
-        $sorgu = Credential::query()->otomasyon()->visibleTo($this->user())->with('group');
+        $sorgu = Credential::query()->otomasyon()->visibleTo($this->user())->with(['group', 'altGrup']);
 
         if (! $this->allScope()) {
             $grup = $this->grup();

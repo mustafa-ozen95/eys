@@ -78,6 +78,50 @@ class OsUpdatePackageReportTest extends TestCase
         $this->assertStringContainsString('apt-get -s', OsUpdateScripts::denetim(), 'ertelenenler simülasyondan okunur, kurulmaz');
     }
 
+    /**
+     * 18.11.2026, Linux Mint 22.2: aşamalı mesa paketlerine bağlı kitaplıklar
+     * "kept back"; tümü kurulduktan sonra 5 normal kalıyordu. Betiğin GERÇEK
+     * süzgeci gerçek apt çıktısında çalıştırılır: iki başlık art arda gelse de
+     * ikisi de okunur, tek paketli "package has been kept back" dahil.
+     */
+    #[Test]
+    public function geri_tutulan_paketler_de_ertelenir(): void
+    {
+        preg_match("/upgrade --with-new-pkgs 2>\\/dev\\/null \\| (awk '[^']+')/", OsUpdateScripts::denetim(), $m);
+        $this->assertNotEmpty($m, 'simülasyon kurulumla aynı komut');
+
+        $apt = implode("\n", [
+            'Calculating upgrade...',
+            'The following package was automatically installed and is no longer required:',
+            '  nvidia-firmware-580-580.173.02',
+            'The following upgrades have been deferred due to phasing:',
+            '  alsa-ucm-conf mesa-va-drivers',
+            'The following packages have been kept back:',
+            '  libegl-mesa0 libgbm1 libgbm1:i386 libgl1-mesa-dri libglx-mesa0',
+            '  mesa-libgallium mesa-libgallium:i386',
+            '0 upgraded, 0 newly installed, 0 to remove and 17 not upgraded.',
+        ]);
+        $suzulen = shell_exec('printf %s '.escapeshellarg($apt).' | '.$m[1]);
+
+        $rapor = PackageReport::parse(implode("\n", [
+            'EYS-PM:apt',
+            'EYS-BOLUM:liste',
+            'libgbm1/noble-updates 25.2.8-0ubuntu0.24.04.5 amd64 [upgradable from: 25.2.8-0ubuntu0.24.04.4]',
+            'mesa-libgallium/noble-updates 25.2.8-0ubuntu0.24.04.5 amd64 [upgradable from: 25.2.8-0ubuntu0.24.04.4]',
+            'alsa-ucm-conf/noble-updates 1.2.10-1ubuntu5.8 all [upgradable from: 1.2.10-1ubuntu5.7]',
+            'curl/noble-updates 8.5.0-2ubuntu10.7 amd64 [upgradable from: 8.5.0-2ubuntu10.6]',
+            'EYS-BOLUM:ertelenen',
+            rtrim((string) $suzulen),
+            'EYS-BOLUM:son',
+        ]));
+
+        $this->assertStringNotContainsString('nvidia', (string) $suzulen, 'autoremove listesi ertelenen değil');
+        $this->assertSame(['curl'], array_column($rapor->packages, 'name'));
+
+        $tek = shell_exec('printf %s '.escapeshellarg("The following package has been kept back:\n  libgbm1\n0 upgraded.").' | '.$m[1]);
+        $this->assertSame('  libgbm1', rtrim((string) $tek));
+    }
+
     /** /boot boş alanı okunur; satır yoksa (eski betik, okunamadı) boş kalır. */
     #[Test]
     public function boot_bos_alani_okunur(): void

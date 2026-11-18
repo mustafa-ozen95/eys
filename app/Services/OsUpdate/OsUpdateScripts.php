@@ -50,7 +50,10 @@ final class OsUpdateScripts
      * önce makinelerin bir yüzdesine açılır; apt sıra gelene kadar onu
      * KURMAZ ("deferred due to phasing"), `apt list --upgradable` ise yine
      * listeler. Bekleyen sayılsaydı "tümünü kur" sonrasında da kalıyorlardı.
-     * Simülasyondan (-s) okunur: hiçbir şey kurulmaz, kilit alınmaz.
+     * "kept back" de aynı küme: aşamalı bir pakete bağlı olduğu için apt'nin
+     * geri tuttuğu paket (18.11.2026, Linux Mint: mesa kitaplıkları "Kuruldu"
+     * sonrası 5 normal kaldı). Simülasyon kurulumla AYNI komuttur (upgrade
+     * --with-new-pkgs); -s: hiçbir şey kurulmaz, kilit alınmaz.
      *
      * EYS-BOOT: /boot'un bulunduğu bölümde boş alan (MB). Yeni çekirdek
      * sığmazsa kurulum hiç başlamadan düşer; ekran önceden uyarır.
@@ -69,7 +72,7 @@ if command -v apt-get >/dev/null 2>&1; then
   echo EYS-BOLUM:liste
   apt list --upgradable 2>/dev/null | cat
   echo EYS-BOLUM:ertelenen
-  apt-get -s -o Debug::NoLocking=1 upgrade 2>/dev/null | sed -n '/deferred due to phasing:/,/^[^ ]/{/^ /p}' | cat
+  apt-get -s -o Debug::NoLocking=1 upgrade --with-new-pkgs 2>/dev/null | awk '/deferred due to phasing:|kept back:/{f=1;next} /^[^ ]/{f=0} f' | cat
   echo EYS-BOLUM:son
 elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
   pm=dnf; command -v dnf >/dev/null 2>&1 || pm=yum

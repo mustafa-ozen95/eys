@@ -109,10 +109,15 @@ class OsUpdateRound
         }
 
         $tur = $veri['tur'] ?? self::KURULUM;
-        $kimlikler = $veri['kayitlar'];
-        $durumlar = OsUpdateState::query()->whereIn('credential_id', $kimlikler)->get()->keyBy('credential_id');
-        $adlar = Credential::query()->with('altGrup')->whereIn('id', $kimlikler)->get()
+        $adlar = Credential::query()->with('altGrup')->whereIn('id', $veri['kayitlar'])->get()
             ->mapWithKeys(fn (Credential $k): array => [$k->getKey() => OsUpdateTargets::ad($k)]);
+        /*
+         * Tur sürerken silinen kayıt turdan düşer: sonucu hiç gelmeyeceği için
+         * gösterge zaman aşımına dek "sırada" bekliyordu (18.11.2026, silinen
+         * iki test sunucusu, 18/20'de kaldı).
+         */
+        $kimlikler = array_values(array_filter($veri['kayitlar'], fn (int $id): bool => $adlar->has($id)));
+        $durumlar = OsUpdateState::query()->whereIn('credential_id', $kimlikler)->get()->keyBy('credential_id');
 
         /* Kuyruk durmuşsa sonsuza dek "sürüyor" denmesin. */
         $isSuresi = $tur === self::DENETIM
@@ -129,7 +134,7 @@ class OsUpdateRound
         $kayitlar = [];
 
         foreach ($kimlikler as $id) {
-            $ad = (string) ($adlar[$id] ?? "#{$id}");
+            $ad = (string) $adlar[$id];
             $durum = $durumlar->get($id);
             $kayitBaslangici = (int) ($baslangiclar[$id] ?? $veri['baslangic']);
             $anahtar = $tur === self::DENETIM

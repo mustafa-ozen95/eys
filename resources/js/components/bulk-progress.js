@@ -41,10 +41,11 @@ const NAMES = Object.fromEntries(LABELS.map(([k, name]) => [k, name.charAt(0).to
 const timers = new Map();
 
 /*
- * Kartın son gördüğü "biten" sayısı. Tur SÜRERKEN bir makine bitince
- * satırları (bekleyen sayıları, son denetim/kurulum) beklemeden tazelemek
- * için: yalnızca kart ilerleyip satırlar eski kalıyordu, tur bitene ya da
- * sayfa elle yenilenene dek "48 normal" yazmaya devam ediyordu.
+ * Kartın son gördüğü makine durumları ("sırada,sürüyor,başarılı…"). Tur
+ * SÜRERKEN bir makinenin durumu değişince satırlar (bekleyen sayıları, son
+ * denetim/kurulum) beklemeden tazelenir: yalnızca kart ilerleyip satırlar
+ * eski kalıyordu. Yalnızca "biten" sayısına bakılıyordu; kurulumun BAŞLADIĞI
+ * makine bitene dek listede "Sırada" görünüyordu (18.11.2026).
  */
 const seen = new Map();
 
@@ -176,10 +177,11 @@ async function poll(root, remaining) {
 
     render(root, data);
 
+    const states = Array.isArray(data.records) ? data.records.map(({ status }) => status).join(',') : String(data.done);
     const before = seen.get(root.dataset.bulkRoundProgressUrl);
-    seen.set(root.dataset.bulkRoundProgressUrl, data.done);
+    seen.set(root.dataset.bulkRoundProgressUrl, states);
 
-    if (data.running !== false && before !== undefined && data.done > before) {
+    if (data.running !== false && before !== undefined && states !== before) {
         root.dataset.bulkRoundStale = '';
     }
 

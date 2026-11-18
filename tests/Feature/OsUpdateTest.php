@@ -373,6 +373,27 @@ class OsUpdateTest extends TestCase
         $this->assertNotSame($ilk, OsUpdateRound::baslat($user, [$bir->id], OsUpdateRound::DENETIM), 'biten tura eklenmez');
     }
 
+    /** 18.11.2026: tur sürerken silinen iki kayıt yüzünden gösterge 18/20'de "sırada" kaldı. Silinen kayıt turdan düşer. */
+    #[Test]
+    public function tur_surerken_silinen_kayit_turu_bekletmez(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $bir = $this->makine($group, 'Bir', '10.0.0.1');
+        $iki = $this->makine($group, 'Iki', '10.0.0.2');
+
+        $parti = OsUpdateRound::baslat($user, [$bir->id, $iki->id], OsUpdateRound::DENETIM);
+        $this->travel(2)->seconds();
+        OsUpdateState::query()->create(['credential_id' => $bir->id, 'checked_at' => now()]);
+        $this->assertTrue(OsUpdateRound::durum($user, $parti)['running']);
+
+        $iki->delete();
+
+        $durum = OsUpdateRound::durum($user, $parti);
+        $this->assertFalse($durum['running']);
+        $this->assertSame([1, 1, 100], [$durum['total'], $durum['done'], $durum['percent']]);
+    }
+
     /** Kardeş kayıtta kurulum sürüyorsa ikinci kayıt sıraya alınmaz (iş makine başına tekil; sessizce düşüp "sırada" kalıyordu). */
     #[Test]
     public function kardes_kayitta_kurulum_surerken_ikinci_kayit_sirada_asili_kalmaz(): void

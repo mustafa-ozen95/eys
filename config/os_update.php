@@ -66,4 +66,16 @@ return [
 
     /* Otomatik kontrolde iki makine arasına konan aralık (sn): hepsine aynı anda bağlanılmaz. */
     'stagger_seconds' => (int) env('OS_UPDATE_STAGGER', 20),
+
+    /*
+     * KONSOL AÇIKKEN KURULUM BEKLER.
+     *
+     * Makinede panelden açılmış bir konsol (SSH/RDP, herhangi bir kaydı)
+     * varken biri makinenin başında çalışıyordur; o sırada kurulum
+     * başlatılmaz. console_retry saniyede bir yeniden bakılır, console_wait
+     * saniye sonra hâlâ açıksa kurulum atlanır (19.11.2026, NS1: konsolu
+     * açık makine kurulum başladıktan 2 sn sonra vCenter'dan resetlendi).
+     */
+    'console_wait' => (int) env('OS_UPDATE_CONSOLE_WAIT', 7200),
+    'console_retry' => (int) env('OS_UPDATE_CONSOLE_RETRY', 60),
 ];

@@ -18,6 +18,7 @@ import { emit } from './toast.js';
  */
 
 const KEEP_ALIVE_INTERVAL = 4 * 60 * 1000;
+const NOTICE_INTERVAL = 30 * 1000;
 const WINDOW_CHECK_INTERVAL = 2000;
 const CLOSE_ENDPOINT = '/ajax/remote-session/disconnect';
 
@@ -144,6 +145,30 @@ function openFrame(frame) {
  * Çerçeve panelin kendi kökeninde duruyor (nginx /rdp-proxy), o yüzden
  * `contentWindow.focus()` erişilebilir.
  */
+/**
+ * Oturum sayfasındaki kurulum uyarısı. Metni sunucu yazar (keep-alive
+ * yanıtındaki `notice`); burada yalnızca gösterilir ya da gizlenir.
+ */
+function watchNotice() {
+    const notice = $('[data-session-notice]');
+    const token = $('[data-session-token]')?.dataset.sessionToken;
+
+    if (!notice || !token) {
+        return;
+    }
+
+    setInterval(async () => {
+        try {
+            const reply = await http.post('/ajax/remote-session/keep-alive', { token }, { silent: true });
+
+            notice.textContent = reply.notice ?? '';
+            notice.hidden = !reply.notice;
+        } catch {
+            /* Yoklama kaçarsa son durum ekranda kalır. */
+        }
+    }, NOTICE_INTERVAL);
+}
+
 function focusFrame() {
     const frame = $('[data-session-frame]');
 
@@ -209,6 +234,7 @@ export function init() {
     });
 
     focusFrame();
+    watchNotice();
 
     // Paneli açan sekme kapanırsa açık oturumlar sunucuda da kapatılır.
     window.addEventListener('pagehide', () => {

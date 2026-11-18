@@ -9,6 +9,7 @@ use App\Enums\UserStatus;
 use App\Models\ConsoleSession;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
+use App\Models\OsUpdateState;
 use App\Models\User;
 use App\Services\Authorization\UserPermissionResolver;
 use App\Services\Remote\RemoteSessionStore;
@@ -91,6 +92,37 @@ final class ConsoleTraceTest extends TestCase
         $iz = ConsoleSession::query()->where('token', $jeton)->firstOrFail();
 
         $this->assertTrue($iz->last_seen_at->greaterThan(now()->subMinute()));
+    }
+
+    /** Konsol penceresi keep-alive ile yoklar: makinede kurulum başlarsa uyarı gelir. */
+    public function test_canli_tutma_kurulum_uyarisini_dondurur(): void
+    {
+        [$user, $credential] = $this->hazirla();
+        $jeton = $this->ac($user, $credential);
+
+        $this->actingAs($user)
+            ->postJson(route('ajax.remote.keep-alive'), ['token' => $jeton])
+            ->assertJsonPath('notice', null);
+
+        OsUpdateState::create(['credential_id' => $credential->id, 'apply_status' => OsUpdateState::SURUYOR]);
+
+        $this->actingAs($user)
+            ->postJson(route('ajax.remote.keep-alive'), ['token' => $jeton])
+            ->assertJsonPath('alive', true)
+            ->assertJson(fn ($json) => $json->where('notice', fn ($m) => str_contains((string) $m, 'kuruluyor'))->etc());
+    }
+
+    /** Başkasının jetonuyla uyarı (makinenin durumu) okunamaz. */
+    public function test_baskasinin_jetonu_uyari_dondurmez(): void
+    {
+        [$user, $credential] = $this->hazirla();
+        $jeton = $this->ac($user, $credential);
+        OsUpdateState::create(['credential_id' => $credential->id, 'apply_status' => OsUpdateState::SURUYOR]);
+
+        $this->actingAs(User::factory()->create(['status' => UserStatus::Active]))
+            ->postJson(route('ajax.remote.keep-alive'), ['token' => $jeton])
+            ->assertJsonPath('alive', false)
+            ->assertJsonPath('notice', null);
     }
 
     /**

@@ -23,6 +23,13 @@
         </header>
 
         {{--
+            KURULUM UYARISI: makinede sistem güncellemesi sürüyor ya da
+            sırada. Pencere açıkken yoklanır, başlayınca belirir, bitince
+            kaybolur (bkz. remote-session.js · watchNotice).
+        --}}
+        <div class="alert alert--warning" role="status" data-session-notice @if (! $kurulumUyarisi) hidden @endif>{{ $kurulumUyarisi }}</div>
+
+        {{--
             KLAVYE ODAK İSTİYOR.
 
             Guacamole ekranda fareye basıldığında `preventDefault()` çağırıyor

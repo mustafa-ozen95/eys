@@ -262,6 +262,18 @@ class OsUpdater
     }
 
     /**
+     * Sıradaki kurulumun neden beklediği: durum "Sırada" kalır, yalnızca
+     * not yazılır (kuyruğa giriş zamanı, kip ve başlatan korunur; tur
+     * göstergesi onlara bakıyor).
+     */
+    public function beklet(Credential $credential, string $neden): void
+    {
+        OsUpdateState::query()
+            ->where('credential_id', $credential->getKey())
+            ->update(['apply_error' => Str::limit($neden, 290)]);
+    }
+
+    /**
      * Denetim sonucunu makinenin BÜTÜN kayıtlarına yazar.
      *
      * @param  array<string, mixed>  $alanlar

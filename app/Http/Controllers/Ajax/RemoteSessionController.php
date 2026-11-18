@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Ajax;
 use App\Enums\ActivityAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Remote\RemoteSessionRequest;
+use App\Models\Credential;
 use App\Services\ActivityRecorder;
+use App\Services\OsUpdate\OsUpdateTargets;
 use App\Services\Remote\RemoteSessionOpener;
 use App\Services\Remote\RemoteSessionStore;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +25,7 @@ class RemoteSessionController extends Controller
         private RemoteSessionOpener $opener,
         private RemoteSessionStore $sessions,
         private ActivityRecorder $activity,
+        private OsUpdateTargets $targets,
     ) {}
 
     public function connect(RemoteSessionRequest $request): JsonResponse
@@ -69,7 +72,16 @@ class RemoteSessionController extends Controller
             $this->opener->izeDokun($jeton);
         }
 
-        return response()->json(['alive' => $ayakta]);
+        /*
+         * Oturum sayfası da bu ucu yokluyor: makinede kurulum başlarsa
+         * konsoldaki kişi uyarıyı açık pencerede görür.
+         */
+        $kayit = $ayakta ? Credential::query()->find($this->sessions->get($jeton)['credential_id'] ?? null) : null;
+
+        return response()->json([
+            'alive' => $ayakta,
+            'notice' => $kayit === null ? null : $this->targets->kurulumUyarisi($kayit),
+        ]);
     }
 
     /**

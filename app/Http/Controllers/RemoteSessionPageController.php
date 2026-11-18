@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Credential;
+use App\Services\OsUpdate\OsUpdateTargets;
 use App\Services\Remote\RemoteSessionStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,7 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RemoteSessionPageController extends Controller
 {
-    public function __construct(private RemoteSessionStore $sessions) {}
+    public function __construct(private RemoteSessionStore $sessions, private OsUpdateTargets $targets) {}
 
     public function __invoke(Request $request, string $token): View
     {
@@ -36,6 +37,8 @@ class RemoteSessionPageController extends Controller
         return view('remote.session', [
             'session' => $session,
             'token' => $token,
+            /* Kurulum sürüyorsa uyarı; açıkken keep-alive yanıtıyla tazelenir (bkz. remote-session.js). */
+            'kurulumUyarisi' => $this->targets->kurulumUyarisi($credential),
         ]);
     }
 }

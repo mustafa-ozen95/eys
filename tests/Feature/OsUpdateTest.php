@@ -12,6 +12,7 @@ use App\Jobs\ApplyOsUpdatesJob;
 use App\Jobs\CheckOsUpdatesJob;
 use App\Jobs\RebootOsJob;
 use App\Models\ActivityLog;
+use App\Models\ConsoleSession;
 use App\Models\Credential;
 use App\Models\CredentialGroup;
 use App\Models\OsUpdateState;
@@ -28,6 +29,7 @@ use App\Services\OsUpdate\OsUpdateShell;
 use App\Services\OsUpdate\OsUpdateTargets;
 use App\Services\Rotation\RotationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\CallQueuedClosure;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -677,6 +679,97 @@ class OsUpdateTest extends TestCase
 
         $this->assertSame([], $this->calisan, 'kilitli makinede komut çalışmamalı');
         $this->assertSame(OsUpdateState::ATLANDI, $kayit->osUpdateState()->first()->apply_status);
+    }
+
+    /**
+     * KONSOL AÇIKKEN KURULUM BAŞLAMAZ (19.11.2026, NS1: konsolu açık makine
+     * kurulum başladıktan 2 sn sonra vCenter'dan resetlendi). Aynı adresin
+     * RDP kaydından açılmış konsol da sayılır; kurulum "Sırada" kalır ve
+     * bir dakika sonra yeniden denenir.
+     */
+    #[Test]
+    public function konsol_acikken_kurulum_baslamaz_sirada_bekler(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'NS', '10.0.0.30');
+        $rdp = $this->makine($group, 'NS RDP', '10.0.0.30', ['access_type' => AccessType::Rdp, 'port' => 3389]);
+        $this->konsolAc($rdp, 'Konsolcu Kişi');
+        app(OsUpdater::class)->durum($kayit, OsUpdateState::SIRADA, mod: OsUpdateScripts::TUMU, actor: $user);
+
+        (new ApplyOsUpdatesJob($kayit, OsUpdateScripts::TUMU, $user, 'yama'))->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+
+        $this->assertSame([], $this->calisan, 'konsol açıkken makineye bağlanılmamalı');
+        $durum = $kayit->osUpdateState()->first();
+        $this->assertSame(OsUpdateState::SIRADA, $durum->apply_status);
+        $this->assertStringContainsString('Konsolcu Kişi', (string) $durum->apply_error);
+        $this->assertSame(OsUpdateScripts::TUMU, $durum->apply_mode);
+        Queue::assertPushed(CallQueuedClosure::class, 1);
+    }
+
+    #[Test]
+    public function konsol_uzun_sure_acik_kalirsa_kurulum_atlanir(): void
+    {
+        Queue::fake();
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'NS', '10.0.0.31');
+        $this->konsolAc($kayit, 'Konsolcu Kişi');
+
+        $bas = now()->subSeconds((int) config('os_update.console_wait') + 1)->timestamp;
+        (new ApplyOsUpdatesJob($kayit, OsUpdateScripts::TUMU, $user, 'yama', $bas))->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+
+        $this->assertSame([], $this->calisan);
+        $this->assertSame(OsUpdateState::ATLANDI, $kayit->osUpdateState()->first()->apply_status);
+        Queue::assertNothingPushed();
+    }
+
+    /** Kapanmış ya da sesi kesilmiş konsol kurulumu bekletmez. */
+    #[Test]
+    public function kapanmis_ya_da_sessiz_konsol_kurulumu_bekletmez(): void
+    {
+        [$user, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'NS', '10.0.0.32');
+        $this->konsolAc($kayit, 'A')->update(['closed_at' => now()]);
+        $this->konsolAc($kayit, 'B')->update(['last_seen_at' => now()->subHour()]);
+
+        (new ApplyOsUpdatesJob($kayit, OsUpdateScripts::TUMU, $user, 'yama'))->handle(app(OsUpdater::class), app(OsUpdateTargets::class));
+
+        $this->assertNotSame([], $this->calisan);
+        $this->assertSame(OsUpdateState::BASARILI, $kayit->osUpdateState()->first()->apply_status);
+    }
+
+    #[Test]
+    public function konsol_uyarisi_kurulum_surerken_ve_siradayken_cikar(): void
+    {
+        [, $group] = $this->kurucu();
+        $kayit = $this->makine($group, 'NS', '10.0.0.33');
+        $rdp = $this->makine($group, 'NS RDP', '10.0.0.33', ['access_type' => AccessType::Rdp, 'port' => 3389]);
+        $hedefler = app(OsUpdateTargets::class);
+
+        $this->assertNull($hedefler->kurulumUyarisi($rdp));
+
+        app(OsUpdater::class)->durum($kayit, OsUpdateState::SIRADA);
+        $this->assertStringContainsString('konsolu kapattığınızda', (string) $hedefler->kurulumUyarisi($rdp));
+
+        app(OsUpdater::class)->durum($kayit, OsUpdateState::SURUYOR);
+        $this->assertStringContainsString('resetlemeyin', (string) $hedefler->kurulumUyarisi($rdp));
+
+        app(OsUpdater::class)->durum($kayit, OsUpdateState::BASARILI);
+        $this->assertNull($hedefler->kurulumUyarisi($rdp));
+    }
+
+    private function konsolAc(Credential $kayit, string $kim): ConsoleSession
+    {
+        return ConsoleSession::query()->create([
+            'token' => fake()->uuid(),
+            'user_id' => User::factory()->create(['name' => $kim])->getKey(),
+            'credential_id' => $kayit->getKey(),
+            'label' => $kayit->name,
+            'protocol' => $kayit->access_type,
+            'port' => 7501,
+            'opened_at' => now(),
+            'last_seen_at' => now(),
+        ]);
     }
 
     #[Test]

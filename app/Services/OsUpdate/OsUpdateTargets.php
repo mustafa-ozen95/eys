@@ -6,6 +6,7 @@ namespace App\Services\OsUpdate;
 
 use App\Enums\AccessType;
 use App\Enums\OperatingSystem;
+use App\Models\ConsoleSession;
 use App\Models\Credential;
 use App\Models\OsUpdateState;
 use App\Models\User;
@@ -118,6 +119,63 @@ class OsUpdateTargets
             ->whereIn('credential_id', $this->kardesler($credential)->modelKeys())
             ->with('credential')
             ->first();
+    }
+
+    /**
+     * Makinede panelden açık bir konsol, varsa (en son ses veren).
+     *
+     * Makine ADRESİYLE eşleşir, protokol ve port fark etmez: aynı makineye
+     * RDP kaydından açılmış konsol da "biri başında" demektir. Sessiz kalıp
+     * henüz temizlenmemiş oturum sayılmaz (bkz. ConsoleCleanCommand).
+     */
+    public function acikKonsol(Credential $credential): ?ConsoleSession
+    {
+        $adres = self::adres($credential);
+
+        if ($adres === '') {
+            return null;
+        }
+
+        return ConsoleSession::query()
+            ->acik()
+            ->where('last_seen_at', '>=', now()->subSeconds((int) config('remote.session.ttl') + 120))
+            ->whereHas('credential', fn (Builder $q) => $q->whereRaw('LOWER(TRIM(host)) = ?', [$adres]))
+            ->with('user')
+            ->latest('last_seen_at')
+            ->first();
+    }
+
+    /**
+     * Konsol penceresindeki uyarı: makinede kurulum sürüyor ya da sırada
+     * bekliyorsa ne yapılmaması gerektiği; yoksa null. Konsolu açan kişi
+     * makineyi o sırada yeniden başlatmasın (bkz. acikKonsol).
+     */
+    public function kurulumUyarisi(Credential $credential): ?string
+    {
+        $adres = self::adres($credential);
+
+        if ($adres === '') {
+            return null;
+        }
+
+        $durumlar = OsUpdateState::query()
+            ->whereIn('apply_status', [OsUpdateState::SURUYOR, OsUpdateState::SIRADA])
+            ->whereHas('credential', fn (Builder $q) => $q->whereRaw('LOWER(TRIM(host)) = ?', [$adres]))
+            ->pluck('apply_status');
+
+        return match (true) {
+            $durumlar->contains(OsUpdateState::SURUYOR) => 'Bu makinede şu anda sistem güncellemesi kuruluyor. '
+                .'Bitene kadar makineyi yeniden başlatmayın, kapatmayın; vCenter ya da iLO\'dan resetlemeyin.',
+            $durumlar->isNotEmpty() => 'Bu makineye sistem güncellemesi kurulmak üzere bekliyor; '
+                .'konsolu kapattığınızda başlayacak. O sırada makineyi yeniden başlatmayın.',
+            default => null,
+        };
+    }
+
+    /** Makinenin adresi, karşılaştırmaya hazır (küçük harf, boşluksuz). */
+    private static function adres(Credential $credential): string
+    {
+        return mb_strtolower(trim((string) $credential->host));
     }
 
     /**

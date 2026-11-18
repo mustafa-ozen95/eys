@@ -36,6 +36,8 @@ class ApplyOsUpdatesJob implements ShouldBeUnique, ShouldQueue
         private string $mode,
         private ?User $actor = null,
         private ?string $reason = null,
+        /** Konsol yüzünden ilk bekletildiği an (unix); bekletilmediyse null. */
+        private ?int $beklemeBasi = null,
     ) {
         $this->timeout = (int) config('os_update.apply_timeout', 840) + 60;
         $this->uniqueFor = $this->timeout + 60;
@@ -55,7 +57,58 @@ class ApplyOsUpdatesJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
+        if ($this->konsolAcikken($updater, $targets)) {
+            return;
+        }
+
         $updater->kur($this->credential, $this->mode, $this->actor, $this->reason);
+    }
+
+    /**
+     * KONSOL AÇIKKEN KURULUM BAŞLAMAZ.
+     *
+     * Makinenin başında biri varken (panelden açık konsol) kurulum o kişinin
+     * işinin ortasına düşer: 19.11.2026'da NS1'in konsolu açıkken başlayan
+     * kurulumdan 2 sn sonra makine vCenter'dan resetlendi; panel kopan
+     * bağlantıyı 16 dk bekledi, sıradaki makineler de onu.
+     *
+     * Kurulum "Sırada" kalır, notu kimin konsolu olduğunu söyler; konsol
+     * kapanınca kendiliğinden başlar. console_wait dolarsa atlanır.
+     *
+     * Yeniden kuyruğa koyan bir KAPANIŞ işi: bu iş tekil (ShouldBeUnique),
+     * kilidi iş bitene dek tutuluyor; kendini buradan doğrudan kuyruğa koysa
+     * kopya sayılıp düşerdi. Kapanış iş bittikten sonra çalışır.
+     */
+    private function konsolAcikken(OsUpdater $updater, OsUpdateTargets $targets): bool
+    {
+        $konsol = $targets->acikKonsol($this->credential);
+
+        if ($konsol === null) {
+            return false;
+        }
+
+        $kim = $konsol->user?->name ?? 'bir kullanıcı';
+        $bas = $this->beklemeBasi ?? now()->timestamp;
+        $sinir = (int) config('os_update.console_wait', 7200);
+
+        if (now()->timestamp - $bas >= $sinir) {
+            $updater->durum(
+                $this->credential,
+                OsUpdateState::ATLANDI,
+                "Makinenin konsolu {$kim} tarafından ".intdiv($sinir, 60).' dakikadır açık; kurulum yapılmadı.',
+            );
+
+            return true;
+        }
+
+        $updater->beklet($this->credential, "Konsol açık ({$kim}); konsol kapanınca kurulacak.");
+
+        $sonraki = new self($this->credential, $this->mode, $this->actor, $this->reason, $bas);
+        dispatch(fn () => dispatch($sonraki))
+            ->onQueue(config('os_update.queue'))
+            ->delay(now()->addSeconds((int) config('os_update.console_retry', 60)));
+
+        return true;
     }
 
     /** İşçi öldüyse ya da süre dolduysa durum "sürüyor"da asılı kalmasın. */

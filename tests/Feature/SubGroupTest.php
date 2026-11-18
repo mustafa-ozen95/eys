@@ -172,6 +172,28 @@ class SubGroupTest extends TestCase
             ->assertSee('Yedekleme · Yedek 1');
     }
 
+    /** Hepsi: gruplar sırayla, alt grubu olan grup bölmeleriyle, olmayan tek başlıkla. */
+    #[Test]
+    public function hepsi_gorunumu_grup_ve_alt_grup_basliklari_altinda_dizilir(): void
+    {
+        [$grup] = $this->yedekleme();
+        $grup->update(['position' => 1]);
+        $duz = CredentialGroup::factory()->create(['name' => 'Duz-Grup', 'position' => 2]);
+        Credential::factory()->for($duz, 'group')->create(['name' => 'Kayit-Duz']);
+
+        $this->actingAs($this->yonetici())
+            ->get(route('credentials.index', ['grup' => 'hepsi']))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'Yedekleme · Yedek 1', 'Kayit-Bir',
+                'Yedekleme · Yedek 2', 'Kayit-Iki',
+                'Yedekleme · Alt grupsuz', 'Kayit-Ortak',
+                'Duz-Grup', 'Kayit-Duz',
+            ])
+            /* Hepsi'nde bölüm sürüklenmez. */
+            ->assertDontSee('data-order-field="sira"', false);
+    }
+
     #[Test]
     public function kayit_baska_grubun_alt_grubuna_baglanamaz(): void
     {

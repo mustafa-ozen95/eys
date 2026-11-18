@@ -91,7 +91,9 @@ class CredentialListing
 
         $credentials = $this->credentials($user, $selectedGroup, $term, $platform);
         $selected = $this->selectCredential($credentials, $request->string('kayit')->value());
-        $rows = $credentials->map(fn (Credential $c): array => $this->row($user, $c, $selectedGroup === null));
+        /* "Hepsi" (arama/süzgeç yok): grup › alt grup başlıkları satırın grubunu zaten söyler. */
+        $hepsi = $selectedGroup === null && ! $daraltmaKalksin;
+        $rows = $credentials->map(fn (Credential $c): array => $this->row($user, $c, $selectedGroup === null && ! $hepsi));
 
         return [
             /*
@@ -101,7 +103,7 @@ class CredentialListing
              * daraltılmaz: bölme yalnızca listeleme içindir. Grubun bölmesi
              * yokken tek bölüm, başlıksız.
              */
-            'bolumler' => $this->bolumler($rows, $selectedGroup),
+            'bolumler' => $hepsi ? $this->hepsiBolumleri($rows, $groups) : $this->bolumler($rows, $selectedGroup),
 
             /*
              * SÜRÜKLE-BIRAK SIRASI — YALNIZCA YÖNETİCİ. Bir gruba
@@ -456,7 +458,7 @@ class CredentialListing
     private function bolumler(Collection $rows, ?CredentialGroup $group): array
     {
         if ($group === null || $group->altGruplar->isEmpty()) {
-            return [['baslik' => null, 'uuid' => null, 'rows' => $rows]];
+            return [['baslik' => null, 'uuid' => null, 'sonda' => true, 'rows' => $rows]];
         }
 
         $bolumler = [];
@@ -465,7 +467,44 @@ class CredentialListing
             $satirlar = $rows->filter(fn (array $row): bool => $row['altGrupUuid'] === $bolme?->uuid)->values();
 
             if ($satirlar->isNotEmpty()) {
-                $bolumler[] = ['baslik' => $bolme?->name, 'uuid' => $bolme?->uuid, 'rows' => $satirlar];
+                $bolumler[] = ['baslik' => $bolme?->name, 'uuid' => $bolme?->uuid, 'sonda' => $bolme === null, 'rows' => $satirlar];
+            }
+        }
+
+        return $bolumler;
+    }
+
+    /**
+     * "Hepsi" görünümü: satırlar Gruplar ekranındaki sırayla grup, grubun
+     * içinde alt grup başlıkları altında ("Sunucular · vCenter"). Alt grubu
+     * olmayan grup tek başlık; alt grubu olan grubun bölmesiz kayıtları o
+     * grubun sonunda "Alt grupsuz". Hepsi tek düz listeydi; 18.11.2026'da
+     * Sunucular'a alt gruplar açılınca ayrım görünmez kaldı.
+     *
+     * Sürükleme yok (bkz. siralanabilir): bölümler sabit, yalnızca listeler.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  Collection<int, CredentialGroup>  $groups
+     * @return list<array<string, mixed>>
+     */
+    private function hepsiBolumleri(Collection $rows, Collection $groups): array
+    {
+        $bolumler = [];
+
+        foreach ($groups as $grup) {
+            $grubun = $rows->where('groupUuid', $grup->uuid);
+
+            foreach ($grup->altGruplar->isEmpty() ? [] : [...$grup->altGruplar->all(), null] as $bolme) {
+                $satirlar = $grubun->filter(fn (array $row): bool => $row['altGrupUuid'] === $bolme?->uuid)->values();
+
+                if ($satirlar->isNotEmpty()) {
+                    $bolumler[] = ['baslik' => $grup->name.' · '.($bolme?->name ?? 'Alt grupsuz'), 'uuid' => null,
+                        'sonda' => false, 'diger' => $bolme === null, 'rows' => $satirlar];
+                }
+            }
+
+            if ($grup->altGruplar->isEmpty() && $grubun->isNotEmpty()) {
+                $bolumler[] = ['baslik' => $grup->name, 'uuid' => null, 'sonda' => false, 'rows' => $grubun->values()];
             }
         }
 

@@ -247,8 +247,8 @@
                 --}}
                 <div class="credential-sections" @if ($bolumSirasi) data-order="{{ $bolumSirasi }}" data-order-field="sira" @endif>
                     @foreach ($bolumler as $bolum)
-                        @if ($bolum['uuid'] !== null)
-                            <div class="credential-section-wrap" @if ($bolumSirasi) draggable="true" data-order-id="{{ $bolum['uuid'] }}" @endif>
+                        @if (! $bolum['sonda'])
+                            <div class="credential-section-wrap" @if ($bolumSirasi && $bolum['uuid'] !== null) draggable="true" data-order-id="{{ $bolum['uuid'] }}" @endif>
                                 @include('credentials.partials.section')
                             </div>
                         @endif
@@ -256,7 +256,7 @@
                 </div>
 
                 @foreach ($bolumler as $bolum)
-                    @if ($bolum['uuid'] === null)
+                    @if ($bolum['sonda'])
                         @include('credentials.partials.section')
                     @endif
                 @endforeach

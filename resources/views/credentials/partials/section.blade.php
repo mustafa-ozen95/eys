@@ -4,7 +4,7 @@
     ve en sondaki "Alt grupsuz" bölümü. Değişkenler çağıranın kapsamından gelir.
 --}}
                     @if ($bolum['baslik'] !== null)
-                        <div class="credential-section">
+                        <div @class(['credential-section', 'credential-section--other' => $bolum['diger'] ?? false])>
                             @if ($bolumSirasi)
                                 <span class="handle" aria-hidden="true" title="Sürükleyerek sırala">⣿</span>
                             @endif

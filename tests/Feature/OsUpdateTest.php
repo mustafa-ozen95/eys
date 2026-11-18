@@ -1143,6 +1143,28 @@ class OsUpdateTest extends TestCase
         $this->assertFalse($dgn->osUpdateState()->first()->excluded);
     }
 
+    /** "Hariç tut" yalnızca makinenin başka kaydı varken çizilir; tek kayıtlı makinede yalnızca "Kilitle". Geri alma her zaman. */
+    #[Test]
+    public function haric_tut_dugmesi_yalnizca_kardes_kayit_varken_gorunur(): void
+    {
+        [$user, $group] = $this->kurucu(['os_update_lock']);
+        $tek = $this->makine($group, 'Tek', '10.0.9.60');
+        $root = $this->makine($group, 'Cift', '10.0.9.61', ['username' => 'root']);
+        $this->makine($group, 'Cift (kullanici)', '10.0.9.61', ['username' => 'kullanici']);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $tek->uuid]))->assertOk()
+            ->assertSee(route('os-updates.lock', $tek), false)
+            ->assertDontSee(route('os-updates.exclude', $tek), false);
+
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $root->uuid]))->assertOk()
+            ->assertSee(route('os-updates.exclude', $root), false);
+
+        OsUpdateState::query()->create(['credential_id' => $tek->id, 'excluded' => true, 'exclude_reason' => 'Eski']);
+        $this->actingAs($user)->get(route('os-updates.index', ['kayit' => $tek->uuid]))->assertOk()
+            ->assertSee(route('os-updates.exclude', $tek), false)
+            ->assertSeeText('Dahil et');
+    }
+
     /** Hariç tutmak kilit yetkisi ister; kurma yetkisi yetmez. */
     #[Test]
     public function haric_tutmak_kilit_yetkisi_ister(): void

@@ -44,6 +44,12 @@ class OsUpdateDetail
                 'Paket yöneticisi' => $satir['manager'],
                 'Son denetim' => $satir['checkedAt'] === null ? null : $satir['checkedAt'].' ('.$satir['checkedAgo'].')',
             ], fn (?string $deger): bool => filled($deger)),
+            /*
+             * Hariç tutmak yalnızca makinenin BAŞKA kaydı varken anlamlı (biri
+             * hariç, öbürü güncellenir); tek kayıtlı makinede "Kilitle" ile
+             * aynı işi görüp kafa karıştırıyordu. Geri almak her zaman açık.
+             */
+            'canExclude' => $satir['canLock'] && ($satir['excluded'] || $this->targets->kardesler($kayit)->count() > 1),
             'historyVisible' => $gecmisGorur,
             'history' => $gecmisGorur ? $this->gecmis($kayit, $gorunenler) : [],
             'logsLink' => $user->can('viewAny', ActivityLog::class) ? route('logs.index', ['kayit' => $kayit->uuid]) : null,

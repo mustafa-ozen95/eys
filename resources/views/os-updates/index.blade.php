@@ -380,7 +380,7 @@
                         @endif
 
                         {{-- Kayıt bazlı; kilit makine bazlı. Aynı makinede yetkisiz/yanlış kimlikli ikinci kayıt için. --}}
-                        @if ($selected['canLock'])
+                        @if ($selected['canExclude'])
                             <form method="POST" action="{{ route('os-updates.exclude', $selected['uuid']) }}"
                                   data-inline
                                   data-confirm-title="{{ $selected['excluded'] ? 'Güncellemeye dahil et' : 'Güncellemeden hariç tut' }}"
